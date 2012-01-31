@@ -43,6 +43,9 @@
 #endif
 
 
+#define SOLAR_RADIUS (6.955E8) /* meters */
+
+
 /* 
    data structure to store epehemeris data of the target position on the
    solar surface (t_) and the sun barycenter (s_) with respect to the
@@ -53,23 +56,28 @@
 typedef struct
 {
     SpiceDouble jdate;     /* julian day of the event  */
+    SpiceChar utcdate[80]; /* ascii date in UTC        */
     SpiceDouble B0;        /* lat of sub-observer point */
     SpiceDouble L0;        /* lon of sub-observer point */
     SpiceDouble P0;        /* polar angle */
-    SpiceDouble s_dist;    /* distance to solar center */
-    SpiceDouble s_vlos;    /* radial velocity of solar center */
-    SpiceDouble t_dist;    /* distance to target */
-    SpiceDouble t_vlos;    /* radial velocity of target */
+    SpiceDouble c_dist;    /* distance obs. to solar center */
+    SpiceDouble c_vlos;    /* radial velocity of obs to solar center */
+    SpiceDouble dist;      /* distance to target */
+    SpiceDouble vlos;      /* radial velocity of target */
+    SpiceDouble lon;       /* stonyhurst target longitude (deg) */
+    SpiceDouble lat;       /* stonyhurst target latitude  (deg) */
+    SpiceDouble x;         /* target x coordinate in as from disk center */
+    SpiceDouble y;         /* target y coordinate in as from disk center */
 } soleph_t;
 
 
 
-int station_eph_xy (
-    SpiceChar *station, /* "Izana" */
-    SpiceDouble et,     /* spice ephemeris time */
-    SpiceDouble xpos,   /* x coordinate (as from disc center) */
-    SpiceDouble ypos,   /* y coordinate (as from disc center) */
-    soleph_t *eph       /* struct where ephemeris data is stored to */
+int station_eph (
+    SpiceChar *station, /* Observer's NAIF BODY_NAME ("Izana")     */
+    SpiceDouble et,     /* spice ephemeris time                    */
+    SpiceDouble lon,    /* stonyhurst longitude                    */
+    SpiceDouble lat,    /* stonyhurst latitude                     */
+    soleph_t *eph       /* pt. to struct where to store ephem data */
     );
 
 
