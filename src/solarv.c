@@ -24,88 +24,69 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <unistd.h>
+#include <getopt.h>
+#include <math.h>
+
 #include "solarv.h"
+
+/* SUN_IAU probably uses the mean carrington rotation rate; so we better
+ * stick to HCI here and compute the solar (differential) rotation
+ * manually from the omega coefficient expansion */
+const char* SUNFRAME = "HCI";
+
 
 int main(int argc, char **argv)
 {   
-    SpiceDouble   et;
+    SpiceDouble et;
     char time_utc[80];
     SpiceDouble stepsize = 1; /* minutes */
     SpiceInt nsteps = 1;
-    SpiceDouble
-	lon = 0.0,
-	lat = 0.0;
+    SpiceDouble lon = 0.0, lat = 0.0;
+    bool fancy = true;
 
 
     /* commandline args */
     if (! (argc == 4 || argc == 6)) {
-	fprintf (stderr, "usage: solarv <time utc> <lon> <lat> [<stepsize> <numsteps>]\n");
+	fprintf (stderr, "usage: solarv <time utc> <lon> <lat>"
+		 "[<stepsize> <numsteps>]\n");
 	return EXIT_FAILURE;
     }
     strncpy (time_utc, argv[1], 79);
-
-    if (argc == 4) {
+    if (argc == 4 || argc == 6) {
 	lon = atof (argv[2]);
 	lat = atof (argv[3]);
     }
-    
     if (argc == 6) {
 	stepsize = atof (argv[4]);
 	nsteps = atoi (argv[5]);
     }
-
-    /*
-      load kernels: LSK, PCK, planet/satellite SPK and MGS spacecraft SPK
-    */
-    furnsh_c ("../data/kernels/naif0009.tls");
-    furnsh_c ("../data/kernels/pck00010.tpc");
-    furnsh_c ("../data/kernels/de421.bsp");
-    //furnsh_c ("../data/kernels/de405.bsp");
-    furnsh_c ("../data/kernels/earth_fixed.tf");
-    furnsh_c ("../data/kernels/earth_assoc_itrf93.tf");
-    furnsh_c ("../data/kernels/earth_000101_120411_120119.bpc");
-    //furnsh_c ("../data/kernels/earthstns_fx_050714.bsp");
-    furnsh_c ("../data/kernels/izana.bsp");
-    furnsh_c ("../data/kernels/izana.txt");
+    
+    /* required kernels are coded in solarv.tm  meta kernel */
+    furnsh_c ("../data/kernels/solarv.tm");
 
     utc2et_c (time_utc, &et);
+    et -= 51.2;
 
-    /* das ist der offset zu den daten aus horizons ... wo kommt das her? */
-    //et -= 66.1833;
-
-    printf ("#jdate  B0(deg)  L0(deg)  c_vlos(m/s)  c_dist(m)\n");
+    printf ("#jdate              B0(deg)   L0(deg)    vlos(m/s)  dist(m)\n");
     for (SpiceInt i  = 0; i < nsteps; ++i)
     {
 	soleph_t eph;
 	station_eph ("izana", et, lon, lat, &eph);
 
-	printf ("%.10f  %.6f  %.6f  %.3f  %.3f  %.3f  %.3f\n",
-		eph.jdate, eph.B0, eph.L0, eph.c_vlos, eph.c_dist, eph.vlos, eph.dist);
+	printf ("%.10f  %.6f  %.6f  %.3f  %.3f\n",
+		eph.jdate, eph.B0, eph.L0, eph.vlos, eph.dist);
 
-	printf ("\n"
-		"julian date    : %f\n"
-		"UTC date       : %s\n"
-		"B0             : %f deg\n"
-		"L0             : %f deg\n"
-		"target posn    : %f, %f deg\n"
-		"target velocity: %f m/s\n"
-		"target distance: %f km\n"
-		"center velocity: %f m/s\n"
-		"center distance: %f km\n"
-		"velocity diff  : %f m/s\n"
-		"distance diff  : %f km\n",
-		eph.jdate,
-		eph.utcdate,
-		eph.B0,
-		eph.L0,
-		eph.lon, eph.lat,
-		eph.vlos, eph.dist / 1000,
-		eph.c_vlos, eph.c_dist / 1000,
-		(eph.vlos - eph.c_vlos),
-		(eph.dist - eph.c_dist) / 1000);
+	if (true)
+	    fancy_print_eph (stdout, &eph);
 
-	et += stepsize * 60;
+	et += stepsize * 60.0;
     }
+
+
+    unload_c ("../data/kernels/solarv.tm");
+    return EXIT_SUCCESS;
 }
 
 
@@ -119,28 +100,28 @@ int station_eph (
 {
     SpiceDouble lt;
     SpiceDouble state_otc[6];     /* obs. to sun center state vector */
-    SpiceDouble state_ctt_sun[6]; /* center to target state vector IAU_SUN  */
-    SpiceDouble state_ctt_j2k[6]; /* center to target state vector J2000    */
     SpiceDouble state_ctt[6];     /* center to target state vector J2000    */
     SpiceDouble state_ott[6];     /* obs. to target state vector     */
     SpiceDouble los_otc[3];       /* los vector obs. to sun center   */
     SpiceDouble los_ott[3];       /* los vector obs. to target       */
-    SpiceDouble xform[6][6];
     SpiceDouble subsc[3];
-    SpiceDouble srfvec[3], losvec[3];
+    SpiceDouble srfvec[3];
     SpiceDouble trgepc;
     SpiceDouble slat, slon, srad;
+    
 
     /* remember julian date and ascii utc string of the event */
     eph->jdate = et / spd_c() + j2000_c();
     et2utc_c (et, "C", 2, 79, eph->utcdate);
+    strcpy (eph->station, station);
 
-    
     /* compute sub-observer point on the solar surface to derive B0, and L0 */
-    subpnt_c ("Near point: ellipsoid", "SUN", et, "IAU_SUN", "NONE", station,
+    subpnt_c ("Near point: ellipsoid", "SUN", et, SUNFRAME, "NONE", station,
 	      subsc, &trgepc, srfvec);
     reclat_c (subsc, &srad, &slon, &slat);
     eph->B0 = slat / rpd_c();
+    
+    /* FIXME: get carrington L0 from computation with the SUN_IAU frame */
     eph->L0 = slon / rpd_c();
 
     /* FIXME: implement calculation of P0 */
@@ -152,25 +133,9 @@ int station_eph (
     unorm_c (state_otc, los_otc, &(eph->c_dist));
     eph->c_dist *= 1000;
     eph->c_vlos = vdot_c (los_otc, &state_otc[3]) * 1000;
+
+    target_state (lon * rpd_c(), lat * rpd_c(), slon, et, SU90s, state_ctt, eph);
     
-    /* for the following procedure, also see:
-       http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/pck.html#
-       Transforming%20a%20body-fixed%20state%20to%20the%20inertial%20J2000%20frame
-    */
-
-    /* state vector from sun center to target position on surface; velocity
-     * of target is zero with repsect to the IAU_SUN frame. need to convert
-     * it to the J2000 frame afterwards */
-    SpiceDouble tlon = lon * rpd_c() + slon;
-    SpiceDouble tlat = lat * rpd_c() + slat;
-    latrec_c (SOLAR_RADIUS / 1000.0, tlon, tlat, state_ctt_sun);
-    state_ctt_sun[3] = 0.0;
-    state_ctt_sun[4] = 0.0;
-    state_ctt_sun[5] = 0.0;
-
-    /* rotate _ctt state vector to J2000 frame */
-    sxform_c ("IAU_SUN", "J2000", et, xform);
-    mxvg_c (xform, state_ctt_sun, 6, 6, state_ctt);
 
     /* finally, dist & velocity to target in meter, meter/second */
     vaddg_c (state_otc, state_ctt, 6, state_ott);
@@ -181,5 +146,135 @@ int station_eph (
     eph->lon = lon;
     eph->lat = lat;
 
+
+    /* TODO: compute angle between los and surface normal vector */
+
     return RETURN_SUCCESS;
+}
+
+
+int target_state (
+    SpiceDouble lon,
+    SpiceDouble lat,
+    SpiceDouble lon0,
+    SpiceDouble et,
+    int model,
+    SpiceDouble *state,
+    soleph_t *eph)
+{
+    SpiceDouble xform[6][6];
+    SpiceDouble state_ctt_sun[6];
+
+    /* for the following procedure, also see:
+       http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/pck.html#
+       Transforming%20a%20body-fixed%20state%20to%20the%20inertial%20J2000%20frame
+    */
+
+    /* create state vector from sun center to target position on surface;
+     * velocity of target is zero with repsect to the IAU_SUN frame. need to
+     * convert it to the J2000 frame afterwards */
+    SpiceDouble tlon = lon + lon0;
+    SpiceDouble tlat = lat;
+    latrec_c (SOLAR_RADIUS / 1000.0, tlon, tlat, state_ctt_sun);
+
+    /* radial distance from target to solar rotation axis */
+    eph->rho = sqrt (state_ctt_sun[0] * state_ctt_sun[0] + 
+		     state_ctt_sun[1] * state_ctt_sun[1]);
+
+    /* handle (differential) rotation */
+    SpiceDouble omegas = omega_sun (lat, model);
+    SpiceDouble omega[] = {0.0, 0.0, omegas};
+    SpiceDouble radius[] = {state_ctt_sun[0], state_ctt_sun[1], 0.0};
+    vcrss_c (omega, radius, &state_ctt_sun[3]);
+
+    eph->omega = omegas * 1E6;
+    eph->rotmodel = model;
+    strcpy (eph->modelname, RotModels[model].name);
+    strcpy (eph->modeldescr, RotModels[model].descr);
+    
+
+    /* rotate _ctt state_sun vector to J2000 frame */
+    sxform_c ("HCI", "J2000", et, xform);
+    mxvg_c (xform, state_ctt_sun, 6, 6, state);
+
+    return RETURN_SUCCESS;
+}
+
+
+SpiceDouble omega_sun (SpiceDouble lat, int model)
+{
+    /* compute angular velocity from given rotation model. default is to use
+     * rigid rotation with the spectroscopic equatorial velocity from
+     * snodgrass & ulrich 1990 */
+    SpiceDouble A = 0.0,  B = 0.0,  C = 0.0;
+    
+    switch (model)
+    {
+    case Rigid:
+	A = RotModels[Rigid].A;
+	B = 0.0; C = 0.0;
+	break;
+    case SU90s:
+	A = RotModels[SU90s].A;
+	B = RotModels[SU90s].B;
+	C = RotModels[SU90s].C;
+	break;
+    case SU90g:
+	A = RotModels[SU90g].A;
+	B = RotModels[SU90g].B;
+	C = RotModels[SU90g].C;
+	break;
+    case SU90m:
+	A = RotModels[SU90m].A;
+	B = RotModels[SU90m].B;
+	C = RotModels[SU90m].C;
+	break;
+    default:
+	fprintf (stderr, "unknown rotation model\n");
+	return RETURN_FAILURE;
+	break;
+    }
+
+    /* need to compute with radian/s */
+    A *= 1E-6; B *= 1E-6; C *= 1E-6;
+
+    SpiceDouble sin2lat = sin (lat) * sin (lat);
+    SpiceDouble sin4lat = sin2lat * sin2lat;
+    SpiceDouble omega = A + B * sin2lat + C * sin4lat;
+
+    return omega;
+}
+
+void fancy_print_eph (FILE *stream, soleph_t *eph)
+{
+	    printf ("Detailed ephemeris data\n"
+		    "   observer station: %s\n"
+		    "    target position: lo,la = (%.4f, %.4f) deg\n"
+		    "        julian date: %f\n"
+		    "           UTC date: %s\n"
+		    "                 B0: %f deg\n"
+		    "                 L0: %f deg\n"
+		    "    target velocity: %f m/s\n"
+		    "    target distance: %f km\n"
+		    "     rotation model: %s (%s)\n"
+		    "     rotataion rate: %.5f murad/s\n"
+		    "       local radius: %.4f km\n"
+		    "    center velocity: %f m/s\n"
+		    "    center distance: %f km\n"
+		    "      velocity diff: %f m/s\n"
+		    "      distance diff: %f km\n",
+		    eph->station,
+		    eph->lon, eph->lat,
+		    eph->jdate,
+		    eph->utcdate,
+		    eph->B0,
+		    eph->L0,
+		    eph->vlos, eph->dist / 1000,
+		    eph->modelname, eph->modeldescr,
+		    eph->omega,
+		    eph->rho,
+		    eph->c_vlos, eph->c_dist / 1000,
+		    (eph->vlos - eph->c_vlos),
+		    (eph->dist - eph->c_dist) / 1000);
+
 }

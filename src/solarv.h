@@ -45,6 +45,28 @@
 
 #define SOLAR_RADIUS (6.955E8) /* meters */
 
+typedef struct
+{
+    double A;
+    double B;
+    double C;
+    char name[12];
+    char descr[128];
+} rotmodel_t;
+
+static const rotmodel_t RotModels[] =
+{
+    {2.851,  0.000,  0.000, "Rigid", "rigid body, 2.851 murad/s"},
+    {2.851, -0.343, -0.474, "SU90s", "Snodgrass & Ulrich (1990), spectroscopic"}, 
+    {2.972, -0.484, -0.361, "SU90g", "Snodgrass & Ulrich (1990), supergranulation"},
+    {2.879, -0.339, -0.485, "SU90m", "Snodgrass & Ulrich (1990), magnetic"}
+};
+enum RotModel { Rigid = 0,
+		SU90s,
+		SU90g,
+		SU90m
+};
+
 
 /* 
    data structure to store epehemeris data of the target position on the
@@ -57,17 +79,23 @@ typedef struct
 {
     SpiceDouble jdate;     /* julian day of the event  */
     SpiceChar utcdate[80]; /* ascii date in UTC        */
+    SpiceChar station[128];/* NAIF station name */
     SpiceDouble B0;        /* lat of sub-observer point */
     SpiceDouble L0;        /* lon of sub-observer point */
     SpiceDouble P0;        /* polar angle */
     SpiceDouble c_dist;    /* distance obs. to solar center */
     SpiceDouble c_vlos;    /* radial velocity of obs to solar center */
-    SpiceDouble dist;      /* distance to target */
-    SpiceDouble vlos;      /* radial velocity of target */
     SpiceDouble lon;       /* stonyhurst target longitude (deg) */
     SpiceDouble lat;       /* stonyhurst target latitude  (deg) */
     SpiceDouble x;         /* target x coordinate in as from disk center */
     SpiceDouble y;         /* target y coordinate in as from disk center */
+    SpiceDouble dist;      /* distance to target */
+    SpiceDouble vlos;      /* radial velocity of target */
+    SpiceDouble rho;       /* distance target to solar rotation axis */
+    SpiceDouble omega;     /* actually used omega value (murad/s)    */
+    int rotmodel;          /* rotation model used                    */
+    char modelname[12];    /* name of the rotation model      */
+    char modeldescr[128];  /* description of the rotation model      */
 } soleph_t;
 
 
@@ -80,6 +108,19 @@ int station_eph (
     soleph_t *eph       /* pt. to struct where to store ephem data */
     );
 
+int target_state (
+    SpiceDouble lon,
+    SpiceDouble lat,
+    SpiceDouble lon0,
+    SpiceDouble et,
+    int model,
+    SpiceDouble *state,
+    soleph_t *eph
+    );
+
+SpiceDouble omega_sun (SpiceDouble lat, int model);
+
+void fancy_print_eph (FILE *stream, soleph_t *eph);
 
 
 
