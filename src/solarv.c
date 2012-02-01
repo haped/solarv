@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -31,6 +32,19 @@
 
 #include "solarv.h"
 
+void usage (FILE *stream)
+{
+    printf ("compute precision radial velocities between earth-based "
+	    "observatories\nand a given position on the sun.\n"
+	    "\n"
+	    "usage: solarv [options] <date> <lat lon> [<tstep> <nsteps]\n"
+	    "options:\n"
+	    "  -h          show this help\n"
+	    "  -m model    set solar rotation model 'model'\n"
+	    "              use 'list' to list available models\n"
+	    "  -p          pretty-print ephemeris data\n");
+}
+
 int main(int argc, char **argv)
 {   
     SpiceDouble et;
@@ -38,23 +52,57 @@ int main(int argc, char **argv)
     SpiceDouble stepsize = 1; /* minutes */
     SpiceInt nsteps = 1;
     SpiceDouble lon = 0.0, lat = 0.0;
-    bool fancy = true;
+    bool fancy = false;
+    int rotModel = Inertial;
 
+    int c; opterr = 0;
+    while ((c = getopt (argc, argv, "hm:p")) != -1)
+    {
+        switch (c)
+        {
+        case 'h': usage (stdout); return EXIT_SUCCESS;
+        case 'm':
+	    if (strcasecmp (optarg, "list") == 0) {
+		printf ("available rotation models:\n");
+		list_rotation_models (stdout);
+		return EXIT_SUCCESS;
+	    }
+	    else if (strcasecmp (optarg, "rigid") == 0)
+		rotModel = Rigid;
+	    else if (strcasecmp (optarg, "inertial") == 0)
+		rotModel = Inertial;
+	    else if (strcasecmp (optarg, "su90s") == 0)
+		rotModel = SU90s;
+	    else if (strcasecmp (optarg, "su90g") == 0)
+		rotModel = SU90g;
+	    else if (strcasecmp (optarg, "su90m") == 0)
+		rotModel = SU90m;
+	    else if (strcasecmp (optarg, "s84s") == 0)
+		rotModel = S84s;
+	    else {
+		fprintf (stderr, "unknown rotation model: %s, available:\n", optarg);
+		list_rotation_models (stderr);
+		return EXIT_FAILURE;
+	    }					
+	    break;
+        case 'p': fancy = true; break;
+        default: usage (stdout); return EXIT_FAILURE;
+        }
+    }
 
     /* commandline args */
-    if (! (argc == 4 || argc == 6)) {
-	fprintf (stderr, "usage: solarv <time utc> <lon> <lat>"
-		 "[<stepsize> <numsteps>]\n");
+    if (! (argc - optind == 3 || argc - optind == 5)) {
+	usage (stdout);
 	return EXIT_FAILURE;
     }
-    strncpy (time_utc, argv[1], 79);
-    if (argc == 4 || argc == 6) {
-	lon = atof (argv[2]);
-	lat = atof (argv[3]);
+    strncpy (time_utc, argv[optind], 79);
+    if (argc - optind == 3 || argc - optind == 5) {
+	lon = atof (argv[optind + 1]);
+	lat = atof (argv[optind + 2]);
     }
-    if (argc == 6) {
-	stepsize = atof (argv[4]);
-	nsteps = atoi (argv[5]);
+    if (argc - optind == 5) {
+	stepsize = atof (argv[optind + 3]);
+	nsteps = atoi (argv[optind + 4]);
     }
     
     /* required kernels are coded in solarv.tm  meta kernel */
@@ -66,12 +114,12 @@ int main(int argc, char **argv)
     for (SpiceInt i  = 0; i < nsteps; ++i)
     {
 	soleph_t eph;
-	station_eph ("izana", et, lon, lat, &eph);
+	station_eph ("izana", et, lon, lat, &eph, rotModel);
 
 	printf ("%.10f  %.6f  %.6f  %.3f  %.3f\n",
 		eph.jdate, eph.B0, eph.L0, eph.vlos, eph.dist);
 
-	if (true)
+	if (fancy)
 	    fancy_print_eph (stdout, &eph);
 
 	et += stepsize * 60.0;
@@ -88,7 +136,8 @@ int station_eph (
     SpiceDouble et,     /* spice ephemeris time                    */
     SpiceDouble lon,    /* stonyhurst longitude   (deg)            */
     SpiceDouble lat,    /* stonyhurst latitude    (deg)            */
-    soleph_t *eph       /* pt. to struct where to store ephem data */
+    soleph_t *eph,      /* pt. to struct where to store ephem data */
+    int rotModel        /* solar rotation model */
     )
 {
     SpiceDouble lt;
@@ -102,7 +151,6 @@ int station_eph (
     SpiceDouble trgepc;
     SpiceDouble slat, slon, srad;
     
-
     /* remember julian date and ascii utc string of the event */
     eph->jdate = et / spd_c() + j2000_c();
     et2utc_c (et, "C", 2, 79, eph->utcdate);
@@ -128,8 +176,7 @@ int station_eph (
     eph->c_vlos = vdot_c (los_otc, &state_otc[3]) * 1000;
 
     //printf ("vz = %f\n", state_otc[5]);
-    target_state (lon * rpd_c(), lat * rpd_c(), slon, et, Inertial, state_ctt, eph);
-    
+    target_state (lon * rpd_c(), lat * rpd_c(), slon, et, rotModel, state_ctt, eph);
 
     /* finally, dist & velocity to target in meter, meter/second */
     vaddg_c (state_otc, state_ctt, 6, state_ott);
@@ -194,6 +241,10 @@ int target_state (
 }
 
 
+/* new interface */
+int state_obs2center();
+int state_center2tgt();
+
 SpiceDouble omega_sun (SpiceDouble lat, int model)
 {
     if (model > RotModel_EnumEND - 1 || model < 0) {
@@ -215,26 +266,28 @@ SpiceDouble omega_sun (SpiceDouble lat, int model)
 void fancy_print_eph (FILE *stream, soleph_t *eph)
 {
 	    printf ("Detailed ephemeris data\n"
-		    "   observer station: %s\n"
-		    "    target position: lo,la = (%.4f, %.4f) deg\n"
-		    "        julian date: %f\n"
-		    "           UTC date: %s\n"
-		    "                 B0: %f deg\n"
-		    "                 L0: %f deg\n"
-		    "    target velocity: %f m/s\n"
-		    "    target distance: %f km\n"
-		    "     rotation model: %s (%s)\n"
-		    "     rotataion rate: %.5f murad/s\n"
-		    "       local radius: %.4f km\n"
-		    "    center velocity: %f m/s\n"
-		    "    center distance: %f km\n"
-		    "      velocity diff: %f m/s\n"
-		    "      distance diff: %f km\n",
+		    "     observer station: %s\n"
+		    "      target position: (%.4f, %.4f) deg, (%.1f, %.1f) as\n"
+		    "          julian date: %f\n"
+		    "             UTC date: %s\n"
+		    "                   B0: %f deg\n"
+		    "                   P0: %f deg\n"
+		    "        carrington L0: %f deg\n"
+		    "  target LOS velocity: %f m/s\n"
+		    "      target distance: %f km\n"
+		    " solar rotation model: %s (%s)\n"
+		    "       rotataion rate: %.5f murad/s\n"
+		    "         local radius: %.4f km\n"
+		    "  center LOS velocity: %f m/s\n"
+		    "      center distance: %f km\n"
+		    "        velocity diff: %f m/s\n"
+		    "        distance diff: %f km\n",
 		    eph->station,
-		    eph->lon, eph->lat,
+		    eph->lon, eph->lat, eph->x, eph->y,
 		    eph->jdate,
 		    eph->utcdate,
 		    eph->B0,
+		    eph->P0,
 		    eph->L0,
 		    eph->vlos, eph->dist / 1000,
 		    eph->modelname, eph->modeldescr,
@@ -243,5 +296,17 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		    eph->c_vlos, eph->c_dist / 1000,
 		    (eph->vlos - eph->c_vlos),
 		    (eph->dist - eph->c_dist) / 1000);
+}
 
+void list_rotation_models (FILE *stream)
+{
+    fprintf (stream, "name          A       B       C       description\n");
+    fprintf (stream, "--------------------------------"
+	    "--------------------------------\n");
+    for (int i = 0; i < RotModel_EnumEND; ++i) {
+	fprintf (stream, "%-12s % 6.4f % 6.4f % 6.4f  %s\n",
+		 RotModels[i].name,
+		 RotModels[i].A, RotModels[i].B, RotModels[i].C,
+		 RotModels[i].descr);
+    }
 }

@@ -57,7 +57,7 @@ typedef struct
 static const rotmodel_t RotModels[] =
 {
     {2.851,  0.000,  0.000, "Rigid", "rigid body, 2.851 murad/s"},
-    {0.000,  0.000,  0.000, "Inertial", "no rotation, fixed to intertial j2000 frame"},
+    {0.000,  0.000,  0.000, "Inertial", "no rotation, fixed to inertial J2000 frame"},
     {2.851, -0.343, -0.474, "SU90s", "Snodgrass & Ulrich (1990), spectroscopic"}, 
     {2.972, -0.484, -0.361, "SU90g", "Snodgrass & Ulrich (1990), supergranulation"},
     {2.879, -0.339, -0.485, "SU90m", "Snodgrass & Ulrich (1990), magnetic"},
@@ -105,13 +105,15 @@ typedef struct
 } soleph_t;
 
 
+void usage (FILE *stream);
 
 int station_eph (
     SpiceChar *station, /* Observer's NAIF BODY_NAME ("Izana")     */
     SpiceDouble et,     /* spice ephemeris time                    */
     SpiceDouble lon,    /* stonyhurst longitude                    */
     SpiceDouble lat,    /* stonyhurst latitude                     */
-    soleph_t *eph       /* pt. to struct where to store ephem data */
+    soleph_t *eph,       /* pt. to struct where to store ephem data */
+    int rotModel
     );
 
 int target_state (
@@ -128,6 +130,7 @@ SpiceDouble omega_sun (SpiceDouble lat, int model);
 
 void fancy_print_eph (FILE *stream, soleph_t *eph);
 
+void list_rotation_models (FILE *stream);
 
 
 #endif /* _SOLARV_H_ */
