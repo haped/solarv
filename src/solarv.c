@@ -31,12 +31,6 @@
 
 #include "solarv.h"
 
-/* SUN_IAU probably uses the mean carrington rotation rate; so we better
- * stick to HCI here and compute the solar (differential) rotation
- * manually from the omega coefficient expansion */
-const char* SUNFRAME = "HCI";
-
-
 int main(int argc, char **argv)
 {   
     SpiceDouble et;
@@ -67,7 +61,6 @@ int main(int argc, char **argv)
     furnsh_c ("../data/kernels/solarv.tm");
 
     utc2et_c (time_utc, &et);
-    et -= 51.2;
 
     printf ("#jdate              B0(deg)   L0(deg)    vlos(m/s)  dist(m)\n");
     for (SpiceInt i  = 0; i < nsteps; ++i)
@@ -116,7 +109,7 @@ int station_eph (
     strcpy (eph->station, station);
 
     /* compute sub-observer point on the solar surface to derive B0, and L0 */
-    subpnt_c ("Near point: ellipsoid", "SUN", et, SUNFRAME, "NONE", station,
+    subpnt_c ("Near point: ellipsoid", "SUN", et, "HCI", "NONE", station,
 	      subsc, &trgepc, srfvec);
     reclat_c (subsc, &srad, &slon, &slat);
     eph->B0 = slat / rpd_c();
@@ -134,7 +127,8 @@ int station_eph (
     eph->c_dist *= 1000;
     eph->c_vlos = vdot_c (los_otc, &state_otc[3]) * 1000;
 
-    target_state (lon * rpd_c(), lat * rpd_c(), slon, et, SU90s, state_ctt, eph);
+    //printf ("vz = %f\n", state_otc[5]);
+    target_state (lon * rpd_c(), lat * rpd_c(), slon, et, Inertial, state_ctt, eph);
     
 
     /* finally, dist & velocity to target in meter, meter/second */
@@ -192,7 +186,6 @@ int target_state (
     strcpy (eph->modelname, RotModels[model].name);
     strcpy (eph->modeldescr, RotModels[model].descr);
     
-
     /* rotate _ctt state_sun vector to J2000 frame */
     sxform_c ("HCI", "J2000", et, xform);
     mxvg_c (xform, state_ctt_sun, 6, 6, state);
@@ -203,40 +196,14 @@ int target_state (
 
 SpiceDouble omega_sun (SpiceDouble lat, int model)
 {
-    /* compute angular velocity from given rotation model. default is to use
-     * rigid rotation with the spectroscopic equatorial velocity from
-     * snodgrass & ulrich 1990 */
-    SpiceDouble A = 0.0,  B = 0.0,  C = 0.0;
-    
-    switch (model)
-    {
-    case Rigid:
-	A = RotModels[Rigid].A;
-	B = 0.0; C = 0.0;
-	break;
-    case SU90s:
-	A = RotModels[SU90s].A;
-	B = RotModels[SU90s].B;
-	C = RotModels[SU90s].C;
-	break;
-    case SU90g:
-	A = RotModels[SU90g].A;
-	B = RotModels[SU90g].B;
-	C = RotModels[SU90g].C;
-	break;
-    case SU90m:
-	A = RotModels[SU90m].A;
-	B = RotModels[SU90m].B;
-	C = RotModels[SU90m].C;
-	break;
-    default:
-	fprintf (stderr, "unknown rotation model\n");
-	return RETURN_FAILURE;
-	break;
+    if (model > RotModel_EnumEND - 1 || model < 0) {
+	fprintf (stderr, "invalid rotation model: %i\n", model);
+	exit (EXIT_FAILURE);
     }
-
-    /* need to compute with radian/s */
-    A *= 1E-6; B *= 1E-6; C *= 1E-6;
+    SpiceDouble
+	A = RotModels[model].A * 1E-6,
+	B = RotModels[model].B * 1E-6,
+	C = RotModels[model].C * 1E-6;
 
     SpiceDouble sin2lat = sin (lat) * sin (lat);
     SpiceDouble sin4lat = sin2lat * sin2lat;
