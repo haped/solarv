@@ -53,10 +53,10 @@ int main(int argc, char **argv)
     SpiceInt nsteps = 1;
     SpiceDouble lon = 0.0, lat = 0.0;
     bool fancy = false;
-    int rotModel = Inertial;
+    int rotModel = fixed;
 
     int c; opterr = 0;
-    while ((c = getopt (argc, argv, "hm:p")) != -1)
+    while ((c = getopt (argc, argv, "+hm:p")) != -1)
     {
         switch (c)
         {
@@ -68,17 +68,17 @@ int main(int argc, char **argv)
 		return EXIT_SUCCESS;
 	    }
 	    else if (strcasecmp (optarg, "rigid") == 0)
-		rotModel = Rigid;
-	    else if (strcasecmp (optarg, "inertial") == 0)
-		rotModel = Inertial;
+		rotModel = rigid;
+	    else if (strcasecmp (optarg, "fixed") == 0)
+		rotModel = fixed;
 	    else if (strcasecmp (optarg, "su90s") == 0)
-		rotModel = SU90s;
+		rotModel = su90s;
 	    else if (strcasecmp (optarg, "su90g") == 0)
-		rotModel = SU90g;
+		rotModel = su90g;
 	    else if (strcasecmp (optarg, "su90m") == 0)
-		rotModel = SU90m;
+		rotModel = su90m;
 	    else if (strcasecmp (optarg, "s84s") == 0)
-		rotModel = S84s;
+		rotModel = s84s;
 	    else {
 		fprintf (stderr, "unknown rotation model: %s, available:\n", optarg);
 		list_rotation_models (stderr);
@@ -107,25 +107,27 @@ int main(int argc, char **argv)
     
     /* required kernels are coded in solarv.tm  meta kernel */
     furnsh_c ("../data/kernels/solarv.tm");
+    /* TODO: poss. to load a custom kernel here */
 
     utc2et_c (time_utc, &et);
 
-    printf ("#jdate              B0(deg)   L0(deg)    vlos(m/s)  dist(m)\n");
+    if (! fancy)
+	printf ("#jdate          B0(deg)   P0(deg)   vlos(m/s)   dist(m)\n");
     for (SpiceInt i  = 0; i < nsteps; ++i)
     {
 	soleph_t eph;
 	station_eph ("izana", et, lon, lat, &eph, rotModel);
 
-	printf ("%.10f  %.6f  %.6f  %.3f  %.3f\n",
-		eph.jdate, eph.B0, eph.L0, eph.vlos, eph.dist);
-
-	if (fancy)
+	if (fancy) {
 	    fancy_print_eph (stdout, &eph);
-
+	    if (i < nsteps - 1) printf ("\n");
+	}
+	else
+	    printf ("%.6f  %7.4f  %9.4f  %9.4f   %.3f\n",
+		    eph.jdate, eph.B0, eph.P0, eph.vlos, eph.dist);
 	et += stepsize * 60.0;
     }
-
-
+    
     unload_c ("../data/kernels/solarv.tm");
     return EXIT_SUCCESS;
 }
@@ -222,6 +224,10 @@ int target_state (
     eph->rho = sqrt (state_ctt_sun[0] * state_ctt_sun[0] + 
 		     state_ctt_sun[1] * state_ctt_sun[1]);
 
+    /* FIXME: this is an approximation only! */
+    eph->x = tan (state_ctt_sun[1] * 1000.0 / eph->c_dist) * dpr_c() * 3600.0;
+    eph->y = tan (state_ctt_sun[2] * 1000.0 / eph->c_dist) * dpr_c() * 3600.0;
+
     /* handle (differential) rotation */
     SpiceDouble omegas = omega_sun (lat, model);
     SpiceDouble omega[] = {0.0, 0.0, omegas};
@@ -247,7 +253,7 @@ int state_center2tgt();
 
 SpiceDouble omega_sun (SpiceDouble lat, int model)
 {
-    if (model > RotModel_EnumEND - 1 || model < 0) {
+    if (model > RotModel_END - 1 || model < 0) {
 	fprintf (stderr, "invalid rotation model: %i\n", model);
 	exit (EXIT_FAILURE);
     }
@@ -265,31 +271,30 @@ SpiceDouble omega_sun (SpiceDouble lat, int model)
 
 void fancy_print_eph (FILE *stream, soleph_t *eph)
 {
-	    printf ("Detailed ephemeris data\n"
-		    "     observer station: %s\n"
-		    "      target position: (%.4f, %.4f) deg, (%.1f, %.1f) as\n"
+	    printf ("Solar ephemeris for %s, %s, pos (%.3f, %.3f) deg\n"
 		    "          julian date: %f\n"
-		    "             UTC date: %s\n"
-		    "                   B0: %f deg\n"
-		    "                   P0: %f deg\n"
-		    "        carrington L0: %f deg\n"
-		    "  target LOS velocity: %f m/s\n"
-		    "      target distance: %f km\n"
+		    "        disk position: %.1f, %.1f arcsec\n"
+		    "                   B0: %.4f deg\n"
+		    "                   P0: %.4f deg\n"
+		    "        carrington L0: %.4f deg\n"
+		    "  target LOS velocity: %.3f m/s\n"
+		    "      target distance: %.3f km\n"
 		    " solar rotation model: %s (%s)\n"
 		    "       rotataion rate: %.5f murad/s\n"
-		    "         local radius: %.4f km\n"
-		    "  center LOS velocity: %f m/s\n"
-		    "      center distance: %f km\n"
-		    "        velocity diff: %f m/s\n"
-		    "        distance diff: %f km\n",
-		    eph->station,
-		    eph->lon, eph->lat, eph->x, eph->y,
+		    "         local radius: %.3f km\n"
+		    "  center LOS velocity: %.3f m/s\n"
+		    "      center distance: %.3f km\n"
+		    "        velocity diff: %.3f m/s\n"
+		    "        distance diff: %.3f km\n",
+		    eph->station, eph->utcdate,
+		    eph->lon, eph->lat,
 		    eph->jdate,
-		    eph->utcdate,
+		    eph->x, eph->y,
 		    eph->B0,
 		    eph->P0,
 		    eph->L0,
-		    eph->vlos, eph->dist / 1000,
+		    eph->vlos,
+		    eph->dist / 1000,
 		    eph->modelname, eph->modeldescr,
 		    eph->omega,
 		    eph->rho,
@@ -300,11 +305,11 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 
 void list_rotation_models (FILE *stream)
 {
-    fprintf (stream, "name          A       B       C       description\n");
+    fprintf (stream, "name        A       B       C       description\n");
     fprintf (stream, "--------------------------------"
 	    "--------------------------------\n");
-    for (int i = 0; i < RotModel_EnumEND; ++i) {
-	fprintf (stream, "%-12s % 6.4f % 6.4f % 6.4f  %s\n",
+    for (int i = 0; i < RotModel_END; ++i) {
+	fprintf (stream, "%-10s % 6.4f % 6.4f % 6.4f  %s\n",
 		 RotModels[i].name,
 		 RotModels[i].A, RotModels[i].B, RotModels[i].C,
 		 RotModels[i].descr);
