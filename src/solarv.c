@@ -34,7 +34,8 @@
 
 void usage (FILE *stream)
 {
-    printf ("compute precision radial velocities between earth-based "
+    printf ("solarv v%s, %s by %s\n\n"
+	    "compute precision radial velocities between earth-based "
 	    "observatories\nand a given position on the sun.\n"
 	    "\n"
 	    "usage: solarv [options] <date> <lat lon> [<tstep> <nsteps]\n"
@@ -53,7 +54,9 @@ void usage (FILE *stream)
 	    "\n"
 	    "Compute radial velocity at the western limb at 45deg latitude using\n"
 	    "Snodgrass & Ulrich (1990) spectroscopy rotation model:\n"
-	    "  solarv -p -m su90s 2010-01-01T00:00:00 90 45\n"
+	    "  solarv -p -m su90s 2010-01-01T00:00:00 90 45\n",
+	    version, versiondate, author
+	    
 	);
 }
 

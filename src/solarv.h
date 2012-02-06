@@ -24,6 +24,10 @@
 #ifndef _SOLARV_H_
 #define _SOLARV_H_
 
+static const char author[] = "HP Doerr";
+static const char version[] = "0.1a";
+static const char versiondate[] = "2012-02-06";
+
 #include "SpiceUsr.h"
 
 #ifndef EXIT_SUCCESS
