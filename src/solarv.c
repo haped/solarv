@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 	    else if (strcasecmp (optarg, "s84s") == 0)
 		rotModel = s84s;
 	    else {
-		fprintf (stderr, "unknown rotation model: %s, available:\n", optarg);
+		fprintf (stderr, "unknown rotation model: %s\n", optarg);
 		list_rotation_models (stderr);
 		return EXIT_FAILURE;
 	    }					
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
     utc2et_c (time_utc, &et);
 
     if (! fancy)
-	printf ("#jdate          B0(deg)   P0(deg)   vlos(m/s)   dist(m)\n");
+	print_ephtable_head (stdout);
     for (SpiceInt i  = 0; i < nsteps; ++i)
     {
 	soleph_t eph;
@@ -123,8 +123,8 @@ int main(int argc, char **argv)
 	    if (i < nsteps - 1) printf ("\n");
 	}
 	else
-	    printf ("%.6f  %7.4f  %9.4f  %9.4f   %.3f\n",
-		    eph.jdate, eph.B0, eph.P0, eph.vlos, eph.dist);
+	    print_ephtable_row (stdout, &eph);
+
 	et += stepsize * 60.0;
     }
     
@@ -144,10 +144,53 @@ int soleph (
     SpiceDouble lon,    /* stonyhurst longitude of target point    */
     SpiceDouble lat,    /* stonyhurst latitude of target point     */
     soleph_t *eph,
-    int rotModel)
+    int rotmodel)
 {
-    /* reset everything */
+    SpiceDouble subpoint[3];
+    SpiceDouble srfvec[3];
+    SpiceDouble trgepc;
+    SpiceDouble subrad, sublon, sublat; /* lola cords of sub-observer point */
+    SpiceDouble state_ots[6];
+    SpiceDouble state_stt[6];
+    SpiceDouble state_ott[6];
+    SpiceDouble los_ott[3];
+    SpiceDouble lonrd = lon * rpd_c();
+    SpiceDouble latrd = lat * rpd_c();
+
     reset_soleph (eph);
+    
+    /* remember julian date and ascii utc string of the event */
+    eph->jdate = unitim_c (et, "ET", "JDTDB");
+    et2utc_c (et, "C", 2, 79, eph->utcdate);
+    strcpy (eph->station, station);
+    
+    /* compute sub-observer point on the solar surface to derive B0, and L0 */
+    /* FIXME: check if and which abberation correction is needed here. LT+S
+     * should be correct because NONE would compute the geometric state at
+     * 'et' while what we actually observe has happened ~8 mins before */
+    subpnt_c ("Near point: ellipsoid", "SUN", et, "IAU_SUN",
+	      ABCORR, station, subpoint, &trgepc, srfvec);
+    reclat_c (subpoint, &subrad, &sublon, &sublat);
+    eph->B0 = sublat;
+    eph->L0 = sublon; /* carrington longitude */
+
+    /* compute solar barycenter state relative to observer */
+    relstate_observer_sun (station, et, eph, state_ots);
+
+    /* compute target state relative to sun barycenter */
+    relstate_sun_target (station, et, lonrd, latrd, rotmodel, eph, state_stt);
+
+    /* compute observer to target by adding ots + stt */
+    vaddg_c (state_ots, state_stt, 6, state_ott);
+    unorm_c (state_ott, los_ott, &(eph->dist));
+    eph->vlos = vdot_c (los_ott, &state_ott[3]);
+    
+    /************************************************************************
+     compute further ephemeris data from the parameters we gathered so far
+    ************************************************************************/
+
+    /* apparent diameter of the disc in arcsec */
+    eph->rsun_as = RSUN / (eph->dist_sun * 1000) * dpr_c() * 3600.0;
 
     return RETURN_SUCCESS;
 }
@@ -155,12 +198,20 @@ int soleph (
 /* compute relative state of observer to solar barycenter in the j2000
  * reference frame */
 int relstate_observer_sun (
-    SpiceChar *station,
-    SpiceDouble et,
+    SpiceChar *station,   /* NAIF body name of observer ("Izana") */
+    SpiceDouble et,       /* ephemeris time of event              */
     soleph_t *eph,
-    SpiceDouble *state)
+    SpiceDouble *state_otc /* obs. to sun center state vector */
+    )
 {
+    SpiceDouble lt;
+    SpiceDouble los_otc[3];       /* los vector obs. to sun center   */
     
+    /* vlos and distance to sun barycenter: km, km/s */
+    spkezr_c ("SUN", et, "J2000",  "LT+S", station, state_otc, &lt);
+    unorm_c (state_otc, los_otc, &(eph->dist_sun));
+    eph->vlos_sun = vdot_c (los_otc, &state_otc[3]);
+
 
 
     return RETURN_SUCCESS;
@@ -169,74 +220,62 @@ int relstate_observer_sun (
 /* compute relative state from solar center to target position on the
  * surface in IAU_SUN frame */
 int relstate_sun_target (
+    SpiceChar *station,
     SpiceDouble et,
-    SpiceDouble lon,
-    SpiceDouble lat,
+    SpiceDouble lon,    /* stonyhurst lon in radian */
+    SpiceDouble lat,    /* stonyhurst lat in radian */
+    int rotmodel,
     soleph_t *eph,
-    SpiceDouble *state)
+    SpiceDouble *state_stt)
 {
-
-    return RETURN_SUCCESS;
-}
-
-int station_eph (
-    SpiceChar *station, /* Observer's NAIF BODY_NAME ("Izana")     */
-    SpiceDouble et,     /* spice ephemeris time                    */
-    SpiceDouble lon,    /* stonyhurst longitude   (deg)            */
-    SpiceDouble lat,    /* stonyhurst latitude    (deg)            */
-    soleph_t *eph,      /* pt. to struct where to store ephem data */
-    int rotModel        /* solar rotation model */
-    )
-{
-    SpiceDouble lt;
-    SpiceDouble state_otc[6];     /* obs. to sun center state vector */
-    SpiceDouble state_ctt[6];     /* center to target state vector J2000    */
-    SpiceDouble state_ott[6];     /* obs. to target state vector     */
-    SpiceDouble los_otc[3];       /* los vector obs. to sun center   */
-    SpiceDouble los_ott[3];       /* los vector obs. to target       */
-    SpiceDouble subsc[3];
+    SpiceDouble subpoint[3];
     SpiceDouble srfvec[3];
     SpiceDouble trgepc;
-    SpiceDouble slat, slon, srad;
+    SpiceDouble subrad, sublon, sublat; /* lola cords of sub-observer point   */
+    SpiceDouble xform[6][6];            /* transf. matrix body-fixed -> j2000 */
+    SpiceDouble state_stt_fixed[6];     /* sun-to-target state vector         */
+
+    /* for the following procedure, also see:
+       http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/pck.html#
+       Transforming%20a%20body-fixed%20state%20to%20the%20inertial%20J2000%20frame
+    */
+
+    /* again we compute the sub-observer point, but this time in the fixed
+     * Heliocentric Inertial frame. the sub-observer longitude computed in
+     * such a way is then used as an offset to compute the rectangluar
+     * target position on a sphere with solar radius. this coordinates are
+     * then rotated in the j2000 frame and added to the j2000 state of the
+     * solar barycenter to get the target position on the sun relative to
+     * observer in j2000 coordinates */
+    subpnt_c ("Near point: ellipsoid", "SUN", et, "HCI", ABCORR, station,
+	      subpoint, &trgepc, srfvec);
+    reclat_c (subpoint, &subrad, &sublon, &sublat);
     
-    /* remember julian date and ascii utc string of the event */
-    eph->jdate = et / spd_c() + j2000_c();
-    et2utc_c (et, "C", 2, 79, eph->utcdate);
-    strcpy (eph->station, station);
+    /* rectangular, body fixed coorindates of target point given in
+     * stonyhurst coordinates */
+    SpiceDouble tlon = lon + sublon;
+    SpiceDouble tlat = lat;
+    latrec_c (RSUN / 1000.0, tlon, tlat, state_stt_fixed);
 
-    /* compute sub-observer point on the solar surface to derive B0, and L0 */
-    subpnt_c ("Near point: ellipsoid", "SUN", et, "HCI", "NONE", station,
-	      subsc, &trgepc, srfvec);
-    reclat_c (subsc, &srad, &slon, &slat);
-    eph->B0 = slat / rpd_c();
-    
-    /* FIXME: get carrington L0 from computation with the SUN_IAU frame */
-    eph->L0 = slon / rpd_c();
+    /* radial distance from target to solar rotation axis */
+    eph->rho = sqrt (state_stt_fixed[0] * state_stt_fixed[0] + 
+		     state_stt_fixed[1] * state_stt_fixed[1]);
 
-    /* FIXME: implement calculation of P0 */
-    /* P0 = .... */
+    /* additional veloctiy from (differential) rotation according to
+     * rotation model specified */
+    SpiceDouble omegas = omega_sun (lat, rotmodel);
+    SpiceDouble omega[] = {0.0, 0.0, omegas};
+    SpiceDouble radius[] = {state_stt_fixed[0], state_stt_fixed[1], 0.0};
+    vcrss_c (omega, radius, &state_stt_fixed[3]);
 
-    /* vlos and distance to sun's barycenter */
-    /* FIXME: what about spkgeo_c()?? looks the same! */
-    spkezr_c ("SUN", et, "J2000",  "NONE", station, state_otc, &lt);
-    unorm_c (state_otc, los_otc, &(eph->dist_sun));
-    eph->dist_sun *= 1000;
-    eph->vlos_sun = vdot_c (los_otc, &state_otc[3]) * 1000;
+    eph->omega = omegas * 1E6; /* we store omega in murad/s */
+    eph->rotmodel = rotmodel;
+    strcpy (eph->modelname, RotModels[rotmodel].name);
+    strcpy (eph->modeldescr, RotModels[rotmodel].descr);
 
-    //printf ("vz = %f\n", state_otc[5]);
-    target_state (lon * rpd_c(), lat * rpd_c(), slon, et, rotModel, state_ctt, eph);
-
-    /* finally, dist & velocity to target in meter, meter/second */
-    vaddg_c (state_otc, state_ctt, 6, state_ott);
-    unorm_c (state_ott, los_ott, &(eph->dist));
-    eph->dist *= 1000;
-    eph->vlos = vdot_c (los_ott, &state_ott[3]) * 1000;
-	
-    eph->lon = lon;
-    eph->lat = lat;
-
-
-    /* TODO: compute angle between los and surface normal vector */
+    /* now, rotate body-fixed state to j20000 */
+    sxform_c ("HCI", "J2000", et, xform);
+    mxvg_c (xform, state_stt_fixed, 6, 6, state_stt);
 
     return RETURN_SUCCESS;
 }
@@ -268,61 +307,6 @@ void reset_soleph (soleph_t *eph)
 }
 
 
-int target_state (
-    SpiceDouble lon,
-    SpiceDouble lat,
-    SpiceDouble lon0,
-    SpiceDouble et,
-    int model,
-    SpiceDouble *state,
-    soleph_t *eph)
-{
-    SpiceDouble xform[6][6];
-    SpiceDouble state_ctt_sun[6];
-
-    /* for the following procedure, also see:
-       http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/pck.html#
-       Transforming%20a%20body-fixed%20state%20to%20the%20inertial%20J2000%20frame
-    */
-
-    /* create state vector from sun center to target position on surface;
-     * velocity of target is zero with repsect to the IAU_SUN frame. need to
-     * convert it to the J2000 frame afterwards */
-    SpiceDouble tlon = lon + lon0;
-    SpiceDouble tlat = lat;
-    latrec_c (SOLAR_RADIUS / 1000.0, tlon, tlat, state_ctt_sun);
-
-    /* radial distance from target to solar rotation axis */
-    eph->rho = sqrt (state_ctt_sun[0] * state_ctt_sun[0] + 
-		     state_ctt_sun[1] * state_ctt_sun[1]);
-
-    /* FIXME: this is an approximation only! */
-    eph->x = tan (state_ctt_sun[1] * 1000.0 / eph->dist_sun) * dpr_c() * 3600.0;
-    eph->y = tan (state_ctt_sun[2] * 1000.0 / eph->dist_sun) * dpr_c() * 3600.0;
-
-    /* handle (differential) rotation */
-    SpiceDouble omegas = omega_sun (lat, model);
-    SpiceDouble omega[] = {0.0, 0.0, omegas};
-    SpiceDouble radius[] = {state_ctt_sun[0], state_ctt_sun[1], 0.0};
-    vcrss_c (omega, radius, &state_ctt_sun[3]);
-
-    eph->omega = omegas * 1E6;
-    eph->rotmodel = model;
-    strcpy (eph->modelname, RotModels[model].name);
-    strcpy (eph->modeldescr, RotModels[model].descr);
-    
-    /* rotate _ctt state_sun vector to J2000 frame */
-    sxform_c ("HCI", "J2000", et, xform);
-    mxvg_c (xform, state_ctt_sun, 6, 6, state);
-
-    return RETURN_SUCCESS;
-}
-
-
-/* new interface */
-int state_obs2center();
-int state_center2tgt();
-
 SpiceDouble omega_sun (SpiceDouble lat, int model)
 {
     if (model > RotModel_END - 1 || model < 0) {
@@ -350,8 +334,8 @@ void print_ephtable_head (FILE *stream)
 void print_ephtable_row (FILE *stream, soleph_t *eph)
 {
     fprintf (stream, "%.6f %7.4f %9.4f %10.4f %9.4f  %14.3f  %9.4f  %13.3f\n",
-	     eph->jdate, eph->B0, eph->P0, eph->L0,
-	     eph->vlos, eph->dist, eph->vlos_sun, eph->dist_sun);
+	     eph->jdate, eph->B0 * dpr_c(), eph->P0 * dpr_c(), eph->L0 * dpr_c(),
+	     eph->vlos * 1000, eph->dist, eph->vlos_sun * 1000, eph->dist_sun);
 }
 
 void fancy_print_eph (FILE *stream, soleph_t *eph)
@@ -371,25 +355,25 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		    "  solar rotation model : %s (%s)\n"
 		    "  rotataion rate       : %.5f murad/s\n"
 		    "  local radius         : %.3f km\n"
-		    "  velocity diff        : %.3f m/s\n"
 		    "  distance diff        : %.3f km\n",
-		    eph->station, eph->utcdate, eph->lon, eph->lat,
+		    eph->station, eph->utcdate,
+		    eph->lon * dpr_c(), eph->lat * dpr_c(),
+		    
 		    eph->jdate,
 		    eph->rsun_as,
-		    eph->B0,
-		    eph->P0,
-		    eph->L0,
-		    eph->dist_sun / 1000,
-		    eph->vlos_sun,
+		    eph->B0 * dpr_c(),
+		    eph->P0 * dpr_c(),
+		    eph->L0 * dpr_c(),
+		    eph->dist_sun,
+		    eph->vlos_sun * 1000,
 		    eph->x, eph->y,
 		    eph->mu,
-		    eph->dist / 1000,
-		    eph->vlos,
+		    eph->dist,
+		    eph->vlos * 1000,
 		    eph->modelname, eph->modeldescr,
 		    eph->omega,
 		    eph->rho,
-		    (eph->vlos - eph->vlos_sun),
-		    (eph->dist - eph->dist_sun) / 1000);
+		    (eph->dist - eph->dist_sun));
 }
 
 

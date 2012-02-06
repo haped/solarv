@@ -42,8 +42,10 @@
 #define RETURN_FAILURE (0)
 #endif
 
-
 #define SOLAR_RADIUS (6.96E8) /* meters, Stix (2004) */
+#define RSUN (6.96E8) /* meters, Stix (2004) */
+
+#define ABCORR "LT+S"
 
 typedef struct
 {
@@ -86,9 +88,9 @@ typedef struct
     SpiceDouble jdate;     /* julian day of the event                    */
     SpiceChar utcdate[80]; /* ascii date in UTC                          */
     SpiceChar station[128];/* NAIF station name                          */
-    SpiceDouble B0;        /* lat of sub-observer point                  */
-    SpiceDouble L0;        /* lon of sub-observer point                  */
-    SpiceDouble P0;        /* polar angle                                */
+    SpiceDouble B0;        /* lat of sub-observer point, lt corrected    */
+    SpiceDouble L0;        /* lon of sub-observer point, lt corrected    */
+    SpiceDouble P0;        /* polar angle, lt corrected                  */
     SpiceDouble dist_sun;  /* distance obs. to solar center              */
     SpiceDouble vlos_sun;  /* radial velocity of obs to solar center     */
     SpiceDouble rsun_as;   /* apparent radius of the sun in arcsecs      */
@@ -126,32 +128,16 @@ int relstate_observer_sun (
     SpiceDouble *state);
 
 int relstate_sun_target (
+    SpiceChar *station,
     SpiceDouble et,
     SpiceDouble lon,
     SpiceDouble lat,
+    int rotmodel,
     soleph_t *eph,
     SpiceDouble *state);
 
 
 
-int station_eph (
-    SpiceChar *station, /* Observer's NAIF BODY_NAME ("Izana")     */
-    SpiceDouble et,     /* spice ephemeris time                    */
-    SpiceDouble lon,    /* stonyhurst longitude                    */
-    SpiceDouble lat,    /* stonyhurst latitude                     */
-    soleph_t *eph,       /* pt. to struct where to store ephem data */
-    int rotModel
-    );
-
-int target_state (
-    SpiceDouble lon,
-    SpiceDouble lat,
-    SpiceDouble lon0,
-    SpiceDouble et,
-    int model,
-    SpiceDouble *state,
-    soleph_t *eph
-    );
 
 SpiceDouble omega_sun (SpiceDouble lat, int model);
 
