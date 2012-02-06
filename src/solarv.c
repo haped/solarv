@@ -42,7 +42,19 @@ void usage (FILE *stream)
 	    "  -h          show this help\n"
 	    "  -m model    set solar rotation model 'model'\n"
 	    "              use 'list' to list available models\n"
-	    "  -p          pretty-print ephemeris data\n");
+	    "  -p          pretty-print ephemeris data\n"
+	    "\n"
+	    "'date' is a strftime() conforming string that might also include\n"
+	    "a time zone. If no time zone is given, UTC is assumed.\n"
+	    "Latitude and longitude are Stonyhurst coordinates given in degree.\n"
+	    "The step width 'tstep' is in minutes.\n"
+	    "\n"
+	    "Examples\n"
+	    "\n"
+	    "Compute radial velocity at the western limb at 45deg latitude using\n"
+	    "Snodgrass & Ulrich (1990) spectroscopy rotation model:\n"
+	    "  solarv -p -m su90s 2010-01-01T00:00:00 90 45\n"
+	);
 }
 
 int main(int argc, char **argv)
@@ -56,7 +68,7 @@ int main(int argc, char **argv)
     int rotModel = fixed;
 
     int c; opterr = 0;
-    while ((c = getopt (argc, argv, "+hm:p")) != -1)
+    while ((c = getopt (argc, argv, "+hm:pr:")) != -1)
     {
         switch (c)
         {
@@ -163,6 +175,9 @@ int soleph (
     eph->jdate = unitim_c (et, "ET", "JDTDB");
     et2utc_c (et, "C", 2, 79, eph->utcdate);
     strcpy (eph->station, station);
+
+    eph->lon = lonrd;
+    eph->lat = latrd;
     
     /* compute sub-observer point on the solar surface to derive B0, and L0 */
     /* FIXME: check if and which abberation correction is needed here. LT+S
@@ -192,6 +207,8 @@ int soleph (
     /* apparent diameter of the disc in arcsec */
     eph->rsun_as = RSUN / (eph->dist_sun * 1000) * dpr_c() * 3600.0;
 
+    /* P0, x, y, mu */
+
     return RETURN_SUCCESS;
 }
 
@@ -211,8 +228,6 @@ int relstate_observer_sun (
     spkezr_c ("SUN", et, "J2000",  "LT+S", station, state_otc, &lt);
     unorm_c (state_otc, los_otc, &(eph->dist_sun));
     eph->vlos_sun = vdot_c (los_otc, &state_otc[3]);
-
-
 
     return RETURN_SUCCESS;
 }
@@ -309,7 +324,7 @@ void reset_soleph (soleph_t *eph)
 
 SpiceDouble omega_sun (SpiceDouble lat, int model)
 {
-    if (model > RotModel_END - 1 || model < 0) {
+    if ( (model > RotModel_END - 1 || model < 0)  && model != custom) {
 	fprintf (stderr, "invalid rotation model: %i\n", model);
 	exit (EXIT_FAILURE);
     }
