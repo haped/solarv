@@ -12,7 +12,7 @@ LDFLAGS = $(CSPICE_LIB) -lm
 
 all: solarv
 
-solarv: solarv.o
+solarv: solarv.o solarv.h
 	$(LD) $< -o solarv $(LDFLAGS)
 
 .PHONY: clean
