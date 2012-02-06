@@ -43,7 +43,7 @@
 #endif
 
 
-#define SOLAR_RADIUS (6.955E8) /* meters */
+#define SOLAR_RADIUS (6.96E8) /* meters, Stix (2004) */
 
 typedef struct
 {
@@ -78,33 +78,60 @@ enum RotModel { rigid = 0,
    solar surface (t_) and the sun barycenter (s_) with respect to the
    observer's position.
 
-   angles in radian, distances in meter, velocity in meters/seconds
+   angles in radian, distances in kilometers, velocity in meters/seconds
 */
 typedef struct
 {
-    SpiceDouble jdate;     /* julian day of the event  */
-    SpiceChar utcdate[80]; /* ascii date in UTC        */
-    SpiceChar station[128];/* NAIF station name */
-    SpiceDouble B0;        /* lat of sub-observer point */
-    SpiceDouble L0;        /* lon of sub-observer point */
-    SpiceDouble P0;        /* polar angle */
-    SpiceDouble c_dist;    /* distance obs. to solar center */
-    SpiceDouble c_vlos;    /* radial velocity of obs to solar center */
-    SpiceDouble lon;       /* stonyhurst target longitude (deg) */
-    SpiceDouble lat;       /* stonyhurst target latitude  (deg) */
+    /* common data; sun global parameters */
+    SpiceDouble jdate;     /* julian day of the event                    */
+    SpiceChar utcdate[80]; /* ascii date in UTC                          */
+    SpiceChar station[128];/* NAIF station name                          */
+    SpiceDouble B0;        /* lat of sub-observer point                  */
+    SpiceDouble L0;        /* lon of sub-observer point                  */
+    SpiceDouble P0;        /* polar angle                                */
+    SpiceDouble c_dist;    /* distance obs. to solar center              */
+    SpiceDouble c_vlos;    /* radial velocity of obs to solar center     */
+    SpiceDouble rsun_as;   /* apparent radius of the sun in arcsecs      */
+    int rotmodel;          /* solar rotation model used                  */
+    char modelname[12];    /* name of the rotation model                 */
+    char modeldescr[128];  /* description of the rotation model          */
+    								         
+    /* target position parameters */				         
+    SpiceDouble lon;       /* stonyhurst target longitude (deg)          */
+    SpiceDouble lat;       /* stonyhurst target latitude  (deg)          */
     SpiceDouble x;         /* target x coordinate in as from disk center */
     SpiceDouble y;         /* target y coordinate in as from disk center */
-    SpiceDouble dist;      /* distance to target */
-    SpiceDouble vlos;      /* radial velocity of target */
-    SpiceDouble rho;       /* distance target to solar rotation axis */
-    SpiceDouble omega;     /* actually used omega value (murad/s)    */
-    int rotmodel;          /* rotation model used                    */
-    char modelname[12];    /* name of the rotation model      */
-    char modeldescr[128];  /* description of the rotation model      */
+    SpiceDouble mu;        /* heliocentric angle of the target           */
+    SpiceDouble dist;      /* distance to target                         */
+    SpiceDouble vlos;      /* radial velocity of target                  */
+    SpiceDouble rho;       /* distance target to solar rotation axis     */
+    SpiceDouble omega;     /* actually used omega value (murad/s)        */
 } soleph_t;
 
 
 void usage (FILE *stream);
+
+int soleph (
+    SpiceChar *station, /* NAIF body name/code of the observer     */ 
+    SpiceDouble et,     /* Spice ephemeris time of the observation */
+    SpiceDouble lon,    /* stonyhurst longitude of target point    */
+    SpiceDouble lat,    /* stonyhurst latitude of target point     */
+    soleph_t *eph);
+
+int relstate_observer_sun (
+    SpiceChar *station,
+    SpiceDouble et,
+    soleph_t *eph,
+    SpiceDouble *state);
+
+int relstate_sun_target (
+    SpiceDouble et,
+    SpiceDouble lon,
+    SpiceDouble lat,
+    soleph_t *eph,
+    SpiceDouble *state);
+
+
 
 int station_eph (
     SpiceChar *station, /* Observer's NAIF BODY_NAME ("Izana")     */
@@ -127,10 +154,10 @@ int target_state (
 
 SpiceDouble omega_sun (SpiceDouble lat, int model);
 
+void print_ephtable_head (FILE *stream);
+void print_ephtable_row (FILE *stream, soleph_t *eph);
 void fancy_print_eph (FILE *stream, soleph_t *eph);
-
 void list_rotation_models (FILE *stream);
 
 
 #endif /* _SOLARV_H_ */
-

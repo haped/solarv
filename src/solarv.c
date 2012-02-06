@@ -132,6 +132,42 @@ int main(int argc, char **argv)
     return EXIT_SUCCESS;
 }
 
+/*
+ * this is the entry point to compute the solar ephemeris parameters for a
+ * given position on the sun at a given time
+ */
+int soleph (
+    SpiceChar *station, /* NAIF body name/code of the observer     */ 
+    SpiceDouble et,     /* Spice ephemeris time of the observation */
+    SpiceDouble lon,    /* stonyhurst longitude of target point    */
+    SpiceDouble lat,    /* stonyhurst latitude of target point     */
+    soleph_t *eph)
+{
+
+}
+
+/* compute relative state of observer to solar barycenter in the j2000
+ * reference frame */
+int relstate_observer_sun (
+    SpiceChar *station,
+    SpiceDouble et,
+    soleph_t *eph,
+    SpiceDouble *state)
+{
+
+}
+
+/* compute relative state from solar center to target position on the
+ * surface in IAU_SUN frame */
+int relstate_sun_target (
+    SpiceDouble et,
+    SpiceDouble lon,
+    SpiceDouble lat,
+    soleph_t *eph,
+    SpiceDouble *state)
+{
+
+}
 
 int station_eph (
     SpiceChar *station, /* Observer's NAIF BODY_NAME ("Izana")     */
@@ -269,39 +305,57 @@ SpiceDouble omega_sun (SpiceDouble lat, int model)
     return omega;
 }
 
+void print_ephtable_head (FILE *stream)
+{
+    fprintf (stream, "#jdate          B0(deg)  P0(deg)   L0(deg)   "
+	     "vlos_t     d_t             vlos_sun  d_sun \n");
+}
+
+void print_ephtable_row (FILE *stream, soleph_t *eph)
+{
+    fprintf (stream, "%.6f %7.4f %9.4f %10.4f %9.4f  %14.3f  %9.4f  %13.3f\n",
+	     eph->jdate, eph->B0, eph->P0, eph->L0,
+	     eph->vlos, eph->dist, eph->c_vlos, eph->c_dist);
+}
+
 void fancy_print_eph (FILE *stream, soleph_t *eph)
 {
 	    printf ("Solar ephemeris for %s, %s, pos (%.3f, %.3f) deg\n"
-		    "          julian date: %f\n"
-		    "        disk position: %.1f, %.1f arcsec\n"
-		    "                   B0: %.4f deg\n"
-		    "                   P0: %.4f deg\n"
-		    "        carrington L0: %.4f deg\n"
-		    "  target LOS velocity: %.3f m/s\n"
-		    "      target distance: %.3f km\n"
-		    " solar rotation model: %s (%s)\n"
-		    "       rotataion rate: %.5f murad/s\n"
-		    "         local radius: %.3f km\n"
-		    "  center LOS velocity: %.3f m/s\n"
-		    "      center distance: %.3f km\n"
-		    "        velocity diff: %.3f m/s\n"
-		    "        distance diff: %.3f km\n",
-		    eph->station, eph->utcdate,
-		    eph->lon, eph->lat,
+		    "  julian date          : %f\n"
+		    "  disk radius          : %.2f arcsec\n"
+		    "  B0                   : %.4f deg\n"
+		    "  P0                   : %.4f deg\n"
+		    "  carrington L0        : %.4f deg\n"
+		    "  center distance      : %.3f km\n"
+		    "  center v_los         : %.3f m/s\n"
+		    "  target position      : %.2f, %.2f arcsec\n"
+		    "  heliocentric angle   : %.4f\n"
+		    "  target distance      : %.3f km\n"
+		    "  target v_los         : %.3f m/s\n"
+		    "  solar rotation model : %s (%s)\n"
+		    "  rotataion rate       : %.5f murad/s\n"
+		    "  local radius         : %.3f km\n"
+		    "  velocity diff        : %.3f m/s\n"
+		    "  distance diff        : %.3f km\n",
+		    eph->station, eph->utcdate, eph->lon, eph->lat,
 		    eph->jdate,
-		    eph->x, eph->y,
+		    eph->rsun_as,
 		    eph->B0,
 		    eph->P0,
 		    eph->L0,
-		    eph->vlos,
+		    eph->c_dist / 1000,
+		    eph->c_vlos,
+		    eph->x, eph->y,
+		    eph->mu,
 		    eph->dist / 1000,
+		    eph->vlos,
 		    eph->modelname, eph->modeldescr,
 		    eph->omega,
 		    eph->rho,
-		    eph->c_vlos, eph->c_dist / 1000,
 		    (eph->vlos - eph->c_vlos),
 		    (eph->dist - eph->c_dist) / 1000);
 }
+
 
 void list_rotation_models (FILE *stream)
 {
