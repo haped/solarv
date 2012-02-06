@@ -124,7 +124,7 @@ int main(int argc, char **argv)
     furnsh_c ("../data/kernels/solarv.tm");
     /* TODO: poss. to load a custom kernel here */
 
-    utc2et_c (time_utc, &et);
+    str2et_c (time_utc, &et);
 
     if (! fancy)
 	print_ephtable_head (stdout);
@@ -175,7 +175,9 @@ int soleph (
     reset_soleph (eph);
     
     /* remember julian date and ascii utc string of the event */
-    eph->jdate = unitim_c (et, "ET", "JDTDB");
+    SpiceDouble deltaT;
+    deltet_c (et, "ET", &deltaT);
+    eph->jdate = unitim_c (et, "ET", "JDTDB") - deltaT / spd_c();
     et2utc_c (et, "C", 2, 79, eph->utcdate);
     strcpy (eph->station, station);
 
@@ -210,7 +212,9 @@ int soleph (
     /* apparent diameter of the disc in arcsec */
     eph->rsun_as = RSUN / (eph->dist_sun * 1000) * dpr_c() * 3600.0;
 
-    /* P0, x, y, mu */
+    /* helicentric angle */
+    /* FIXME: are we talkin about the same mu? */
+    eph->mu = sqrt (1.0 - (eph->rho * 1000 / RSUN) * (eph->rho * 1000 / RSUN));
 
     return RETURN_SUCCESS;
 }
@@ -295,6 +299,16 @@ int relstate_sun_target (
     sxform_c ("HCI", "J2000", et, xform);
     mxvg_c (xform, state_stt_fixed, 6, 6, state_stt);
 
+    /* helioprojective-cartesian coordinates (pointing coordinates). use the
+     * stt_fixed vector again. this time we substract the sub-observer
+     * latitude. sub-observer longitude is always zero in stondyhurst
+     * coordinates per definition */
+    latrec_c (RSUN / 1000.0, lon, lat - sublat, state_stt_fixed);
+
+    /* Thomposn (2005) eq 4 */
+    eph->x = state_stt_fixed[1] / eph->dist_sun * dpr_c () * 3600.0;
+    eph->y = state_stt_fixed[2] / eph->dist_sun * dpr_c () * 3600.0;
+
     return RETURN_SUCCESS;
 }
 
@@ -372,7 +386,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		    "  target v_los         : %.3f m/s\n"
 		    "  solar rotation model : %s (%s)\n"
 		    "  rotataion rate       : %.5f murad/s\n"
-		    "  local radius         : %.3f km\n"
+		    "  impact parameter     : %.3f km\n"
 		    "  distance diff        : %.3f km\n",
 		    eph->station, eph->utcdate,
 		    eph->lon * dpr_c(), eph->lat * dpr_c(),
