@@ -89,8 +89,8 @@ typedef struct
     SpiceDouble B0;        /* lat of sub-observer point                  */
     SpiceDouble L0;        /* lon of sub-observer point                  */
     SpiceDouble P0;        /* polar angle                                */
-    SpiceDouble c_dist;    /* distance obs. to solar center              */
-    SpiceDouble c_vlos;    /* radial velocity of obs to solar center     */
+    SpiceDouble dist_sun;  /* distance obs. to solar center              */
+    SpiceDouble vlos_sun;  /* radial velocity of obs to solar center     */
     SpiceDouble rsun_as;   /* apparent radius of the sun in arcsecs      */
     int rotmodel;          /* solar rotation model used                  */
     char modelname[12];    /* name of the rotation model                 */
@@ -116,7 +116,8 @@ int soleph (
     SpiceDouble et,     /* Spice ephemeris time of the observation */
     SpiceDouble lon,    /* stonyhurst longitude of target point    */
     SpiceDouble lat,    /* stonyhurst latitude of target point     */
-    soleph_t *eph);
+    soleph_t *eph,
+    int rotModel);
 
 int relstate_observer_sun (
     SpiceChar *station,
@@ -158,6 +159,7 @@ void print_ephtable_head (FILE *stream);
 void print_ephtable_row (FILE *stream, soleph_t *eph);
 void fancy_print_eph (FILE *stream, soleph_t *eph);
 void list_rotation_models (FILE *stream);
+void reset_soleph (soleph_t *eph);
 
 
 #endif /* _SOLARV_H_ */

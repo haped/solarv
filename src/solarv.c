@@ -116,7 +116,7 @@ int main(int argc, char **argv)
     for (SpiceInt i  = 0; i < nsteps; ++i)
     {
 	soleph_t eph;
-	station_eph ("izana", et, lon, lat, &eph, rotModel);
+	soleph ("izana", et, lon, lat, &eph, rotModel);
 
 	if (fancy) {
 	    fancy_print_eph (stdout, &eph);
@@ -132,6 +132,8 @@ int main(int argc, char **argv)
     return EXIT_SUCCESS;
 }
 
+
+
 /*
  * this is the entry point to compute the solar ephemeris parameters for a
  * given position on the sun at a given time
@@ -141,9 +143,13 @@ int soleph (
     SpiceDouble et,     /* Spice ephemeris time of the observation */
     SpiceDouble lon,    /* stonyhurst longitude of target point    */
     SpiceDouble lat,    /* stonyhurst latitude of target point     */
-    soleph_t *eph)
+    soleph_t *eph,
+    int rotModel)
 {
+    /* reset everything */
+    reset_soleph (eph);
 
+    return RETURN_SUCCESS;
 }
 
 /* compute relative state of observer to solar barycenter in the j2000
@@ -154,7 +160,10 @@ int relstate_observer_sun (
     soleph_t *eph,
     SpiceDouble *state)
 {
+    
 
+
+    return RETURN_SUCCESS;
 }
 
 /* compute relative state from solar center to target position on the
@@ -167,6 +176,7 @@ int relstate_sun_target (
     SpiceDouble *state)
 {
 
+    return RETURN_SUCCESS;
 }
 
 int station_eph (
@@ -209,9 +219,9 @@ int station_eph (
     /* vlos and distance to sun's barycenter */
     /* FIXME: what about spkgeo_c()?? looks the same! */
     spkezr_c ("SUN", et, "J2000",  "NONE", station, state_otc, &lt);
-    unorm_c (state_otc, los_otc, &(eph->c_dist));
-    eph->c_dist *= 1000;
-    eph->c_vlos = vdot_c (los_otc, &state_otc[3]) * 1000;
+    unorm_c (state_otc, los_otc, &(eph->dist_sun));
+    eph->dist_sun *= 1000;
+    eph->vlos_sun = vdot_c (los_otc, &state_otc[3]) * 1000;
 
     //printf ("vz = %f\n", state_otc[5]);
     target_state (lon * rpd_c(), lat * rpd_c(), slon, et, rotModel, state_ctt, eph);
@@ -229,6 +239,32 @@ int station_eph (
     /* TODO: compute angle between los and surface normal vector */
 
     return RETURN_SUCCESS;
+}
+
+void reset_soleph (soleph_t *eph)
+{
+    eph->jdate = 0.0;
+    strcpy (eph->utcdate, "na");
+    strcpy (eph->station, "na");
+    eph->B0 = 0.0;
+    eph->L0 = 0.0;
+    eph->P0 = 0.0;
+    eph->dist_sun = 0.0;
+    eph->vlos_sun = 0.0;
+    eph->rsun_as = 0.0;
+    eph->rotmodel = 0;
+    strcpy (eph->modelname, "na");
+    strcpy (eph->modeldescr, "na");
+
+    eph->lon = 0.0;
+    eph->lat = 0.0;
+    eph->x = 0.0;
+    eph->y = 0.0;
+    eph->mu = 0.0;
+    eph->dist = 0.0;
+    eph->vlos = 0.0;
+    eph->rho = 0.0;
+    eph->omega = 0.0;
 }
 
 
@@ -261,8 +297,8 @@ int target_state (
 		     state_ctt_sun[1] * state_ctt_sun[1]);
 
     /* FIXME: this is an approximation only! */
-    eph->x = tan (state_ctt_sun[1] * 1000.0 / eph->c_dist) * dpr_c() * 3600.0;
-    eph->y = tan (state_ctt_sun[2] * 1000.0 / eph->c_dist) * dpr_c() * 3600.0;
+    eph->x = tan (state_ctt_sun[1] * 1000.0 / eph->dist_sun) * dpr_c() * 3600.0;
+    eph->y = tan (state_ctt_sun[2] * 1000.0 / eph->dist_sun) * dpr_c() * 3600.0;
 
     /* handle (differential) rotation */
     SpiceDouble omegas = omega_sun (lat, model);
@@ -315,7 +351,7 @@ void print_ephtable_row (FILE *stream, soleph_t *eph)
 {
     fprintf (stream, "%.6f %7.4f %9.4f %10.4f %9.4f  %14.3f  %9.4f  %13.3f\n",
 	     eph->jdate, eph->B0, eph->P0, eph->L0,
-	     eph->vlos, eph->dist, eph->c_vlos, eph->c_dist);
+	     eph->vlos, eph->dist, eph->vlos_sun, eph->dist_sun);
 }
 
 void fancy_print_eph (FILE *stream, soleph_t *eph)
@@ -343,8 +379,8 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		    eph->B0,
 		    eph->P0,
 		    eph->L0,
-		    eph->c_dist / 1000,
-		    eph->c_vlos,
+		    eph->dist_sun / 1000,
+		    eph->vlos_sun,
 		    eph->x, eph->y,
 		    eph->mu,
 		    eph->dist / 1000,
@@ -352,8 +388,8 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		    eph->modelname, eph->modeldescr,
 		    eph->omega,
 		    eph->rho,
-		    (eph->vlos - eph->c_vlos),
-		    (eph->dist - eph->c_dist) / 1000);
+		    (eph->vlos - eph->vlos_sun),
+		    (eph->dist - eph->dist_sun) / 1000);
 }
 
 
