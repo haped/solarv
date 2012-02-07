@@ -112,7 +112,7 @@ typedef struct
     SpiceDouble mu;        /* heliocentric angle of the target           */
     SpiceDouble dist;      /* distance to target                         */
     SpiceDouble vlos;      /* radial velocity of target                  */
-    SpiceDouble rho;       /* distance target to solar rotation axis     */
+    SpiceDouble rho_hc;    /* heliocentric impact parameter              */
     SpiceDouble omega;     /* actually used omega value (murad/s)        */
 } soleph_t;
 

@@ -212,9 +212,9 @@ int soleph (
     /* apparent diameter of the disc in arcsec */
     eph->rsun_as = RSUN / (eph->dist_sun * 1000) * dpr_c() * 3600.0;
 
-    /* helicentric angle */
-    /* FIXME: are we talkin about the same mu? */
-    eph->mu = sqrt (1.0 - (eph->rho * 1000 / RSUN) * (eph->rho * 1000 / RSUN));
+    /* helicentric impact paramter */
+    eph->mu = sqrt (1.0 - (eph->rho_hc * 1000 / RSUN) *
+		    (eph->rho_hc * 1000 / RSUN));
 
     return RETURN_SUCCESS;
 }
@@ -279,10 +279,6 @@ int relstate_sun_target (
     SpiceDouble tlat = lat;
     latrec_c (RSUN / 1000.0, tlon, tlat, state_stt_fixed);
 
-    /* radial distance from target to solar rotation axis */
-    eph->rho = sqrt (state_stt_fixed[0] * state_stt_fixed[0] + 
-		     state_stt_fixed[1] * state_stt_fixed[1]);
-
     /* additional veloctiy from (differential) rotation according to
      * rotation model specified */
     SpiceDouble omegas = omega_sun (lat, rotmodel);
@@ -305,9 +301,13 @@ int relstate_sun_target (
      * coordinates per definition */
     latrec_c (RSUN / 1000.0, lon, lat - sublat, state_stt_fixed);
 
-    /* Thomposn (2005) eq 4 */
+    /* Thompson (2005) eq 4 */
     eph->x = state_stt_fixed[1] / eph->dist_sun * dpr_c () * 3600.0;
     eph->y = state_stt_fixed[2] / eph->dist_sun * dpr_c () * 3600.0;
+
+    /* radial distance from target to solar rotation axis */
+    eph->rho_hc = sqrt (state_stt_fixed[1] * state_stt_fixed[1] + 
+			state_stt_fixed[2] * state_stt_fixed[2]);
 
     return RETURN_SUCCESS;
 }
@@ -334,7 +334,7 @@ void reset_soleph (soleph_t *eph)
     eph->mu = 0.0;
     eph->dist = 0.0;
     eph->vlos = 0.0;
-    eph->rho = 0.0;
+    eph->rho_hc = 0.0;
     eph->omega = 0.0;
 }
 
@@ -381,7 +381,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		    "  center distance      : %.3f km\n"
 		    "  center v_los         : %.3f m/s\n"
 		    "  target position      : %.2f, %.2f arcsec\n"
-		    "  heliocentric angle   : %.4f\n"
+		    "  cos(hel. angle) = mu : %.4f\n"
 		    "  target distance      : %.3f km\n"
 		    "  target v_los         : %.3f m/s\n"
 		    "  solar rotation model : %s (%s)\n"
@@ -404,7 +404,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		    eph->vlos * 1000,
 		    eph->modelname, eph->modeldescr,
 		    eph->omega,
-		    eph->rho,
+		    eph->rho_hc,
 		    (eph->dist - eph->dist_sun));
 }
 
