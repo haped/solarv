@@ -40,10 +40,12 @@ void usage (FILE *stream)
 	    "\n"
 	    "usage: solarv [options] <date> <lat lon> [<tstep> <nsteps]\n"
 	    "options:\n"
-	    "  -h          show this help\n"
-	    "  -m model    set solar rotation model 'model'\n"
-	    "              use 'list' to list available models\n"
-	    "  -p          pretty-print ephemeris data\n"
+	    "  -h            show this help\n"
+	    "  -m model      set solar rotation model 'model'\n"
+	    "                use 'list' to list available models\n"
+	    /* "  -o observer   set observer location. can be any NAIF body code.\n" */
+	    /* "                pre-defined sites: 'izana'\n" */
+	    "  -p           pretty-print ephemeris data\n"
 	    "\n"
 	    "'date' is a strftime() conforming string that might also include\n"
 	    "a time zone. If no time zone is given, UTC is assumed.\n"
@@ -54,7 +56,7 @@ void usage (FILE *stream)
 	    "\n"
 	    "Compute radial velocity at the western limb at 45deg latitude using\n"
 	    "Snodgrass & Ulrich (1990) spectroscopy rotation model:\n"
-	    "  solarv -p -m su90s 2010-01-01T00:00:00 90 45\n",
+	    "  solarv -p -m su90s \"2010 Jan 1 12:00:00.0\" 90 45\n",
 	    version, versiondate, author
 	    
 	);
@@ -64,6 +66,7 @@ int main(int argc, char **argv)
 {   
     SpiceDouble et;
     char time_utc[80];
+    char observer[65] = "izana";
     SpiceDouble stepsize = 1; /* minutes */
     SpiceInt nsteps = 1;
     SpiceDouble lon = 0.0, lat = 0.0;
@@ -71,7 +74,7 @@ int main(int argc, char **argv)
     int rotModel = fixed;
 
     int c; opterr = 0;
-    while ((c = getopt (argc, argv, "+hm:pr:")) != -1)
+    while ((c = getopt (argc, argv, "+hm:pr:o:")) != -1)
     {
         switch (c)
         {
@@ -101,6 +104,7 @@ int main(int argc, char **argv)
 	    }					
 	    break;
         case 'p': fancy = true; break;
+	case 'o': strncpy (observer, optarg, 64); break;
         default: usage (stdout); return EXIT_FAILURE;
         }
     }
@@ -131,7 +135,7 @@ int main(int argc, char **argv)
     for (SpiceInt i  = 0; i < nsteps; ++i)
     {
 	soleph_t eph;
-	soleph ("izana", et, lon, lat, &eph, rotModel);
+	soleph (observer, et, lon, lat, &eph, rotModel);
 
 	if (fancy) {
 	    fancy_print_eph (stdout, &eph);
@@ -373,15 +377,16 @@ void print_ephtable_row (FILE *stream, soleph_t *eph)
 
 void fancy_print_eph (FILE *stream, soleph_t *eph)
 {
-	    printf ("Solar ephemeris for %s, %s, pos (%.3f, %.3f) deg\n"
-		    "  julian date          :% f\n"
+	    printf ("Solar ephemeris for %s, %s\n"
+		    "  UTC julian date      :% f\n"
 		    "  disk radius          : %.2f arcsec\n"
 		    "  B0                   :% -.4f deg\n"
 		    //"  P0                   :% .4f deg\n"
 		    "  carrington L0        :% .4f deg\n"
 		    "  center distance      : %.3f km\n"
 		    "  center v_los         :% .3f m/s\n"
-		    "  target position      : %.2f, %.2f arcsec\n"
+		    "  disc coordinates     : %.2f, %.2f arcsec\n"
+		    "  lola coordinates     :% .3f, %.3f deg\n"
 		    "  cos(hel. angle) = mu : %.4f\n"
 		    "  target distance      : %.3f km\n"
 		    "  target v_los         :% .3f m/s\n"
@@ -390,8 +395,6 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		    "  impact parameter     : %.3f km\n",
 		    
 		    eph->station, eph->utcdate,
-		    eph->lon * dpr_c(), eph->lat * dpr_c(),
-		    
 		    eph->jdate,
 		    eph->rsun_as,
 		    eph->B0 * dpr_c(),
@@ -400,6 +403,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		    eph->dist_sun,
 		    eph->vlos_sun * 1000,
 		    eph->x, eph->y,
+		    eph->lon * dpr_c(), eph->lat * dpr_c(),
 		    eph->mu,
 		    eph->dist,
 		    eph->vlos * 1000,
