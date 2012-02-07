@@ -34,7 +34,8 @@
 
 void usage (FILE *stream)
 {
-    printf ("solarv v%s, %s by %s\n\n"
+    printf ("%s v%s, %s\n"
+	    "\n"
 	    "compute precision radial velocities between earth-based "
 	    "observatories\nand a given position on the sun.\n"
 	    "\n"
@@ -45,7 +46,8 @@ void usage (FILE *stream)
 	    "                use 'list' to list available models\n"
 	    /* "  -o observer   set observer location. can be any NAIF body code.\n" */
 	    /* "                pre-defined sites: 'izana'\n" */
-	    "  -p           pretty-print ephemeris data\n"
+	    "  -p            pretty-print ephemeris data\n"
+	    "  -v            print program version\n"
 	    "\n"
 	    "'date' is a strftime() conforming string that might also include\n"
 	    "a time zone. If no time zone is given, UTC is assumed.\n"
@@ -57,24 +59,30 @@ void usage (FILE *stream)
 	    "Compute radial velocity at the western limb at 45deg latitude using\n"
 	    "Snodgrass & Ulrich (1990) spectroscopy rotation model:\n"
 	    "  solarv -p -m su90s \"2010 Jan 1 12:00:00.0\" 90 45\n",
-	    version, versiondate, author
+	    _name, _version, _versiondate
 	    
 	);
 }
 
+void version (void)
+{
+    printf ("%s v%s, %s\n"
+	    "Copyright (c) 2012 %s\n",
+	    _name, _version, _versiondate, _author);
+}
+
 int main(int argc, char **argv)
 {   
-    SpiceDouble et;
     char time_utc[80];
     char observer[65] = "izana";
     SpiceDouble stepsize = 1; /* minutes */
     SpiceInt nsteps = 1;
     SpiceDouble lon = 0.0, lat = 0.0;
     bool fancy = false;
-    int rotModel = fixed;
+    int rotmodel = fixed;
 
     int c; opterr = 0;
-    while ((c = getopt (argc, argv, "+hm:pr:o:")) != -1)
+    while ((c = getopt (argc, argv, "+hm:pr:o:v")) != -1)
     {
         switch (c)
         {
@@ -86,17 +94,17 @@ int main(int argc, char **argv)
 		return EXIT_SUCCESS;
 	    }
 	    else if (strcasecmp (optarg, "rigid") == 0)
-		rotModel = rigid;
+		rotmodel = rigid;
 	    else if (strcasecmp (optarg, "fixed") == 0)
-		rotModel = fixed;
+		rotmodel = fixed;
 	    else if (strcasecmp (optarg, "su90s") == 0)
-		rotModel = su90s;
+		rotmodel = su90s;
 	    else if (strcasecmp (optarg, "su90g") == 0)
-		rotModel = su90g;
+		rotmodel = su90g;
 	    else if (strcasecmp (optarg, "su90m") == 0)
-		rotModel = su90m;
+		rotmodel = su90m;
 	    else if (strcasecmp (optarg, "s84s") == 0)
-		rotModel = s84s;
+		rotmodel = s84s;
 	    else {
 		fprintf (stderr, "unknown rotation model: %s\n", optarg);
 		list_rotation_models (stderr);
@@ -105,6 +113,9 @@ int main(int argc, char **argv)
 	    break;
         case 'p': fancy = true; break;
 	case 'o': strncpy (observer, optarg, 64); break;
+	case 'v': version (); return EXIT_SUCCESS; break;
+	    return EXIT_SUCCESS;
+	    break;
         default: usage (stdout); return EXIT_FAILURE;
         }
     }
@@ -128,24 +139,9 @@ int main(int argc, char **argv)
     furnsh_c ("../data/kernels/solarv.tm");
     /* TODO: poss. to load a custom kernel here */
 
-    str2et_c (time_utc, &et);
-
-    if (! fancy)
-	print_ephtable_head (stdout);
-    for (SpiceInt i  = 0; i < nsteps; ++i)
-    {
-	soleph_t eph;
-	soleph (observer, et, lon, lat, &eph, rotModel);
-
-	if (fancy) {
-	    fancy_print_eph (stdout, &eph);
-	    if (i < nsteps - 1) printf ("\n");
-	}
-	else
-	    print_ephtable_row (stdout, &eph);
-
-	et += stepsize * 60.0;
-    }
+    /* plain ascii output */
+    plainmode (observer, time_utc, lon, lat,
+	       stepsize, nsteps, fancy, stdout, rotmodel);
     
     unload_c ("../data/kernels/solarv.tm");
     return EXIT_SUCCESS;
@@ -178,9 +174,11 @@ int soleph (
 
     reset_soleph (eph);
     
+
     /* remember julian date and ascii utc string of the event */
     SpiceDouble deltaT;
     deltet_c (et, "ET", &deltaT);
+    /* we use the utc julain date here, so substract the delta */
     eph->jdate = unitim_c (et, "ET", "JDTDB") - deltaT / spd_c();
     et2utc_c (et, "C", 2, 79, eph->utcdate);
     strcpy (eph->station, station);
@@ -424,4 +422,64 @@ void list_rotation_models (FILE *stream)
 		 RotModels[i].A, RotModels[i].B, RotModels[i].C,
 		 RotModels[i].descr);
     }
+}
+
+int plainmode (
+    SpiceChar *observer, /* NAIF body name/code of the observer     */ 
+    char *time_utc,     /* Spice ephemeris time of the observation */
+    SpiceDouble lon,    /* stonyhurst longitude of target point    */
+    SpiceDouble lat,    /* stonyhurst latitude of target point     */
+    SpiceDouble stepsize,
+    int nsteps,
+    bool fancy,
+    FILE * stream,
+    int rotmodel)
+{
+    SpiceDouble et;
+    str2et_c (time_utc, &et);
+
+    if (! fancy)
+	print_ephtable_head (stdout);
+    for (SpiceInt i  = 0; i < nsteps; ++i)
+    {
+	soleph_t eph;
+	soleph (observer, et, lon, lat, &eph, rotmodel);
+
+	if (fancy) {
+	    fancy_print_eph (stream, &eph);
+	    if (i < nsteps - 1) fprintf (stream, "\n");
+	}
+	else
+	    print_ephtable_row (stdout, &eph);
+
+	et += stepsize * 60.0;
+    }
+
+    return RETURN_SUCCESS;
+}
+
+int fitsmode (
+    SpiceChar *observer,
+    char *fitsfile,
+    SpiceDouble lon,
+    SpiceDouble lat,
+    int rotmodel)
+{
+    
+    /*
+      open fits file
+
+       if it contains only one frame, read date-obs, write ephem table with same basename.
+
+       if it contains more frames, read the first bytes containing the bcd
+       coded exposure date, and append a new row in the fits column with the
+       ephemeris date 
+
+
+       done
+    */
+
+
+
+    return RETURN_SUCCESS;
 }

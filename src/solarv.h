@@ -24,9 +24,10 @@
 #ifndef _SOLARV_H_
 #define _SOLARV_H_
 
-static const char author[] = "HP Doerr";
-static const char version[] = "0.1a";
-static const char versiondate[] = "2012-02-06";
+static const char _name[] = "solarv";
+static const char _author[] = "Hans-Peter Doerr";
+static const char _version[] = "0.1a";
+static const char _versiondate[] = "2012-02-06";
 
 #include "SpiceUsr.h"
 
@@ -142,6 +143,16 @@ int relstate_sun_target (
     soleph_t *eph,
     SpiceDouble *state);
 
+int plainmode (
+    SpiceChar *observer, /* NAIF body name/code of the observer     */ 
+    char *time_utc,     /* Spice ephemeris time of the observation */
+    SpiceDouble lon,    /* stonyhurst longitude of target point    */
+    SpiceDouble lat,    /* stonyhurst latitude of target point     */
+    SpiceDouble stepsize,
+    int nsteps,
+    bool fancy,
+    FILE * stream,
+    int rotmodel);
 
 
 
