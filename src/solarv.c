@@ -192,7 +192,8 @@ int soleph (
 	      ABCORR, station, subpoint, &trgepc, srfvec);
     reclat_c (subpoint, &subrad, &sublon, &sublat);
     eph->B0 = sublat;
-    eph->L0 = sublon; /* carrington longitude */
+    /* store carrington longitude as 0 ... 2 pi */
+    eph->L0 = sublon < 0 ? 2 * pi_c() + sublon : sublon;
 
     /* compute solar barycenter state relative to observer */
     relstate_observer_sun (station, et, eph, state_ots);
@@ -373,28 +374,28 @@ void print_ephtable_row (FILE *stream, soleph_t *eph)
 void fancy_print_eph (FILE *stream, soleph_t *eph)
 {
 	    printf ("Solar ephemeris for %s, %s, pos (%.3f, %.3f) deg\n"
-		    "  julian date          : %f\n"
+		    "  julian date          :% f\n"
 		    "  disk radius          : %.2f arcsec\n"
-		    "  B0                   : %.4f deg\n"
-		    "  P0                   : %.4f deg\n"
-		    "  carrington L0        : %.4f deg\n"
+		    "  B0                   :% -.4f deg\n"
+		    //"  P0                   :% .4f deg\n"
+		    "  carrington L0        :% .4f deg\n"
 		    "  center distance      : %.3f km\n"
-		    "  center v_los         : %.3f m/s\n"
+		    "  center v_los         :% .3f m/s\n"
 		    "  target position      : %.2f, %.2f arcsec\n"
 		    "  cos(hel. angle) = mu : %.4f\n"
 		    "  target distance      : %.3f km\n"
-		    "  target v_los         : %.3f m/s\n"
+		    "  target v_los         :% .3f m/s\n"
 		    "  solar rotation model : %s (%s)\n"
 		    "  rotataion rate       : %.5f murad/s\n"
-		    "  impact parameter     : %.3f km\n"
-		    "  distance diff        : %.3f km\n",
+		    "  impact parameter     : %.3f km\n",
+		    
 		    eph->station, eph->utcdate,
 		    eph->lon * dpr_c(), eph->lat * dpr_c(),
 		    
 		    eph->jdate,
 		    eph->rsun_as,
 		    eph->B0 * dpr_c(),
-		    eph->P0 * dpr_c(),
+		    //eph->P0 * dpr_c(),
 		    eph->L0 * dpr_c(),
 		    eph->dist_sun,
 		    eph->vlos_sun * 1000,
@@ -404,8 +405,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		    eph->vlos * 1000,
 		    eph->modelname, eph->modeldescr,
 		    eph->omega,
-		    eph->rho_hc,
-		    (eph->dist - eph->dist_sun));
+		    eph->rho_hc);
 }
 
 
