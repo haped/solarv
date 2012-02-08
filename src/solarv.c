@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <stdarg.h>
 #include <getopt.h>
 #include <math.h>
 
@@ -130,7 +131,7 @@ int main (int argc, char **argv)
 	if (RETURN_FAILURE == parse_sunpos (argv[optind + 1], argv[optind + 2],
 					    argv[optind + 3], &position))
 	{
-	    fprintf (stderr, "ERROR: can't parse target coordinates, aborting\n");
+	    errmesg ("can't parse target coordinates, aborting\n");
 	    return EXIT_FAILURE;
 	}
     }
@@ -351,7 +352,7 @@ void reset_soleph (soleph_t *eph)
 SpiceDouble omega_sun (SpiceDouble lat, int model)
 {
     if ( (model > RotModel_END - 1 || model < 0)  && model != custom) {
-	fprintf (stderr, "invalid rotation model: %i\n", model);
+	errmesg ("unknown rotation model %i, aborting\n", model);
 	exit (EXIT_FAILURE);
     }
     SpiceDouble
@@ -497,7 +498,7 @@ int parse_sunpos (const char *type, const char *posx, const char *posy, sunpos_t
     else if (strcasecmp (type, "xy") == 0)
 	pos->type = xy;
     else {
-	fprintf (stderr, "ERROR: bad coordinate type: %s\n", type);
+	errmesg ("bad coordinate type: %s\n", type);
 	return RETURN_FAILURE;
     }
 
@@ -505,4 +506,15 @@ int parse_sunpos (const char *type, const char *posx, const char *posy, sunpos_t
     pos->y = atof (posy);
 
     return RETURN_SUCCESS;
+}
+
+
+void errmesg (const char *mesg, ...)
+{
+    va_list ap;
+    
+    fprintf (stderr, "ERROR: ");
+    va_start(ap, mesg);
+    vfprintf (stderr, mesg, ap);
+    va_end(ap);
 }

@@ -169,7 +169,9 @@ void print_ephtable_row (FILE *stream, soleph_t *eph);
 void fancy_print_eph (FILE *stream, soleph_t *eph);
 void list_rotation_models (FILE *stream);
 void reset_soleph (soleph_t *eph);
-
 int parse_sunpos (const char *type, const char *posx, const char *posy, sunpos_t *pos);
+
+void errmesg (const char *mesg, ...);
+
 
 #endif /* _SOLARV_H_ */
