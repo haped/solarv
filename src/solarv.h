@@ -47,7 +47,6 @@ static const char _versiondate[] = "2012-02-06";
 #define RETURN_FAILURE (0)
 #endif
 
-#define SOLAR_RADIUS (6.96E8) /* meters, Stix (2004) */
 #define RSUN (6.96E8) /* meters, Stix (2004) */
 
 #define ABCORR "LT+S"
@@ -71,15 +70,24 @@ static const rotmodel_t RotModels[] =
     {2.836, -0.344, -0.504, "s84s", "Snodgrass (1984), spectroscopic MWO data"},
     {0.000,  0.000,  0.000, "custom", "custom selected A, B, C coefficients"}
 };
-enum RotModel { fixed = 0,
-		rigid,
-		su90s,
-		su90g,
-		su90m,
-		s84s,
-		RotModel_END,
-		custom /* this one can not be selcted */
+enum RotModel {fixed = 0,
+	       rigid,
+	       su90s,
+	       su90g,
+	       su90m,
+	       s84s,
+	       RotModel_END,
+	       custom /* this one can not be selcted */
 };
+
+
+typedef struct
+{
+    SpiceDouble x;
+    SpiceDouble y;
+    int type;
+} sunpos_t;
+enum PosType {lola = 0, xy = 1};
 
 
 /* 
@@ -123,8 +131,7 @@ void usage (FILE *stream);
 int soleph (
     SpiceChar *station, /* NAIF body name/code of the observer     */ 
     SpiceDouble et,     /* Spice ephemeris time of the observation */
-    SpiceDouble lon,    /* stonyhurst longitude of target point    */
-    SpiceDouble lat,    /* stonyhurst latitude of target point     */
+    sunpos_t *position, 
     soleph_t *eph,
     int rotModel);
 
@@ -146,8 +153,7 @@ int relstate_sun_target (
 int plainmode (
     SpiceChar *observer, /* NAIF body name/code of the observer     */ 
     char *time_utc,     /* Spice ephemeris time of the observation */
-    SpiceDouble lon,    /* stonyhurst longitude of target point    */
-    SpiceDouble lat,    /* stonyhurst latitude of target point     */
+    sunpos_t *position, 
     SpiceDouble stepsize,
     int nsteps,
     bool fancy,
@@ -164,5 +170,6 @@ void fancy_print_eph (FILE *stream, soleph_t *eph);
 void list_rotation_models (FILE *stream);
 void reset_soleph (soleph_t *eph);
 
+int parse_sunpos (const char *type, const char *posx, const char *posy, sunpos_t *pos);
 
 #endif /* _SOLARV_H_ */

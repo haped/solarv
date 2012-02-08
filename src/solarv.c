@@ -39,7 +39,7 @@ void usage (FILE *stream)
 	    "compute precision radial velocities between earth-based "
 	    "observatories\nand a given position on the sun.\n"
 	    "\n"
-	    "usage: solarv [options] <date> <lat lon> [<tstep> <nsteps]\n"
+	    "usage: solarv [options] <date> [<lola|xy> <lat> <lon>] [<tstep> <nsteps>]\n"
 	    "options:\n"
 	    "  -h            show this help\n"
 	    "  -m model      set solar rotation model 'model'\n"
@@ -71,15 +71,15 @@ void version (void)
 	    _name, _version, _versiondate, _author);
 }
 
-int main(int argc, char **argv)
+int main (int argc, char **argv)
 {   
     char time_utc[80];
     char observer[65] = "izana";
     SpiceDouble stepsize = 1; /* minutes */
     SpiceInt nsteps = 1;
-    SpiceDouble lon = 0.0, lat = 0.0;
     bool fancy = false;
     int rotmodel = fixed;
+    sunpos_t position;
 
     int c; opterr = 0;
     while ((c = getopt (argc, argv, "+hm:pr:o:v")) != -1)
@@ -121,18 +121,22 @@ int main(int argc, char **argv)
     }
 
     /* commandline args */
-    if (! (argc - optind == 3 || argc - optind == 5)) {
+    if (! (argc - optind == 4 || argc - optind == 6)) {
 	usage (stdout);
 	return EXIT_FAILURE;
     }
     strncpy (time_utc, argv[optind], 79);
-    if (argc - optind == 3 || argc - optind == 5) {
-	lon = atof (argv[optind + 1]);
-	lat = atof (argv[optind + 2]);
+    if (argc - optind == 4 || argc - optind == 6) {
+	if (RETURN_FAILURE == parse_sunpos (argv[optind + 1], argv[optind + 2],
+					    argv[optind + 3], &position))
+	{
+	    fprintf (stderr, "ERROR: can't parse target coordinates, aborting\n");
+	    return EXIT_FAILURE;
+	}
     }
-    if (argc - optind == 5) {
-	stepsize = atof (argv[optind + 3]);
-	nsteps = atoi (argv[optind + 4]);
+    if (argc - optind == 6) {
+	stepsize = atof (argv[optind + 4]);
+	nsteps = atoi (argv[optind + 5]);
     }
     
     /* required kernels are coded in solarv.tm  meta kernel */
@@ -140,7 +144,7 @@ int main(int argc, char **argv)
     /* TODO: poss. to load a custom kernel here */
 
     /* plain ascii output */
-    plainmode (observer, time_utc, lon, lat,
+    plainmode (observer, time_utc, &position,
 	       stepsize, nsteps, fancy, stdout, rotmodel);
     
     unload_c ("../data/kernels/solarv.tm");
@@ -156,8 +160,7 @@ int main(int argc, char **argv)
 int soleph (
     SpiceChar *station, /* NAIF body name/code of the observer     */ 
     SpiceDouble et,     /* Spice ephemeris time of the observation */
-    SpiceDouble lon,    /* stonyhurst longitude of target point    */
-    SpiceDouble lat,    /* stonyhurst latitude of target point     */
+    sunpos_t *position,
     soleph_t *eph,
     int rotmodel)
 {
@@ -169,11 +172,14 @@ int soleph (
     SpiceDouble state_stt[6];
     SpiceDouble state_ott[6];
     SpiceDouble los_ott[3];
-    SpiceDouble lonrd = lon * rpd_c();
-    SpiceDouble latrd = lat * rpd_c();
+    SpiceDouble lonrd = 0, latrd = 0;
 
     reset_soleph (eph);
-    
+
+    if (position->type == lola) {
+	lonrd = position->x * rpd_c();
+	latrd = position->y * rpd_c();
+    }
 
     /* remember julian date and ascii utc string of the event */
     SpiceDouble deltaT;
@@ -383,7 +389,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		    "  carrington L0        :% .4f deg\n"
 		    "  center distance      : %.3f km\n"
 		    "  center v_los         :% .3f m/s\n"
-		    "  disc coordinates     : %.2f, %.2f arcsec\n"
+		    "  disc coordinates     :% .2f, %.2f arcsec\n"
 		    "  lola coordinates     :% .3f, %.3f deg\n"
 		    "  cos(hel. angle) = mu : %.4f\n"
 		    "  target distance      : %.3f km\n"
@@ -427,8 +433,7 @@ void list_rotation_models (FILE *stream)
 int plainmode (
     SpiceChar *observer, /* NAIF body name/code of the observer     */ 
     char *time_utc,     /* Spice ephemeris time of the observation */
-    SpiceDouble lon,    /* stonyhurst longitude of target point    */
-    SpiceDouble lat,    /* stonyhurst latitude of target point     */
+    sunpos_t *position,
     SpiceDouble stepsize,
     int nsteps,
     bool fancy,
@@ -443,7 +448,7 @@ int plainmode (
     for (SpiceInt i  = 0; i < nsteps; ++i)
     {
 	soleph_t eph;
-	soleph (observer, et, lon, lat, &eph, rotmodel);
+	soleph (observer, et, position, &eph, rotmodel);
 
 	if (fancy) {
 	    fancy_print_eph (stream, &eph);
@@ -480,6 +485,24 @@ int fitsmode (
     */
 
 
+
+    return RETURN_SUCCESS;
+}
+
+
+int parse_sunpos (const char *type, const char *posx, const char *posy, sunpos_t *pos)
+{
+    if (strcasecmp (type, "lola") == 0)
+	pos->type = lola;
+    else if (strcasecmp (type, "xy") == 0)
+	pos->type = xy;
+    else {
+	fprintf (stderr, "ERROR: bad coordinate type: %s\n", type);
+	return RETURN_FAILURE;
+    }
+
+    pos->x = atof (posx);
+    pos->y = atof (posy);
 
     return RETURN_SUCCESS;
 }
