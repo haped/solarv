@@ -25,11 +25,14 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
+#include <libgen.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <getopt.h>
 #include <math.h>
+#include <time.h>
+#include <fitsio.h>
 
 #include "solarv.h"
 
@@ -74,16 +77,21 @@ void version (void)
 
 int main (int argc, char **argv)
 {   
+    char fitsfile[MAXPATH+1] = "";
+    char outdir[MAXPATH+1] = "";
     char time_utc[80];
     char observer[65] = "izana";
     SpiceDouble stepsize = 1; /* minutes */
     SpiceInt nsteps = 1;
     bool fancy = false;
+    bool fitsmode = false;
     int rotmodel = fixed;
+    int errorcode = RETURN_SUCCESS;
+
     sunpos_t position;
 
     int c; opterr = 0;
-    while ((c = getopt (argc, argv, "+hm:pr:o:v")) != -1)
+    while ((c = getopt (argc, argv, "+hm:pr:o:vfd:")) != -1)
     {
         switch (c)
         {
@@ -115,8 +123,8 @@ int main (int argc, char **argv)
         case 'p': fancy = true; break;
 	case 'o': strncpy (observer, optarg, 64); break;
 	case 'v': version (); return EXIT_SUCCESS; break;
-	    return EXIT_SUCCESS;
-	    break;
+	case 'f': fitsmode = true; break;
+	case 'd': strncpy (outdir, optarg, MAXPATH); break;
         default: usage (stdout); return EXIT_FAILURE;
         }
     }
@@ -126,8 +134,12 @@ int main (int argc, char **argv)
 	usage (stdout);
 	return EXIT_FAILURE;
     }
-    strncpy (time_utc, argv[optind], 79);
-    if (argc - optind == 4 || argc - optind == 6) {
+    if (fitsmode)
+	strncpy (fitsfile, argv[optind], 1023);
+    else
+	strncpy (time_utc, argv[optind], 79);
+    if (argc - optind == 4 || argc - optind == 6)
+    {
 	if (RETURN_FAILURE == parse_sunpos (argv[optind + 1], argv[optind + 2],
 					    argv[optind + 3], &position))
 	{
@@ -135,7 +147,7 @@ int main (int argc, char **argv)
 	    return EXIT_FAILURE;
 	}
     }
-    if (argc - optind == 6) {
+    if (argc - optind == 6 && ! fitsmode) {
 	stepsize = atof (argv[optind + 4]);
 	nsteps = atoi (argv[optind + 5]);
     }
@@ -144,11 +156,21 @@ int main (int argc, char **argv)
     furnsh_c ("../data/kernels/solarv.tm");
     /* TODO: poss. to load a custom kernel here */
 
-    /* plain ascii output */
-    plainmode (observer, time_utc, &position,
-	       stepsize, nsteps, fancy, stdout, rotmodel);
+    if (fitsmode) {
+	errorcode = mode_fits (observer, fitsfile, outdir, &position, rotmodel);
+    }
+    else {
+	errorcode = mode_plain (observer, time_utc, &position,
+				stepsize, nsteps, fancy, stdout, rotmodel);
+    }
     
     unload_c ("../data/kernels/solarv.tm");
+
+    if (RETURN_FAILURE == errorcode) {
+	errmesg ("there where errors, please check results\n");
+	return EXIT_FAILURE;
+    }
+    
     return EXIT_SUCCESS;
 }
 
@@ -159,7 +181,7 @@ int main (int argc, char **argv)
  * given position on the sun at a given time
  */
 int soleph (
-    SpiceChar *station, /* NAIF body name/code of the observer     */ 
+    SpiceChar *observer, /* NAIF body name/code of the observer     */ 
     SpiceDouble et,     /* Spice ephemeris time of the observation */
     sunpos_t *position,
     soleph_t *eph,
@@ -188,7 +210,7 @@ int soleph (
     /* we use the utc julain date here, so substract the delta */
     eph->jdate = unitim_c (et, "ET", "JDTDB") - deltaT / spd_c();
     et2utc_c (et, "C", 2, 79, eph->utcdate);
-    strcpy (eph->station, station);
+    strcpy (eph->observer, observer);
 
     eph->lon = lonrd;
     eph->lat = latrd;
@@ -198,17 +220,17 @@ int soleph (
      * should be correct because NONE would compute the geometric state at
      * 'et' while what we actually observe has happened ~8 mins before */
     subpnt_c ("Near point: ellipsoid", "SUN", et, "IAU_SUN",
-	      ABCORR, station, subpoint, &trgepc, srfvec);
+	      ABCORR, observer, subpoint, &trgepc, srfvec);
     reclat_c (subpoint, &subrad, &sublon, &sublat);
     eph->B0 = sublat;
     /* store carrington longitude as 0 ... 2 pi */
     eph->L0 = sublon < 0 ? 2 * pi_c() + sublon : sublon;
 
     /* compute solar barycenter state relative to observer */
-    relstate_observer_sun (station, et, eph, state_ots);
+    relstate_observer_sun (observer, et, eph, state_ots);
 
     /* compute target state relative to sun barycenter */
-    relstate_sun_target (station, et, lonrd, latrd, rotmodel, eph, state_stt);
+    relstate_sun_target (observer, et, lonrd, latrd, rotmodel, eph, state_stt);
 
     /* compute observer to target by adding ots + stt */
     vaddg_c (state_ots, state_stt, 6, state_ott);
@@ -326,7 +348,7 @@ void reset_soleph (soleph_t *eph)
 {
     eph->jdate = 0.0;
     strcpy (eph->utcdate, "na");
-    strcpy (eph->station, "na");
+    strcpy (eph->observer, "na");
     eph->B0 = 0.0;
     eph->L0 = 0.0;
     eph->P0 = 0.0;
@@ -399,7 +421,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		    "  rotataion rate       : %.5f murad/s\n"
 		    "  impact parameter     : %.3f km\n",
 		    
-		    eph->station, eph->utcdate,
+		    eph->observer, eph->utcdate,
 		    eph->jdate,
 		    eph->rsun_as,
 		    eph->B0 * dpr_c(),
@@ -431,9 +453,9 @@ void list_rotation_models (FILE *stream)
     }
 }
 
-int plainmode (
+int mode_plain (
     SpiceChar *observer, /* NAIF body name/code of the observer     */ 
-    char *time_utc,     /* Spice ephemeris time of the observation */
+    char *time_utc,      /* Spice ephemeris time of the observation */
     sunpos_t *position,
     SpiceDouble stepsize,
     int nsteps,
@@ -464,34 +486,205 @@ int plainmode (
     return RETURN_SUCCESS;
 }
 
-int fitsmode (
+int mode_fits (
     SpiceChar *observer,
-    char *fitsfile,
-    SpiceDouble lon,
-    SpiceDouble lat,
+    char *infile,
+    char *outdir,
+    sunpos_t *position,
     int rotmodel)
 {
+    char fitsfile2[MAXPATH+1];
+    char fitsfile3[MAXPATH+1];
+    char outfile[MAXPATH+1];
+    char *basenam = '\0', *basedir = '\0';
+    fitsfile *fptr, *fptrout;
+    int status = 0;
+    long naxes[3];
+    int nfound;
+    long nframes = 0;
+
+    /* write the ephemeris table in the same directory and basename as the
+     * input file but append '_ephem.fits' */
+    strncpy (fitsfile2, infile, MAXPATH); 
+    strncpy (fitsfile3, infile, MAXPATH); 
+    basenam = basename (fitsfile2);
+    char *lastp = rindex (basenam, '.'); /* remove file extension */
+    if (lastp) *lastp = '\0';
+
+    if (strcmp (outdir, "") == 0)
+	basedir = dirname (fitsfile3);
+    else
+	basedir = outdir;
+    snprintf (outfile, MAXPATH, "%s/%s_ephem.fits", basedir, basenam);
     
-    /*
-      open fits file
+    printf ("reading '%s'\n", infile);
 
-       if it contains only one frame, read date-obs, write ephem table with same basename.
+    fits_open_file (&fptr, infile, READONLY, &status);
+    /* read the NAXIS1, NAXIS2 and NAXIS2 keyword to get image size */
+    fits_read_keys_lng (fptr, "NAXIS", 1, 3, naxes, &nfound, &status);
+    if (status)
+    {
+        errmesg ("error reading fits header from %s: %s\n", infile);
+	fits_report_error (stderr, status);
+        fits_close_file (fptr, &status);
+        return RETURN_FAILURE;
+    }
 
-       if it contains more frames, read the first bytes containing the bcd
-       coded exposure date, and append a new row in the fits column with the
-       ephemeris date 
+    if (nfound == 3) {
+	printf ("input file is a cube with %li frames\n", naxes[2]);
+	nframes = naxes[2];
+    }
+    else if (nfound == 2) {
+	printf ("input file is a single image\n");
+	nframes = 1;
+    }
+    else {
+	errmesg ("input file has unsupported format (dimension=%i)\n", nfound);
+	return RETURN_FAILURE;
+    }
+
+    fits_create_file (&fptrout, outfile, &status);
+    fits_create_img (fptrout, BYTE_IMG, 0, 0, &status);
+    write_fits_ephtable_header (fptrout, naxes[2], &status);
+
+    if (status) {
+        errmesg ("error writing fitstable: %i\n", status);
+	fits_report_error (stderr, status);
+        fits_close_file (fptrout, &status);
+        return RETURN_FAILURE;
+    }
 
 
-       done
-    */
+    printf ("naxes1 = %ld\n", naxes[1]);
 
+    for (long i = 0; i < nframes; ++i)
+    {
+	SpiceDouble et;
+	char utcstr[64];
+	soleph_t eph;
 
+	fitsframe_bcddate (fptr, i+1, naxes[1], utcstr, &status);
+	if (status) break;
+	str2et_c (utcstr, &et);
+	
+	soleph (observer, et, position, &eph, rotmodel);
+	write_fits_ephtable_row (fptrout, i+1, &eph, &status);
+
+	if (status) break;
+    }
+
+    fits_close_file (fptr, &status);
+    fits_close_file (fptrout, &status);
+    if (status) {
+        errmesg ("error writing fitstable: %i\n", status);
+	fits_report_error (stderr, status);
+        return RETURN_FAILURE;
+    }
 
     return RETURN_SUCCESS;
 }
 
 
-int parse_sunpos (const char *type, const char *posx, const char *posy, sunpos_t *pos)
+int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
+{
+    if (*status)
+	return RETURN_FAILURE;
+    
+    /* define table structure */
+    int tfields = 15;
+    char tname[] = "ephemeris";
+    char *ttype[] = { "jdate",
+		      //"utcdate", "observer",
+		      "B0", "L0", "P0",
+		      "dist_sun", "rsun_as",
+		      //"modelname", "modeldescr",
+		      "lon", "lat", "x", "y", "mu", "dist", "vlos",
+		      "rho_hc", "omega" };
+    char *tform[] = { "D",
+		      //"A", "A",
+		      "D", "D", "D",
+		      "D", "D",
+		      //"A", "A",
+		      "D", "D", "D", "D", "D", "D", "D",
+		      "D", "D" };
+    char *tunit[] = { "secs", NULL, NULL, "deg", "deg", "deg",
+		      "km", "arcsec", NULL, NULL,
+		      "deg", "deg", "arcsec", "arcsec", NULL, "km", "km/s",
+		      "km", "murad/s"};
+
+    /* fits_create_file (&fptr, file_ts, &status); */
+    /* fits_create_img (fptr, BYTE_IMG, 0, 0, &status); */
+
+    fits_create_tbl (fptr,
+                     BINARY_TBL,       /* type              */
+                     nrows,            /* nrows             */
+                     tfields,          /* number of cols    */
+                     ttype,            /* colnames          */
+                     tform,            /* coltypes          */
+                     tunit,            /* colunits          */
+                     tname,            /* name of extension */
+                     status);
+    if (*status) {
+        errmesg ("error creating fitstable: %i\n", *status);
+	fits_report_error (stderr, *status);
+        return RETURN_FAILURE;
+    }
+    
+    return RETURN_SUCCESS;
+}
+
+
+int write_fits_ephtable_row (
+    fitsfile *fptr,
+    long row,
+    soleph_t *eph,
+    int *status)
+{
+    long firstrow = row;
+    long col = 1;
+
+#define EPHTABLE_ADDCELL(type, ptr) fits_write_col (fptr, type, col++,	\
+						    firstrow, 1, 1,	\
+						    (void*) ptr, status)
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->jdate);
+    /* EPHTABLE_ADDCELL (TSTRING, eph->utcdate); */
+    /* EPHTABLE_ADDCELL (TSTRING, eph->observer); */
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->B0);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->L0);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->P0);
+
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->dist_sun);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->rsun_as);
+    /* EPHTABLE_ADDCELL (TSTRING, eph->modelname); */
+    /* EPHTABLE_ADDCELL (TSTRING, eph->modeldescr); */
+
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->lon);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->lat);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->x);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->y);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->mu);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->dist);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos);
+
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->rho_hc);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->omega);
+    
+    if (*status) {
+	errmesg ("error adding row tp fitstable: %i\n", *status);
+	fits_report_error (stderr, *status);
+        return RETURN_FAILURE;
+    }
+
+    return RETURN_SUCCESS;
+}
+
+
+
+int parse_sunpos (
+    const char *type,
+    const char *posx,
+    const char *posy,
+    sunpos_t *pos)
 {
     if (strcasecmp (type, "lola") == 0)
 	pos->type = lola;
@@ -517,4 +710,63 @@ void errmesg (const char *mesg, ...)
     va_start(ap, mesg);
     vfprintf (stderr, mesg, ap);
     va_end(ap);
+}
+
+int fitsframe_bcddate (fitsfile *fptr, long frame, long height, char *utcstr, int *status)
+{
+    /* we assume 16 bit fits files here */
+    const long bufsize = 32;
+    unsigned short buf[bufsize];
+    void *nulval = NULL;
+    int anynul;
+    long fpixel[] = {1, height, frame};
+    
+    if (*status) return RETURN_FAILURE;
+    
+    fits_read_pix (fptr, TSHORT, fpixel, bufsize/2, nulval, (void*) buf, &anynul, status);
+    if (*status) return RETURN_FAILURE;
+    
+    /* bcd decoder borrowed from Kolja Klogowski */
+    /*
+      Format:
+      buf[ 4] -> bcd[0]  ==  year * 100
+      buf[ 5] -> bcd[1]  ==  year
+      buf[ 6] -> bcd[2]  ==  month
+      buf[ 7] -> bcd[3]  ==  day
+      buf[ 8] -> bcd[4]  ==  hour
+      buf[ 9] -> bcd[5]  ==  minute
+      buf[10] -> bcd[6]  ==  second
+      buf[11] -> bcd[7]  ==  mus * 10000
+      buf[12] -> bcd[8]  ==  mus * 100
+      buf[13] -> bcd[9]  ==  mus
+    */
+    unsigned char bcd[10];
+    for (int i = 0; i < 10; ++i)
+        bcd[i] = (unsigned char) (buf[4 + i] & 0xff);
+
+    unsigned char val[10];
+    for (int i = 0; i < 10; ++i)
+        val[i] = (bcd[i] >> 4) * 10 + (bcd[i] & 0x0f);
+
+    int year = 100 * (int)val[0] + (int)val[1];
+    int mon = val[2];
+    int day = val[3];
+    int hour = val[4];
+    int min = val[5];
+    int sec = val[6];
+
+    if (! ((1950 < year && 2100 > year) &&
+	   (mon > 0 && mon <= 12)       &&
+	   (day > 0 && day <= 31)       &&
+	   (hour >= 0 && hour <= 24)    &&
+	   (min >= 0 && min <= 59)      &&
+	   (sec >= 0 && sec <= 59))) {
+	errmesg ("timestamp of frame %li is invalid\n", frame);
+	return RETURN_FAILURE;
+    }
+	
+    struct tm ts = { sec, min, hour, day, mon-1, year-1900};
+    strftime (utcstr, 63, "%Y-%m-%dT%H:%M:%S", &ts);
+
+    return RETURN_SUCCESS;
 }

@@ -31,6 +31,10 @@ static const char _versiondate[] = "2012-02-06";
 
 #include "SpiceUsr.h"
 
+#ifndef MAXPATH
+#define MAXPATH (2048)
+#endif
+
 #ifndef EXIT_SUCCESS
 #define EXIT_SUCCESS (0)
 #endif
@@ -102,7 +106,7 @@ typedef struct
     /* common data; sun global parameters */
     SpiceDouble jdate;     /* julian day of the event                    */
     SpiceChar utcdate[80]; /* ascii date in UTC                          */
-    SpiceChar station[128];/* NAIF station name                          */
+    SpiceChar observer[128];/* NAIF station name                          */
     SpiceDouble B0;        /* lat of sub-observer point, lt corrected    */
     SpiceDouble L0;        /* lon of sub-observer point, lt corrected    */
     SpiceDouble P0;        /* polar angle, lt corrected                  */
@@ -150,7 +154,7 @@ int relstate_sun_target (
     soleph_t *eph,
     SpiceDouble *state);
 
-int plainmode (
+int mode_plain (
     SpiceChar *observer, /* NAIF body name/code of the observer     */ 
     char *time_utc,     /* Spice ephemeris time of the observation */
     sunpos_t *position, 
@@ -158,6 +162,13 @@ int plainmode (
     int nsteps,
     bool fancy,
     FILE * stream,
+    int rotmodel);
+
+int mode_fits (
+    SpiceChar *observer,
+    char *infile,
+    char *outdir,
+    sunpos_t *position,
     int rotmodel);
 
 
@@ -172,6 +183,15 @@ void reset_soleph (soleph_t *eph);
 int parse_sunpos (const char *type, const char *posx, const char *posy, sunpos_t *pos);
 
 void errmesg (const char *mesg, ...);
+
+int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status);
+int write_fits_ephtable_row (
+    fitsfile *fptr,
+    long row,
+    soleph_t *eph,
+    int *status);
+
+int fitsframe_bcddate (fitsfile *fptr, long frame, long height, char *utcstr, int *status);
 
 
 #endif /* _SOLARV_H_ */
