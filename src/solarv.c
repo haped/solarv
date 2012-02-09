@@ -632,26 +632,26 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 	return RETURN_FAILURE;
     
     /* define table structure */
-    int tfields = 15;
+    int tfields = 16;
     char tname[] = "ephemeris table";
     char *ttype[] = { "jdate",
 		      //"utcdate", "observer",
 		      "B0", "L0", "P0",
-		      "dist_sun", "rsun_as",
+		      "dist_sun", "vlos_sun", "rsun_as",
 		      //"modelname", "modeldescr",
 		      "lon", "lat", "x", "y", "mu", "dist", "vlos",
 		      "rho_hc", "omega" };
     char *tform[] = { "D",
 		      //"32A", "32A",
 		      "D", "D", "D",
-		      "D", "D",
+		      "D", "D", "D",
 		      //"32A", "32A",
 		      "D", "D", "D", "D", "D", "D", "D",
 		      "D", "D" };
     char *tunit[] = { "sec",
 		      //'\0', '\0',
 		      "deg", "deg", "deg",
-		      "km", "arcsec",
+		      "km", "km/s", "arcsec",
 		      //'\0', '\0',
 		      "deg", "deg", "arcsec", "arcsec", '\0', "km", "km/s",
 		      "km", "murad/s"};
@@ -694,6 +694,7 @@ int write_fits_ephtable_row (
     EPHTABLE_ADDCELL (TDOUBLE, &eph->L0);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->P0);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->dist_sun);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos_sun);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->rsun_as);
     /* EPHTABLE_ADDCELL (TSTRING, eph->modelname); */
     /* EPHTABLE_ADDCELL (TSTRING, eph->modeldescr); */
@@ -715,8 +716,6 @@ int write_fits_ephtable_row (
 
     return RETURN_SUCCESS;
 }
-
-
 
 int parse_sunpos (
     const char *type,
@@ -750,14 +749,19 @@ void errmesg (const char *mesg, ...)
     va_end(ap);
 }
 
-int fitsframe_bcddate (fitsfile *fptr, long frame, long height, char *utcstr, int *status)
+int fitsframe_bcddate (
+    fitsfile *fptr,
+    long frameidx,
+    long sy,
+    char *utcstr,
+    int *status)
 {
     /* we assume 16 bit fits files here */
     const long bufsize = 32;
     unsigned short buf[bufsize];
     void *nulval = NULL;
     int anynul;
-    long fpixel[] = {1, height, frame};
+    long fpixel[] = {1, sy, frameidx};
     
     if (*status) return RETURN_FAILURE;
     
@@ -801,7 +805,7 @@ int fitsframe_bcddate (fitsfile *fptr, long frame, long height, char *utcstr, in
 	   (hour >= 0 && hour <= 24)    &&
 	   (min >= 0 && min <= 59)      &&
 	   (sec >= 0 && sec <= 59))) {
-	errmesg ("timestamp of frame %li is invalid\n", frame);
+	errmesg ("timestamp of frame %li is invalid\n", frameidx);
 	return RETURN_FAILURE;
     }
 	

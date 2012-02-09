@@ -96,7 +96,7 @@ typedef struct
     SpiceDouble y;
     int type;
 } sunpos_t;
-enum PosType {lola = 0, xy = 1};
+enum PosType {lola = 0, xy = 1, loy = 2, xlat = 3};
 
 
 /* 
@@ -104,34 +104,34 @@ enum PosType {lola = 0, xy = 1};
    solar surface (t_) and the sun barycenter (s_) with respect to the
    observer's position.
 
-   angles in radian, distances in kilometers, velocity in meters/seconds
+   angles in degree, distances in kilometers, velocity in km/seconds
 */
 typedef struct
 {
     /* common data; sun global parameters */
-    SpiceDouble jdate;     /* julian day of the event                    */
-    SpiceChar utcdate[MAXKEY]; /* ascii date in UTC                          */
-    SpiceChar observer[MAXKEY];/* NAIF station name                          */
-    SpiceDouble B0;        /* lat of sub-observer point, lt corrected    */
-    SpiceDouble L0;        /* lon of sub-observer point, lt corrected    */
-    SpiceDouble P0;        /* polar angle, lt corrected                  */
-    SpiceDouble dist_sun;  /* distance obs. to solar center              */
-    SpiceDouble vlos_sun;  /* radial velocity of obs to solar center     */
-    SpiceDouble rsun_as;   /* apparent radius of the sun in arcsecs      */
-    int rotmodel;          /* solar rotation model used                  */
-    char modelname[MAXKEY];    /* name of the rotation model                 */
-    char modeldescr[MAXKEY];  /* description of the rotation model          */
+    SpiceDouble jdate;          /* julian day of the event                    */
+    SpiceChar utcdate[MAXKEY];  /* ascii date in UTC                          */
+    SpiceChar observer[MAXKEY]; /* NAIF station name                          */
+    SpiceDouble B0;             /* lat of sub-observer point, lt corrected    */
+    SpiceDouble L0;             /* lon of sub-observer point, lt corrected    */
+    SpiceDouble P0;             /* polar angle, lt corrected                  */
+    SpiceDouble dist_sun;       /* distance obs. to solar center              */
+    SpiceDouble vlos_sun;       /* radial velocity of obs to solar center     */
+    SpiceDouble rsun_as;        /* apparent radius of the sun in arcsecs      */
+    int rotmodel;               /* solar rotation model used                  */
+    char modelname[MAXKEY];     /* name of the rotation model                 */
+    char modeldescr[MAXKEY];    /* description of the rotation model          */
     								         
     /* target position parameters */				         
-    SpiceDouble lon;       /* stonyhurst target longitude (deg)          */
-    SpiceDouble lat;       /* stonyhurst target latitude  (deg)          */
-    SpiceDouble x;         /* target x coordinate in as from disk center */
-    SpiceDouble y;         /* target y coordinate in as from disk center */
-    SpiceDouble mu;        /* heliocentric angle of the target           */
-    SpiceDouble dist;      /* distance to target                         */
-    SpiceDouble vlos;      /* radial velocity of target                  */
-    SpiceDouble rho_hc;    /* heliocentric impact parameter              */
-    SpiceDouble omega;     /* actually used omega value (murad/s)        */
+    SpiceDouble lon;            /* stonyhurst target longitude (deg)          */
+    SpiceDouble lat;            /* stonyhurst target latitude  (deg)          */
+    SpiceDouble x;              /* target x coordinate in as from disk center */
+    SpiceDouble y;              /* target y coordinate in as from disk center */
+    SpiceDouble mu;             /* heliocentric parameter of the target       */
+    SpiceDouble dist;           /* distance to target                         */
+    SpiceDouble vlos;           /* radial velocity of target                  */
+    SpiceDouble rho_hc;         /* heliocentric impact parameter              */
+    SpiceDouble omega;          /* actually used omega value (murad/s)        */
 } soleph_t;
 
 
@@ -185,17 +185,19 @@ void fancy_print_eph (FILE *stream, soleph_t *eph);
 void list_rotation_models (FILE *stream);
 void reset_soleph (soleph_t *eph);
 int parse_sunpos (const char *type, const char *posx, const char *posy, sunpos_t *pos);
-
 void errmesg (const char *mesg, ...);
-
 int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status);
 int write_fits_ephtable_row (
     fitsfile *fptr,
     long row,
     soleph_t *eph,
     int *status);
-
-int fitsframe_bcddate (fitsfile *fptr, long frame, long height, char *utcstr, int *status);
+int fitsframe_bcddate (
+    fitsfile *fptr,
+    long frameidx,
+    long ny,
+    char *utcstr,
+    int *status);
 
 
 #endif /* _SOLARV_H_ */
