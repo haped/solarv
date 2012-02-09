@@ -262,6 +262,111 @@ int relstate_observer_sun (
     return RETURN_SUCCESS;
 }
 
+/* Thompson (2005) eq. (11) */
+void lola2hcc (
+    SpiceDouble lon,
+    SpiceDouble lat,
+    SpiceDouble L0,
+    SpiceDouble B0,
+    SpiceDouble *x,
+    SpiceDouble *y,
+    SpiceDouble *z)
+{
+    SpiceDouble costheta = cos (lat);
+    SpiceDouble sintheta = sin (lat);
+    SpiceDouble cosphimphi0 = cos (lon - L0);
+    SpiceDouble cosB0 = cos (B0);
+    SpiceDouble sinB0 = sin (B0);
+    
+    *x = RSUN * costheta * sin (lon - L0);
+    *y = RSUN * (sintheta * cosB0 - costheta * cosphimphi0 * sinB0);
+    *z = RSUN * (sintheta * sinB0 + costheta * cosphimphi0 * cosB0);
+}
+
+/* Thompson (2005) eq (12) */
+void hcc2lola (
+    SpiceDouble x,
+    SpiceDouble y,
+    SpiceDouble z,
+    SpiceDouble B0,
+    SpiceDouble *lon,
+    SpiceDouble *lat)
+{
+    SpiceDouble cosB0 = cos (B0);
+    SpiceDouble sinB0 = sin (B0);
+    
+    *lon = atan2 (x, z * cosB0 - y * sinB0);
+    *lat = asin ((y * cosB0 + z * sinB0) / RSUN);
+}
+
+/* thomposn (2005) eq (15) */
+void xy2hcc (
+    SpiceDouble xp, /* helio-projective x */
+    SpiceDouble yp, /* helio-projective y */
+    SpiceDouble ds, /* dist obs-sun */
+    SpiceDouble *x,
+    SpiceDouble *y,
+    SpiceDouble *z)
+{
+    SpiceDouble cosx = cos (xp);
+    SpiceDouble sinx = sin (xp);
+    SpiceDouble cosy = cos (yp);
+    SpiceDouble siny = sin (yp);
+    
+    SpiceDouble q = ds * cosy * cosx;
+    SpiceDouble dist = q * q - ds * ds + RSUN * RSUN;
+    dist =  q - sqrt (dist);
+
+    *x = dist * cosy * sinx;
+    *y = dist * siny;
+    *z = ds - dist * cosy * cosx;
+}
+
+/* Thompson (2005) eq (16) */
+void hcc2xy (
+    SpiceDouble x,
+    SpiceDouble y,
+    SpiceDouble z,
+    SpiceDouble ds, /* dist obs-sun */
+    SpiceDouble *xp,
+    SpiceDouble *yp)
+{
+    SpiceDouble dt = sqrt (x*x + y*y + (ds - z) * (ds - z));
+    *xp = atan2 (ds - z, x);
+    *yp = asin (y / dt);
+}
+
+void lola2xy (
+    SpiceDouble lon,
+    SpiceDouble lat,
+    SpiceDouble L0,
+    SpiceDouble B0,
+    SpiceDouble ds, /* dist obs - sun */
+    SpiceDouble *xp,
+    SpiceDouble *yp)
+{
+    SpiceDouble x, y, z;
+    
+    lola2hcc (lon, lat, L0, B0, &x, &y, &z);
+    hcc2xy (x, y, z, ds, xp, yp);
+}
+ 
+void xy2lola (
+    SpiceDouble xp,
+    SpiceDouble yp,
+    SpiceDouble ds,
+    SpiceDouble B0,
+    SpiceDouble *lon,
+    SpiceDouble *lat)
+{
+    SpiceDouble x, y, z;
+    
+    xy2hcc (xp, yp, ds, &x, &y, &z);
+    hcc2lola (x, y, z, B0, lon, lat);
+}
+
+
+
 /* compute relative state from solar center to target position on the
  * surface in IAU_SUN frame */
 int relstate_sun_target (
@@ -278,17 +383,8 @@ int relstate_sun_target (
     SpiceDouble subrad, sublon, sublat; /* lola cords of sub-observer point   */
     SpiceDouble xform[6][6];            /* transf. matrix body-fixed -> j2000 */
     SpiceDouble state_stt_fixed[6];     /* sun-to-target state vector         */
-    SpiceDouble lon, lat;
+    SpiceDouble lonrd, latrd;
     
-    if (position.type == lola) {
-	lon = position.x * rpd_c();
-	lat = position.y * rpd_c();
-	eph->lon = lon * dpr_c();
-	eph->lat = lat * dpr_c();
-    }
-
-
-
     /* for the following procedure, also see:
        http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/pck.html#
        Transforming%20a%20body-fixed%20state%20to%20the%20inertial%20J2000%20frame
@@ -304,16 +400,38 @@ int relstate_sun_target (
     subpnt_c ("Near point: ellipsoid", "SUN", et, "HCI", ABCORR, station,
 	      subpoint, &trgepc, srfvec);
     reclat_c (subpoint, &subrad, &sublon, &sublat);
+
+    /* SpiceDouble subpnt_dist = vnorm_c (srfvec); */
+    /* printf ("subobserver-distance=%f\n", subpnt_dist); */
+    
+
+
+    /* now that we know the heliographic sub-observer coordinates, we can
+     * easily compute the helio-projective cartesian coordinates (x,y) from
+     * the given position in (lon,lat) and vice versa */
+    if (position.type == lola) {
+	lonrd = position.x * rpd_c();
+	latrd = position.y * rpd_c();
+    }
+    else if (position.type == xy) {
+	SpiceDouble xp = position.x / 3600.0 * rpd_c();
+	SpiceDouble yp = position.y / 3600.0 * rpd_c();
+	xy2lola (xp, yp, eph->dist_sun * 1000, sublat, &lonrd, &latrd);
+    }
+    
+    eph->lon = lonrd * dpr_c();
+    eph->lat = latrd * dpr_c();
+
     
     /* rectangular, body fixed coorindates of target point given in
      * stonyhurst coordinates */
-    SpiceDouble tlon = lon + sublon;
-    SpiceDouble tlat = lat;
+    SpiceDouble tlon = lonrd + sublon;
+    SpiceDouble tlat = latrd;
     latrec_c (RSUN / 1000.0, tlon, tlat, state_stt_fixed);
 
     /* additional veloctiy from (differential) rotation according to
      * rotation model specified */
-    SpiceDouble omegas = omega_sun (lat, rotmodel);
+    SpiceDouble omegas = omega_sun (latrd, rotmodel);
     SpiceDouble omega[] = {0.0, 0.0, omegas};
     SpiceDouble radius[] = {state_stt_fixed[0], state_stt_fixed[1], 0.0};
     vcrss_c (omega, radius, &state_stt_fixed[3]);
@@ -331,11 +449,11 @@ int relstate_sun_target (
      * stt_fixed vector again. this time we substract the sub-observer
      * latitude. sub-observer longitude is always zero in stondyhurst
      * coordinates per definition */
-    latrec_c (RSUN / 1000.0, lon, lat - sublat, state_stt_fixed);
+    latrec_c (RSUN / 1000.0, lonrd, latrd - sublat, state_stt_fixed);
 
     /* Thompson (2005) eq 4 */
-    eph->x = state_stt_fixed[1] / eph->dist_sun * dpr_c () * 3600.0;
-    eph->y = state_stt_fixed[2] / eph->dist_sun * dpr_c () * 3600.0;
+    eph->x = atan (state_stt_fixed[1] / eph->dist_sun) * dpr_c () * 3600.0;
+    eph->y = atan (state_stt_fixed[2] / eph->dist_sun) * dpr_c () * 3600.0;
 
     /* radial distance from target to solar rotation axis */
     eph->rho_hc = sqrt (state_stt_fixed[1] * state_stt_fixed[1] + 
