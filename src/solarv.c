@@ -48,7 +48,7 @@ void usage (FILE *stream)
 	    "  -h            show this help\n"
 	    "  -m model      set solar rotation model 'model'\n"
 	    "                use 'list' to list available models\n"
-	    /* "  -o observer   set observer location. can be any NAIF body code.\n" */
+	    /* "  -O observer   set observer location. can be any NAIF body code.\n" */
 	    /* "                pre-defined sites: 'izana'\n" */
 	    "  -p            pretty-print ephemeris data\n"
 	    "  -v            print program version\n"
@@ -91,7 +91,7 @@ int main (int argc, char **argv)
     sunpos_t position;
 
     int c; opterr = 0;
-    while ((c = getopt (argc, argv, "+hm:pr:o:vfd:")) != -1)
+    while ((c = getopt (argc, argv, "+hm:pr:O:o:vf")) != -1)
     {
         switch (c)
         {
@@ -121,10 +121,10 @@ int main (int argc, char **argv)
 	    }					
 	    break;
         case 'p': fancy = true; break;
-	case 'o': strncpy (observer, optarg, 64); break;
+	case 'O': strncpy (observer, optarg, 64); break;
+	case 'o': strncpy (outdir, optarg, MAXPATH); break;
 	case 'v': version (); return EXIT_SUCCESS; break;
 	case 'f': fitsmode = true; break;
-	case 'd': strncpy (outdir, optarg, MAXPATH); break;
         default: usage (stdout); return EXIT_FAILURE;
         }
     }
@@ -520,9 +520,11 @@ int mode_fits (
     else
 	snprintf (outfile, MAXPATH, "%s/%s_ephem.fits", basedir, basenam);
 
-    printf (">> reading  %s: ", basenam);
+    printf ("reading  %s: ", infile);
 
     fits_open_file (&fptr, infile, READONLY, &status);
+
+    /* check file compatibility */
     /* read the NAXIS1, NAXIS2 and NAXIS2 keyword to get image size */
     fits_read_keys_lng (fptr, "NAXIS", 1, 3, naxes, &nfound, &status);
     if (status)
@@ -532,7 +534,6 @@ int mode_fits (
         fits_close_file (fptr, &status);
         return RETURN_FAILURE;
     }
-
     if (nfound == 3) {
 	printf ("%li frames\n", naxes[2]);
 	nframes = naxes[2];
@@ -546,44 +547,77 @@ int mode_fits (
 	return RETURN_FAILURE;
     }
 
+    /* check if there should be a BCD header in the file; read DATE-OBS
+     * keyword as a backup */
+    bool haveBCDdate = false;
+    bool haveExptime = false;
+    char h_tsmode[81] = "na";
+    fits_read_key (fptr, TSTRING, "TSMODE", h_tsmode, 0, &status);
+    if (status == 202) status = 0; /* ignore unavailable keyword */
+    if (strstr (h_tsmode, "Binary")) haveBCDdate = true;
+    double h_exptime = -1;
+    fits_read_key (fptr, TDOUBLE, "EXPTIME", &h_exptime, 0, &status);
+    if (h_exptime != -1) haveExptime = true;
+    if (status == 202) status = 0; /* ignore unavailable keyword */
+
+    char h_dateobs[81] = "na";
+    double h_deltime;
+    if (! haveBCDdate)
+    {
+	fits_read_key (fptr, TSTRING, "DATE-OBS", h_dateobs, 0, &status);
+	fits_read_key (fptr, TDOUBLE, "DELTIME", &h_deltime, 0, &status);
+	if (status) {
+	    errmesg ("no time of exposure information found in fits file, aborting\n");
+	    fits_report_error (stderr, status);
+	    return RETURN_FAILURE;
+	}
+	printf ("Warning: no binary timestamps available, using EXPTIME"
+		" + DELTIME instead. This might be unreliable.\n");
+    }
+    
     fits_create_file (&fptrout, outfile, &status);
     fits_create_img (fptrout, BYTE_IMG, 0, 0, &status);
+    fits_write_date (fptrout,  &status);
     write_fits_ephtable_header (fptrout, naxes[2], &status);
-
-    if (status) {
-        errmesg ("error writing fitstable: %i\n", status);
+    if (status)  {
+        errmesg ("couldn't write fitstable header", status);
 	fits_report_error (stderr, status);
         fits_close_file (fptrout, &status);
         return RETURN_FAILURE;
     }
-
+    
+    /* in case the file does not provide the BCD timestamps, we have to
+      extrapolate the time of exosure via T = DATE-OBS + i * (EXPTIME + DELTIME) */
+    SpiceDouble et;
+    if (! haveBCDdate)
+	str2et_c (h_dateobs, &et);
+    
     for (long i = 0; i < nframes; ++i)
     {
-	SpiceDouble et;
-	char utcstr[64];
 	soleph_t eph;
 
-	fitsframe_bcddate (fptr, i+1, naxes[1], utcstr, &status);
-	if (status) break;
-	str2et_c (utcstr, &et);
-
+	if (haveBCDdate) {
+	    char utcstr[64];
+	    fitsframe_bcddate (fptr, i+1, naxes[1], utcstr, &status);
+	    if (status) break;
+	    str2et_c (utcstr, &et);
+	}
+	else
+	    et += i * (h_exptime / 1000.0 + h_deltime / 1000.0);
+	
 	soleph (observer, et, position, &eph, rotmodel);
-
-	printf ("    frame %ld: date: %s  exposure: %.2fs  vlos_sun: %.2f m/s\n",
-		i, utcstr, 60.0, eph.vlos_sun * 1000); 
-		
-
+	printf ("   frame %ld: %s  exptime: %.2fs  vlos: %.2f m/s\n",
+		i, eph.utcdate, h_exptime / 1000.0, eph.vlos * 1000); 
+	
 	write_fits_ephtable_row (fptrout, i+1, &eph, &status);
-
 	if (status) break;
     }
 
-    printf (">> writing %s\n", outfile);
-
+    printf ("writing %s\n", outfile);
     fits_close_file (fptr, &status);
     fits_close_file (fptrout, &status);
     if (status) {
-        errmesg ("error writing fitstable: %i\n", status);
+        errmesg ("couldn't write fitstable.");
 	fits_report_error (stderr, status);
         return RETURN_FAILURE;
     }
@@ -599,7 +633,7 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
     
     /* define table structure */
     int tfields = 15;
-    char tname[] = "ephemeris";
+    char tname[] = "ephemeris table";
     char *ttype[] = { "jdate",
 		      //"utcdate", "observer",
 		      "B0", "L0", "P0",
@@ -608,19 +642,19 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 		      "lon", "lat", "x", "y", "mu", "dist", "vlos",
 		      "rho_hc", "omega" };
     char *tform[] = { "D",
-		      //"A", "A",
+		      //"32A", "32A",
 		      "D", "D", "D",
 		      "D", "D",
-		      //"A", "A",
+		      //"32A", "32A",
 		      "D", "D", "D", "D", "D", "D", "D",
 		      "D", "D" };
-    char *tunit[] = { "secs", NULL, NULL, "deg", "deg", "deg",
-		      "km", "arcsec", NULL, NULL,
-		      "deg", "deg", "arcsec", "arcsec", NULL, "km", "km/s",
+    char *tunit[] = { "sec",
+		      //'\0', '\0',
+		      "deg", "deg", "deg",
+		      "km", "arcsec",
+		      //'\0', '\0',
+		      "deg", "deg", "arcsec", "arcsec", '\0', "km", "km/s",
 		      "km", "murad/s"};
-
-    /* fits_create_file (&fptr, file_ts, &status); */
-    /* fits_create_img (fptr, BYTE_IMG, 0, 0, &status); */
 
     fits_create_tbl (fptr,
                      BINARY_TBL,       /* type              */
@@ -652,19 +686,17 @@ int write_fits_ephtable_row (
 
 #define EPHTABLE_ADDCELL(type, ptr) fits_write_col (fptr, type, col++,	\
 						    firstrow, 1, 1,	\
-						    (void*) ptr, status)
+						    (void*)ptr, status)
     EPHTABLE_ADDCELL (TDOUBLE, &eph->jdate);
     /* EPHTABLE_ADDCELL (TSTRING, eph->utcdate); */
     /* EPHTABLE_ADDCELL (TSTRING, eph->observer); */
     EPHTABLE_ADDCELL (TDOUBLE, &eph->B0);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->L0);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->P0);
-
     EPHTABLE_ADDCELL (TDOUBLE, &eph->dist_sun);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->rsun_as);
     /* EPHTABLE_ADDCELL (TSTRING, eph->modelname); */
     /* EPHTABLE_ADDCELL (TSTRING, eph->modeldescr); */
-
     EPHTABLE_ADDCELL (TDOUBLE, &eph->lon);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->lat);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->x);
@@ -672,12 +704,11 @@ int write_fits_ephtable_row (
     EPHTABLE_ADDCELL (TDOUBLE, &eph->mu);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->dist);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos);
-
     EPHTABLE_ADDCELL (TDOUBLE, &eph->rho_hc);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->omega);
     
     if (*status) {
-	errmesg ("error adding row tp fitstable: %i\n", *status);
+	errmesg ("couldn't add row to fitstable.");
 	fits_report_error (stderr, *status);
         return RETURN_FAILURE;
     }
@@ -762,6 +793,7 @@ int fitsframe_bcddate (fitsfile *fptr, long frame, long height, char *utcstr, in
     int hour = val[4];
     int min = val[5];
     int sec = val[6];
+    int msec = (int) (bcd[7]);
 
     if (! ((1950 < year && 2100 > year) &&
 	   (mon > 0 && mon <= 12)       &&
@@ -773,8 +805,8 @@ int fitsframe_bcddate (fitsfile *fptr, long frame, long height, char *utcstr, in
 	return RETURN_FAILURE;
     }
 	
-    struct tm ts = { sec, min, hour, day, mon-1, year-1900};
-    strftime (utcstr, 63, "%Y-%m-%dT%H:%M:%S", &ts);
+    snprintf (utcstr, 63, "%4i-%02i-%02iT%02i:%02i:%02i.%i",
+	      year, mon, day, hour, min, sec, msec);
 
     return RETURN_SUCCESS;
 }

@@ -35,6 +35,11 @@ static const char _versiondate[] = "2012-02-06";
 #define MAXPATH (2048)
 #endif
 
+#ifdef MAXKEY
+#undef MAXKEY
+#endif
+#define MAXKEY (128)
+
 #ifndef EXIT_SUCCESS
 #define EXIT_SUCCESS (0)
 #endif
@@ -105,8 +110,8 @@ typedef struct
 {
     /* common data; sun global parameters */
     SpiceDouble jdate;     /* julian day of the event                    */
-    SpiceChar utcdate[80]; /* ascii date in UTC                          */
-    SpiceChar observer[128];/* NAIF station name                          */
+    SpiceChar utcdate[MAXKEY]; /* ascii date in UTC                          */
+    SpiceChar observer[MAXKEY];/* NAIF station name                          */
     SpiceDouble B0;        /* lat of sub-observer point, lt corrected    */
     SpiceDouble L0;        /* lon of sub-observer point, lt corrected    */
     SpiceDouble P0;        /* polar angle, lt corrected                  */
@@ -114,8 +119,8 @@ typedef struct
     SpiceDouble vlos_sun;  /* radial velocity of obs to solar center     */
     SpiceDouble rsun_as;   /* apparent radius of the sun in arcsecs      */
     int rotmodel;          /* solar rotation model used                  */
-    char modelname[12];    /* name of the rotation model                 */
-    char modeldescr[128];  /* description of the rotation model          */
+    char modelname[MAXKEY];    /* name of the rotation model                 */
+    char modeldescr[MAXKEY];  /* description of the rotation model          */
     								         
     /* target position parameters */				         
     SpiceDouble lon;       /* stonyhurst target longitude (deg)          */
