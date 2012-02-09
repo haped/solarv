@@ -203,6 +203,8 @@ int soleph (
 	lonrd = position->x * rpd_c();
 	latrd = position->y * rpd_c();
     }
+    eph->lon = lonrd;
+    eph->lat = latrd;
 
     /* remember julian date and ascii utc string of the event */
     SpiceDouble deltaT;
@@ -212,8 +214,6 @@ int soleph (
     et2utc_c (et, "C", 2, 79, eph->utcdate);
     strcpy (eph->observer, observer);
 
-    eph->lon = lonrd;
-    eph->lat = latrd;
     
     /* compute sub-observer point on the solar surface to derive B0, and L0 */
     /* FIXME: check if and which abberation correction is needed here. LT+S
@@ -222,9 +222,9 @@ int soleph (
     subpnt_c ("Near point: ellipsoid", "SUN", et, "IAU_SUN",
 	      ABCORR, observer, subpoint, &trgepc, srfvec);
     reclat_c (subpoint, &subrad, &sublon, &sublat);
-    eph->B0 = sublat;
+    eph->B0 = sublat * dpr_c();
     /* store carrington longitude as 0 ... 2 pi */
-    eph->L0 = sublon < 0 ? 2 * pi_c() + sublon : sublon;
+    eph->L0 = (sublon < 0 ? 2 * pi_c() + sublon : sublon) * dpr_c();
 
     /* compute solar barycenter state relative to observer */
     relstate_observer_sun (observer, et, eph, state_ots);
@@ -515,9 +515,12 @@ int mode_fits (
 	basedir = dirname (fitsfile3);
     else
 	basedir = outdir;
-    snprintf (outfile, MAXPATH, "%s/%s_ephem.fits", basedir, basenam);
-    
-    printf ("reading '%s'\n", infile);
+    if (strcmp (basedir, ".") == 0)
+	snprintf (outfile, MAXPATH, "%s_ephem.fits", basenam);
+    else
+	snprintf (outfile, MAXPATH, "%s/%s_ephem.fits", basedir, basenam);
+
+    printf (">> reading  %s: ", basenam);
 
     fits_open_file (&fptr, infile, READONLY, &status);
     /* read the NAXIS1, NAXIS2 and NAXIS2 keyword to get image size */
@@ -531,15 +534,15 @@ int mode_fits (
     }
 
     if (nfound == 3) {
-	printf ("input file is a cube with %li frames\n", naxes[2]);
+	printf ("%li frames\n", naxes[2]);
 	nframes = naxes[2];
     }
     else if (nfound == 2) {
-	printf ("input file is a single image\n");
+	printf ("1 frame\n");
 	nframes = 1;
     }
     else {
-	errmesg ("input file has unsupported format (dimension=%i)\n", nfound);
+	errmesg ("dimension=%i unsupported\n", nfound);
 	return RETURN_FAILURE;
     }
 
@@ -554,9 +557,6 @@ int mode_fits (
         return RETURN_FAILURE;
     }
 
-
-    printf ("naxes1 = %ld\n", naxes[1]);
-
     for (long i = 0; i < nframes; ++i)
     {
 	SpiceDouble et;
@@ -566,12 +566,19 @@ int mode_fits (
 	fitsframe_bcddate (fptr, i+1, naxes[1], utcstr, &status);
 	if (status) break;
 	str2et_c (utcstr, &et);
-	
+
 	soleph (observer, et, position, &eph, rotmodel);
+
+	printf ("    frame %ld: date: %s  exposure: %.2fs  vlos_sun: %.2f m/s\n",
+		i, utcstr, 60.0, eph.vlos_sun * 1000); 
+		
+
 	write_fits_ephtable_row (fptrout, i+1, &eph, &status);
 
 	if (status) break;
     }
+
+    printf (">> writing %s\n", outfile);
 
     fits_close_file (fptr, &status);
     fits_close_file (fptrout, &status);
@@ -723,7 +730,8 @@ int fitsframe_bcddate (fitsfile *fptr, long frame, long height, char *utcstr, in
     
     if (*status) return RETURN_FAILURE;
     
-    fits_read_pix (fptr, TSHORT, fpixel, bufsize/2, nulval, (void*) buf, &anynul, status);
+    fits_read_pix (fptr, TSHORT, fpixel, bufsize/2,
+		   nulval, (void*) buf, &anynul, status);
     if (*status) return RETURN_FAILURE;
     
     /* bcd decoder borrowed from Kolja Klogowski */
