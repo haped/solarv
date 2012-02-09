@@ -157,10 +157,10 @@ int main (int argc, char **argv)
     /* TODO: poss. to load a custom kernel here */
 
     if (fitsmode) {
-	errorcode = mode_fits (observer, fitsfile, outdir, &position, rotmodel);
+	errorcode = mode_fits (observer, fitsfile, outdir, position, rotmodel);
     }
     else {
-	errorcode = mode_plain (observer, time_utc, &position,
+	errorcode = mode_plain (observer, time_utc, position,
 				stepsize, nsteps, fancy, stdout, rotmodel);
     }
     
@@ -183,7 +183,7 @@ int main (int argc, char **argv)
 int soleph (
     SpiceChar *observer, /* NAIF body name/code of the observer     */ 
     SpiceDouble et,     /* Spice ephemeris time of the observation */
-    sunpos_t *position,
+    sunpos_t position,
     soleph_t *eph,
     int rotmodel)
 {
@@ -195,16 +195,8 @@ int soleph (
     SpiceDouble state_stt[6];
     SpiceDouble state_ott[6];
     SpiceDouble los_ott[3];
-    SpiceDouble lonrd = 0, latrd = 0;
 
     reset_soleph (eph);
-
-    if (position->type == lola) {
-	lonrd = position->x * rpd_c();
-	latrd = position->y * rpd_c();
-    }
-    eph->lon = lonrd;
-    eph->lat = latrd;
 
     /* remember julian date and ascii utc string of the event */
     SpiceDouble deltaT;
@@ -214,7 +206,6 @@ int soleph (
     et2utc_c (et, "C", 2, 79, eph->utcdate);
     strcpy (eph->observer, observer);
 
-    
     /* compute sub-observer point on the solar surface to derive B0, and L0 */
     /* FIXME: check if and which abberation correction is needed here. LT+S
      * should be correct because NONE would compute the geometric state at
@@ -230,7 +221,7 @@ int soleph (
     relstate_observer_sun (observer, et, eph, state_ots);
 
     /* compute target state relative to sun barycenter */
-    relstate_sun_target (observer, et, lonrd, latrd, rotmodel, eph, state_stt);
+    relstate_sun_target (observer, et, position, rotmodel, eph, state_stt);
 
     /* compute observer to target by adding ots + stt */
     vaddg_c (state_ots, state_stt, 6, state_ott);
@@ -276,8 +267,7 @@ int relstate_observer_sun (
 int relstate_sun_target (
     SpiceChar *station,
     SpiceDouble et,
-    SpiceDouble lon,    /* stonyhurst lon in radian */
-    SpiceDouble lat,    /* stonyhurst lat in radian */
+    sunpos_t position,
     int rotmodel,
     soleph_t *eph,
     SpiceDouble *state_stt)
@@ -288,6 +278,16 @@ int relstate_sun_target (
     SpiceDouble subrad, sublon, sublat; /* lola cords of sub-observer point   */
     SpiceDouble xform[6][6];            /* transf. matrix body-fixed -> j2000 */
     SpiceDouble state_stt_fixed[6];     /* sun-to-target state vector         */
+    SpiceDouble lon, lat;
+    
+    if (position.type == lola) {
+	lon = position.x * rpd_c();
+	lat = position.y * rpd_c();
+	eph->lon = lon * dpr_c();
+	eph->lat = lat * dpr_c();
+    }
+
+
 
     /* for the following procedure, also see:
        http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/pck.html#
@@ -398,7 +398,7 @@ void print_ephtable_head (FILE *stream)
 void print_ephtable_row (FILE *stream, soleph_t *eph)
 {
     fprintf (stream, "%.6f %7.4f %9.4f %10.4f %9.4f  %14.3f  %9.4f  %13.3f\n",
-	     eph->jdate, eph->B0 * dpr_c(), eph->P0 * dpr_c(), eph->L0 * dpr_c(),
+	     eph->jdate, eph->B0, eph->P0, eph->L0,
 	     eph->vlos * 1000, eph->dist, eph->vlos_sun * 1000, eph->dist_sun);
 }
 
@@ -424,13 +424,13 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		    eph->observer, eph->utcdate,
 		    eph->jdate,
 		    eph->rsun_as,
-		    eph->B0 * dpr_c(),
-		    //eph->P0 * dpr_c(),
-		    eph->L0 * dpr_c(),
+		    eph->B0,
+		    //eph->P0,
+		    eph->L0,
 		    eph->dist_sun,
 		    eph->vlos_sun * 1000,
 		    eph->x, eph->y,
-		    eph->lon * dpr_c(), eph->lat * dpr_c(),
+		    eph->lon, eph->lat,
 		    eph->mu,
 		    eph->dist,
 		    eph->vlos * 1000,
@@ -456,7 +456,7 @@ void list_rotation_models (FILE *stream)
 int mode_plain (
     SpiceChar *observer, /* NAIF body name/code of the observer     */ 
     char *time_utc,      /* Spice ephemeris time of the observation */
-    sunpos_t *position,
+    sunpos_t position,
     SpiceDouble stepsize,
     int nsteps,
     bool fancy,
@@ -490,7 +490,7 @@ int mode_fits (
     SpiceChar *observer,
     char *infile,
     char *outdir,
-    sunpos_t *position,
+    sunpos_t position,
     int rotmodel)
 {
     char fitsfile2[MAXPATH+1];

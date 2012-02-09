@@ -135,7 +135,7 @@ void usage (FILE *stream);
 int soleph (
     SpiceChar *station, /* NAIF body name/code of the observer     */ 
     SpiceDouble et,     /* Spice ephemeris time of the observation */
-    sunpos_t *position, 
+    sunpos_t position, 
     soleph_t *eph,
     int rotModel);
 
@@ -148,16 +148,15 @@ int relstate_observer_sun (
 int relstate_sun_target (
     SpiceChar *station,
     SpiceDouble et,
-    SpiceDouble lon,
-    SpiceDouble lat,
+    sunpos_t position,
     int rotmodel,
     soleph_t *eph,
-    SpiceDouble *state);
+    SpiceDouble *state_stt);
 
 int mode_plain (
     SpiceChar *observer, /* NAIF body name/code of the observer     */ 
     char *time_utc,     /* Spice ephemeris time of the observation */
-    sunpos_t *position, 
+    sunpos_t position, 
     SpiceDouble stepsize,
     int nsteps,
     bool fancy,
@@ -168,7 +167,7 @@ int mode_fits (
     SpiceChar *observer,
     char *infile,
     char *outdir,
-    sunpos_t *position,
+    sunpos_t position,
     int rotmodel);
 
 
