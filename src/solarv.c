@@ -257,9 +257,6 @@ int soleph (
      compute further ephemeris data from the parameters we gathered so far
     ************************************************************************/
 
-    /* apparent diameter of the disc in arcsec */
-    eph->rsun_as = RSUN / (eph->dist_sun * 1000) * dpr_c() * 3600.0;
-
     /* helicentric impact paramter */
     eph->mu = sqrt (1.0 - (eph->rho_hc * 1000 / RSUN) *
 		    (eph->rho_hc * 1000 / RSUN));
@@ -283,6 +280,9 @@ int relstate_observer_sun (
     spkezr_c ("SUN", et, "J2000",  "LT+S", station, state_otc, &lt);
     unorm_c (state_otc, los_otc, &(eph->dist_sun));
     eph->vlos_sun = vdot_c (los_otc, &state_otc[3]);
+    
+    /* apparent diameter of the disc in arcsec */
+    eph->rsun_as = RSUN / (eph->dist_sun * 1000) * dpr_c() * 3600.0;
 
     return SUCCESS;
 }
