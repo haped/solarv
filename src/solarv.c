@@ -43,26 +43,37 @@ void usage (FILE *stream)
 	    "compute precision radial velocities between earth-based "
 	    "observatories\nand a given position on the sun.\n"
 	    "\n"
-	    "usage: solarv [options] <date> [<lola|xy> <lat> <lon>] [<tstep> <nsteps>]\n"
+	    "usage: solarv [options] [<date>|-f fitsfile] <lola|xy> <lat> <lon> [<tstep> <nsteps>]\n"
 	    "options:\n"
 	    "  -h            show this help\n"
 	    "  -m model      set solar rotation model 'model'\n"
 	    "                use 'list' to list available models\n"
-	    /* "  -O observer   set observer location. can be any NAIF body code.\n" */
-	    /* "                pre-defined sites: 'izana'\n" */
+	    "  -O observer   set observer location. can be any NAIF body code.\n"
+	    "                pre-defined sites: 'izana'\n"
 	    "  -p            pretty-print ephemeris data\n"
 	    "  -v            print program version\n"
+	    "  -K kernel     load additional text kernel 'kernel'\n"
 	    "\n"
-	    "'date' is a strftime() conforming string that might also include\n"
-	    "a time zone. If no time zone is given, UTC is assumed.\n"
-	    "Latitude and longitude are Stonyhurst coordinates given in degree.\n"
+	    "The 'date' parameter understands the common time strings like "
+	    "'2010-01-01 12:00:00'. If no time zone is given, UTC is assumed. "
+	    "Latitude and longitude are Stonyhurst coordinates given in degree. "
 	    "The step width 'tstep' is in minutes.\n"
 	    "\n"
 	    "Examples\n"
 	    "\n"
-	    "Compute radial velocity at the western limb at 45deg latitude using\n"
-	    "Snodgrass & Ulrich (1990) spectroscopy rotation model:\n"
-	    "  solarv -p -m su90s \"2010 Jan 1 12:00:00.0\" 90 45\n",
+	    "Compute radial velocity at the western limb at 45deg latitude "
+	    "using Snodgrass & Ulrich (1990) spectroscopy rotation model:\n"
+	    "  solarv -p -m su90s \"2010 Jan 1 12:00:00.0\" lola 90 45\n"
+	    "\n"
+	    "Create a fits binary table with all ephemeris data with an "
+	    "row for each frame in a fits cube. The date is extracted from the "
+	    "binary time stamp in each frame or the 'DATE-OBS' keyword:\n"
+	    "  solarv -f pco3_xxxx.fits xy 0 0\n"
+	    "\n"
+	    "The ephemeris table is then called 'pco3_xxxx_ephem.fits' which "
+	    "can be read in IDL with:\n"
+	    "   IDL> e = mrdfits ('pco3_xxxx_ephem.fits', 1, header)\n",
+	    
 	    _name, _version, _versiondate
 	    
 	);
