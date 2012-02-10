@@ -86,7 +86,7 @@ int main (int argc, char **argv)
     bool fancy = false;
     bool fitsmode = false;
     int rotmodel = fixed;
-    int errorcode = RETURN_SUCCESS;
+    int errorcode = SUCCESS;
 
     sunpos_t position;
 
@@ -140,10 +140,10 @@ int main (int argc, char **argv)
 	strncpy (time_utc, argv[optind], 79);
     if (argc - optind == 4 || argc - optind == 6)
     {
-	if (RETURN_FAILURE == parse_sunpos (argv[optind + 1], argv[optind + 2],
+	if (FAILURE == parse_sunpos (argv[optind + 1], argv[optind + 2],
 					    argv[optind + 3], &position))
 	{
-	    errmesg ("can't parse target coordinates, aborting\n");
+	    errmesg ("could not parse target coorindates\n");
 	    return EXIT_FAILURE;
 	}
     }
@@ -166,7 +166,7 @@ int main (int argc, char **argv)
     
     unload_c ("../data/kernels/solarv.tm");
 
-    if (RETURN_FAILURE == errorcode) {
+    if (FAILURE == errorcode) {
 	errmesg ("there where errors, please check results\n");
 	return EXIT_FAILURE;
     }
@@ -218,10 +218,17 @@ int soleph (
     eph->L0 = (sublon < 0 ? 2 * pi_c() + sublon : sublon) * dpr_c();
 
     /* compute solar barycenter state relative to observer */
-    relstate_observer_sun (observer, et, eph, state_ots);
+    if (SUCCESS != relstate_observer_sun (observer, et, eph, state_ots)) {
+	errmesg ("could not compute sun-observer state\n");
+	return FAILURE;
+    }
 
     /* compute target state relative to sun barycenter */
-    relstate_sun_target (observer, et, position, rotmodel, eph, state_stt);
+    if (SUCCESS != relstate_sun_target (observer, et, position,
+					rotmodel, eph, state_stt)) {
+	errmesg ("could not compute sun-target state\n");
+	return FAILURE;
+    }
 
     /* compute observer to target by adding ots + stt */
     vaddg_c (state_ots, state_stt, 6, state_ott);
@@ -239,7 +246,7 @@ int soleph (
     eph->mu = sqrt (1.0 - (eph->rho_hc * 1000 / RSUN) *
 		    (eph->rho_hc * 1000 / RSUN));
 
-    return RETURN_SUCCESS;
+    return SUCCESS;
 }
 
 /* compute relative state of observer to solar barycenter in the j2000
@@ -259,7 +266,7 @@ int relstate_observer_sun (
     unorm_c (state_otc, los_otc, &(eph->dist_sun));
     eph->vlos_sun = vdot_c (los_otc, &state_otc[3]);
 
-    return RETURN_SUCCESS;
+    return SUCCESS;
 }
 
 /* Thompson (2005) eq. (11) */
@@ -416,6 +423,11 @@ int relstate_sun_target (
     else if (position.type == xy) {
 	SpiceDouble xp = position.x / 3600.0 * rpd_c();
 	SpiceDouble yp = position.y / 3600.0 * rpd_c();
+	
+	if (position.x > eph->rsun_as || position.y > eph->rsun_as) {
+	    errmesg ("target position outside the disc.\n");
+	    return FAILURE;
+	}
 	xy2lola (xp, yp, eph->dist_sun * 1000, sublat, &lonrd, &latrd);
     }
     
@@ -459,7 +471,7 @@ int relstate_sun_target (
     eph->rho_hc = sqrt (state_stt_fixed[1] * state_stt_fixed[1] + 
 			state_stt_fixed[2] * state_stt_fixed[2]);
 
-    return RETURN_SUCCESS;
+    return SUCCESS;
 }
 
 void reset_soleph (soleph_t *eph)
@@ -589,7 +601,10 @@ int mode_plain (
     for (SpiceInt i  = 0; i < nsteps; ++i)
     {
 	soleph_t eph;
-	soleph (observer, et, position, &eph, rotmodel);
+	if (SUCCESS != soleph (observer, et, position, &eph, rotmodel)) {
+	    errmesg ("could not compute ephemeris data\n");
+	    return FAILURE;
+	}
 
 	if (fancy) {
 	    fancy_print_eph (stream, &eph);
@@ -601,7 +616,7 @@ int mode_plain (
 	et += stepsize * 60.0;
     }
 
-    return RETURN_SUCCESS;
+    return SUCCESS;
 }
 
 int mode_fits (
@@ -650,7 +665,7 @@ int mode_fits (
         errmesg ("error reading fits header from %s: %s\n", infile);
 	fits_report_error (stderr, status);
         fits_close_file (fptr, &status);
-        return RETURN_FAILURE;
+        return FAILURE;
     }
     if (nfound == 3) {
 	printf ("%li frames\n", naxes[2]);
@@ -662,7 +677,7 @@ int mode_fits (
     }
     else {
 	errmesg ("dimension=%i unsupported\n", nfound);
-	return RETURN_FAILURE;
+	return FAILURE;
     }
 
     /* check if there should be a BCD header in the file; read DATE-OBS
@@ -687,7 +702,7 @@ int mode_fits (
 	if (status) {
 	    errmesg ("no time of exposure information found in fits file, aborting\n");
 	    fits_report_error (stderr, status);
-	    return RETURN_FAILURE;
+	    return FAILURE;
 	}
 	printf ("Warning: no binary timestamps available, using EXPTIME"
 		" + DELTIME instead. This might be unreliable.\n");
@@ -701,7 +716,7 @@ int mode_fits (
         errmesg ("couldn't write fitstable header", status);
 	fits_report_error (stderr, status);
         fits_close_file (fptrout, &status);
-        return RETURN_FAILURE;
+        return FAILURE;
     }
     
     /* in case the file does not provide the BCD timestamps, we have to
@@ -723,7 +738,14 @@ int mode_fits (
 	else
 	    et += i * (h_exptime / 1000.0 + h_deltime / 1000.0);
 	
-	soleph (observer, et, position, &eph, rotmodel);
+	if (SUCCESS != soleph (observer, et, position, &eph, rotmodel)) {
+	    errmesg ("could not compute ephemeris data\n");
+	    fits_close_file (fptr, &status);
+	    fits_close_file (fptrout, &status);
+	    unlink (outfile);
+	    return FAILURE;
+	}
+
 	printf ("   frame %ld: %s  exptime: %.2fs  vlos: %.2f m/s\n",
 		i, eph.utcdate, h_exptime / 1000.0, eph.vlos * 1000); 
 	
@@ -737,17 +759,17 @@ int mode_fits (
     if (status) {
         errmesg ("couldn't write fitstable.");
 	fits_report_error (stderr, status);
-        return RETURN_FAILURE;
+        return FAILURE;
     }
 
-    return RETURN_SUCCESS;
+    return SUCCESS;
 }
 
 
 int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 {
     if (*status)
-	return RETURN_FAILURE;
+	return FAILURE;
     
     /* define table structure */
     int tfields = 16;
@@ -786,10 +808,10 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
     if (*status) {
         errmesg ("error creating fitstable: %i\n", *status);
 	fits_report_error (stderr, *status);
-        return RETURN_FAILURE;
+        return FAILURE;
     }
     
-    return RETURN_SUCCESS;
+    return SUCCESS;
 }
 
 
@@ -829,10 +851,10 @@ int write_fits_ephtable_row (
     if (*status) {
 	errmesg ("couldn't add row to fitstable.");
 	fits_report_error (stderr, *status);
-        return RETURN_FAILURE;
+        return FAILURE;
     }
 
-    return RETURN_SUCCESS;
+    return SUCCESS;
 }
 
 int parse_sunpos (
@@ -847,13 +869,13 @@ int parse_sunpos (
 	pos->type = xy;
     else {
 	errmesg ("bad coordinate type: %s\n", type);
-	return RETURN_FAILURE;
+	return FAILURE;
     }
 
     pos->x = atof (posx);
     pos->y = atof (posy);
 
-    return RETURN_SUCCESS;
+    return SUCCESS;
 }
 
 
@@ -881,11 +903,11 @@ int fitsframe_bcddate (
     int anynul;
     long fpixel[] = {1, sy, frameidx};
     
-    if (*status) return RETURN_FAILURE;
+    if (*status) return FAILURE;
     
     fits_read_pix (fptr, TSHORT, fpixel, bufsize/2,
 		   nulval, (void*) buf, &anynul, status);
-    if (*status) return RETURN_FAILURE;
+    if (*status) return FAILURE;
     
     /* bcd decoder borrowed from Kolja Klogowski */
     /*
@@ -924,11 +946,11 @@ int fitsframe_bcddate (
 	   (min >= 0 && min <= 59)      &&
 	   (sec >= 0 && sec <= 59))) {
 	errmesg ("timestamp of frame %li is invalid\n", frameidx);
-	return RETURN_FAILURE;
+	return FAILURE;
     }
 	
     snprintf (utcstr, 63, "%4i-%02i-%02iT%02i:%02i:%02i.%i",
 	      year, mon, day, hour, min, sec, msec);
 
-    return RETURN_SUCCESS;
+    return SUCCESS;
 }

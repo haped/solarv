@@ -48,12 +48,12 @@ static const char _versiondate[] = "2012-02-06";
 #define EXIT_FAILURE (1)
 #endif
 
-#ifndef RETURN_SUCCESS
-#define RETURN_SUCCESS (1)
+#ifndef SUCCESS
+#define SUCCESS (1)
 #endif
 
-#ifndef RETURN_FAILURE
-#define RETURN_FAILURE (0)
+#ifndef FAILURE
+#define FAILURE (0)
 #endif
 
 #define RSUN (6.96E8) /* meters, Stix (2004) */
