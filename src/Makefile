@@ -1,7 +1,7 @@
 ## you may define these
 CSPICE_PATH = /home/doerr/coding/lfc/solarv/cspice
 #CFITSIO_PATH = 
-KERNEL_PATH = /usr/local/share/data/solarv/kernels
+#KERNEL_PATH = /usr/local/share/data/solarv/kernels
 
 
 ## defining CFITSIO_PATH is optional, could also be pre-installed
@@ -19,6 +19,10 @@ ifdef CSPICE_PATH
 	SPICE_L = $(CSPICE_PATH)/lib/cspice.a
 else
 	SPICE_MISSING = 1
+endif
+
+ifndef KERNEL_PATH
+	KERNEL_PATH = "../data/kernels"
 endif
 
 CC = c99
