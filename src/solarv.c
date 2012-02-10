@@ -79,6 +79,7 @@ int main (int argc, char **argv)
 {   
     char fitsfile[MAXPATH+1] = "";
     char outdir[MAXPATH+1] = "";
+    char addkernel[MAXPATH+1] = "na";
     char time_utc[80];
     char observer[65] = "izana";
     SpiceDouble stepsize = 1; /* minutes */
@@ -91,7 +92,7 @@ int main (int argc, char **argv)
     sunpos_t position;
 
     int c; opterr = 0;
-    while ((c = getopt (argc, argv, "+hm:pr:O:o:vf")) != -1)
+    while ((c = getopt (argc, argv, "+hm:pr:O:o:vfK:")) != -1)
     {
         switch (c)
         {
@@ -125,6 +126,7 @@ int main (int argc, char **argv)
 	case 'o': strncpy (outdir, optarg, MAXPATH); break;
 	case 'v': version (); return EXIT_SUCCESS; break;
 	case 'f': fitsmode = true; break;
+	case 'K': strncpy (addkernel, optarg, MAXPATH); break;
         default: usage (stdout); return EXIT_FAILURE;
         }
     }
@@ -153,9 +155,12 @@ int main (int argc, char **argv)
     }
     
     /* required kernels are coded in solarv.tm  meta kernel */
-    furnsh_c ("../data/kernels/solarv.tm");
-    /* TODO: poss. to load a custom kernel here */
-
+    furnsh_c (KERNEL_PATH "/" METAKERNEL);
+    if (strcmp (addkernel, "na") != 0) {
+	printf ("loading additional kernel %s\n", addkernel);
+	furnsh_c (addkernel);
+    }
+    
     if (fitsmode) {
 	errorcode = mode_fits (observer, fitsfile, outdir, position, rotmodel);
     }
@@ -164,8 +169,10 @@ int main (int argc, char **argv)
 				stepsize, nsteps, fancy, stdout, rotmodel);
     }
     
-    unload_c ("../data/kernels/solarv.tm");
-
+    unload_c (KERNEL_PATH "/" METAKERNEL);
+    if (strcmp (addkernel, "na") != 0)
+	unload_c (addkernel);
+	
     if (FAILURE == errorcode) {
 	errmesg ("there where errors, please check results\n");
 	return EXIT_FAILURE;

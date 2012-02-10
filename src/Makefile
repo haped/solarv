@@ -1,6 +1,7 @@
 ## you may define these
 CSPICE_PATH = /home/doerr/coding/lfc/solarv/cspice
 #CFITSIO_PATH = 
+KERNEL_PATH = /usr/local/share/data/solarv/kernels
 
 
 ## defining CFITSIO_PATH is optional, could also be pre-installed
@@ -21,20 +22,25 @@ else
 endif
 
 CC = c99
-CFLAGS = -Wall -O2 $(SPICE_I) $(FITSIO_I)
+CFLAGS = -Wall -O0 -g $(SPICE_I) $(FITSIO_I) \
+	-DKERNEL_PATH=\"$(KERNEL_PATH)\"
 LD = $(CC)
-LDFLAGS = $(SPICE_L) $(FITSIO_L) -lm -static
+LDFLAGS = $(SPICE_L) $(FITSIO_L) -lm
 
 
-all: solarv
+all: solarv solarv.tm
 
 
 .PHONY: clean check
 
 clean:
-	rm -f solarv solarv.o
+	rm -f solarv solarv.o solarv.tm
 
 solarv.o: solarv.h solarv.c
 
 solarv: solarv.o solarv.h
 	$(LD) $< -o solarv $(LDFLAGS)
+
+
+solarv.tm: solarv.tm.in Makefile
+	@sed 's#KERNEL_SYSPATH#$(KERNEL_PATH)#g' solarv.tm.in > solarv.tm

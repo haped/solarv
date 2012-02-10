@@ -31,6 +31,13 @@ static const char _versiondate[] = "2012-02-06";
 
 #include "SpiceUsr.h"
 
+
+#ifndef KERNEL_PATH
+#define KERNEL_PATH "../data/kernels"
+#endif
+
+#define METAKERNEL "solarv.tm"
+
 #ifndef MAXPATH
 #define MAXPATH (2048)
 #endif

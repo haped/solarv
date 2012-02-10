@@ -1,0 +1,27 @@
+KPL/MK
+
+\begintext
+
+	Meta kernel to load all the required kernels for solarv
+
+	written 2012-02-10, Hans-Peter Doerr
+
+\begindata
+
+	PATH_VALUES = ('KERNEL_SYSPATH')
+	PATH_SYMBOLS = ('SYSKERN')
+
+	KERNELS_TO_LOAD = (
+			'$SYSKERN/naif0009.tls',
+			'$SYSKERN/pck00010.tpc',
+			'$SYSKERN/de421.bsp',
+			'$SYSKERN/heliospheric.tf',
+			'$SYSKERN/earth_fixed.tf',
+			'$SYSKERN/earth_assoc_itrf93.tf',
+			'$SYSKERN/earth_000101_120411_120119.bpc',
+			'$SYSKERN/izana.bsp',
+			'$SYSKERN/izana.txt'
+			)		
+\begintext
+
+
