@@ -86,6 +86,30 @@ void version (void)
 	    _name, _version, _versiondate, _author);
 }
 
+
+void dump_kernel_info (FILE *stream)
+{
+    const SpiceInt TYPLEN = 32;
+    const SpiceInt SRCLEN = 128;
+    SpiceInt  handle;
+    SpiceInt nkernels;
+    SpiceBoolean found;
+    
+    fprintf (stream, "Loaded SPICE kernels:\n");
+    ktotal_c ("all", &nkernels);
+    for (int i = 0; i < nkernels; ++i)
+    {
+	SpiceChar file[MAXPATH];
+	SpiceChar filetype[TYPLEN];
+	SpiceChar source[SRCLEN];
+	
+	kdata_c (i, "all", MAXPATH, TYPLEN, SRCLEN,
+		 file, filetype, source, &handle, &found);
+	kinfo_c (file, TYPLEN, SRCLEN, filetype, source, &handle, &found);
+	fprintf (stream, "   %-5s: %s\n", filetype, file);
+    }
+}
+
 int main (int argc, char **argv)
 {   
     char fitsfile[MAXPATH+1] = "";
@@ -99,14 +123,16 @@ int main (int argc, char **argv)
     bool fitsmode = false;
     int rotmodel = fixed;
     int errorcode = SUCCESS;
+    bool dumpinfo = false;
 
     sunpos_t position;
 
     int c; opterr = 0;
-    while ((c = getopt (argc, argv, "+hm:pr:O:o:vfK:")) != -1)
+    while ((c = getopt (argc, argv, "+hm:pr:O:o:vfK:i")) != -1)
     {
         switch (c)
         {
+	case 'i': dumpinfo = true; break;
         case 'h': usage (stdout); return EXIT_SUCCESS;
         case 'm':
 	    if (strcasecmp (optarg, "list") == 0) {
@@ -165,13 +191,22 @@ int main (int argc, char **argv)
 	nsteps = atoi (argv[optind + 5]);
     }
     
+    if (dumpinfo) {
+	fprintf (stdout, "CSPICE toolkit version: %s\n", tkvrsn_c ("toolkit"));
+    }
+
     /* required kernels are coded in solarv.tm  meta kernel */
     furnsh_c (KERNEL_PATH "/" METAKERNEL);
     if (strcmp (addkernel, "na") != 0) {
-	printf ("loading additional kernel %s\n", addkernel);
+	if (dumpinfo)
+	    printf ("loading user-supplied kernel %s\n", addkernel);
 	furnsh_c (addkernel);
     }
-    
+
+    if (dumpinfo) {
+	dump_kernel_info (stdout);
+    }
+
     if (fitsmode) {
 	errorcode = mode_fits (observer, fitsfile, outdir, position, rotmodel);
     }
