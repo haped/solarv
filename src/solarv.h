@@ -26,8 +26,8 @@
 
 static const char _name[] = "solarv";
 static const char _author[] = "Hans-Peter Doerr";
-static const char _version[] = "0.1a";
-static const char _versiondate[] = "2012-02-06";
+static const char _version[] = "0.2";
+static const char _versiondate[] = "2012-03-18";
 
 #include "SpiceUsr.h"
 
@@ -67,8 +67,8 @@ typedef struct
     double A;
     double B;
     double C;
-    char name[12];
-    char descr[128];
+    char name[33];
+    char descr[129];
 } rotmodel_t;
 
 static const rotmodel_t RotModels[] =
@@ -115,7 +115,8 @@ typedef struct
     SpiceChar utcdate[MAXKEY];  /* ascii date in UTC                          */
     SpiceChar observer[MAXKEY]; /* NAIF station name                          */
     SpiceDouble B0;             /* lat of sub-observer point, lt corrected    */
-    SpiceDouble L0;             /* lon of sub-observer point, lt corrected    */
+    SpiceDouble L0cr;           /* lon of sub-observer point, lt corrected    */
+    SpiceDouble L0hg;           /* lon of sub-observer point, lt corrected    */
     SpiceDouble P0;             /* polar angle, lt corrected                  */
     SpiceDouble dist_sun;       /* distance obs. to solar center              */
     SpiceDouble vlos_sun;       /* radial velocity of obs to solar center     */

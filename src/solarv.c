@@ -259,17 +259,20 @@ int soleph (
     et2utc_c (et, "C", 2, 79, eph->utcdate);
     strcpy (eph->observer, observer);
 
-    /* compute sub-observer point on the solar surface to derive B0, and L0 */
-    /* FIXME: check if and which abberation correction is needed here. LT+S
-     * should be correct because NONE would compute the geometric state at
-     * 'et' while what we actually observe has happened ~8 mins before */
-    subpnt_c ("Near point: ellipsoid", "SUN", et, "IAU_SUN",
-	      ABCORR, observer, subpoint, &trgepc, srfvec);
+    /* heliographic sub-observer coordinates */
+    subpnt_c ("Near point: ellipsoid", "SUN", et, "HEEQ",
+    	      ABCORR, observer, subpoint, &trgepc, srfvec);
     reclat_c (subpoint, &subrad, &sublon, &sublat);
     eph->B0 = sublat * dpr_c();
-    /* store carrington longitude as 0 ... 2 pi */
-    eph->L0 = (sublon < 0 ? 2 * pi_c() + sublon : sublon) * dpr_c();
+    eph->L0hg = sublon * dpr_c();
 
+    /* carrington sub-observer coordinates */
+    subpnt_c ("Near point: ellipsoid", "SUN", et, "IAU_SUN",
+    	      ABCORR, observer, subpoint, &trgepc, srfvec);
+    reclat_c (subpoint, &subrad, &sublon, &sublat);
+    /* store carrington longitude as 0 ... 2 pi */
+    eph->L0cr = (sublon < 0 ? 2 * pi_c() + sublon : sublon) * dpr_c();
+    
     /* compute solar barycenter state relative to observer */
     if (SUCCESS != relstate_observer_sun (observer, et, eph, state_ots)) {
 	errmesg ("could not compute sun-observer state\n");
@@ -477,10 +480,10 @@ int relstate_sun_target (
 	SpiceDouble xp = position.x / 3600.0 * rpd_c();
 	SpiceDouble yp = position.y / 3600.0 * rpd_c();
 	
-	if (position.x > eph->rsun_as || position.y > eph->rsun_as) {
-	    errmesg ("target position outside the disc.\n");
-	    return FAILURE;
-	}
+	/* if (position.x > eph->rsun_as || position.y > eph->rsun_as) { */
+	/*     errmesg ("target position outside the disc.\n"); */
+	/*     return FAILURE; */
+	/* } */
 	xy2lola (xp, yp, eph->dist_sun * 1000, sublat, &lonrd, &latrd);
     }
     
@@ -533,7 +536,8 @@ void reset_soleph (soleph_t *eph)
     strcpy (eph->utcdate, "na");
     strcpy (eph->observer, "na");
     eph->B0 = 0.0;
-    eph->L0 = 0.0;
+    eph->L0cr = 0.0;
+    eph->L0hg = 0.0;
     eph->P0 = 0.0;
     eph->dist_sun = 0.0;
     eph->vlos_sun = 0.0;
@@ -581,35 +585,37 @@ void print_ephtable_head (FILE *stream)
 void print_ephtable_row (FILE *stream, soleph_t *eph)
 {
     fprintf (stream, "%.6f %7.4f %9.4f %10.4f %9.4f  %14.3f  %9.4f  %13.3f\n",
-	     eph->jdate, eph->B0, eph->P0, eph->L0,
+	     eph->jdate, eph->B0, eph->P0, eph->L0cr,
 	     eph->vlos * 1000, eph->dist, eph->vlos_sun * 1000, eph->dist_sun);
 }
 
 void fancy_print_eph (FILE *stream, soleph_t *eph)
 {
 	    printf ("Solar ephemeris for %s, %s\n"
-		    "  UTC julian date      :% f\n"
-		    "  disk radius          : %.2f arcsec\n"
-		    "  B0                   :% -.4f deg\n"
-		    //"  P0                   :% .4f deg\n"
-		    "  carrington L0        :% .4f deg\n"
-		    "  center distance      : %.3f km\n"
-		    "  center v_los         :% .3f m/s\n"
-		    "  disc coordinates     :% .2f, %.2f arcsec\n"
-		    "  lola coordinates     :% .3f, %.3f deg\n"
-		    "  cos(hel. angle) = mu : %.4f\n"
-		    "  target distance      : %.3f km\n"
-		    "  target v_los         :% .3f m/s\n"
-		    "  solar rotation model : %s (%s)\n"
-		    "  rotataion rate       : %.5f murad/s\n"
-		    "  impact parameter     : %.3f km\n",
+		    "  UTC julian day       : % f\n"
+		    "  disk radius          :  %.2f arcsec\n"
+		    "  B0                   : % -.4f deg\n"
+		    //"  P0                    :% .4f deg\n"
+		    "  heliographic L0      : % .4f deg\n"
+		    "  carrington L0        : % .4f deg\n"
+		    "  center distance      :  %.3f km\n"
+		    "  center v_los         : % .3f m/s\n"
+		    "  disc coordinates     : % .2f, %.2f arcsec\n"
+		    "  lola coordinates     : % .3f, %.3f deg\n"
+		    "  cos(hel. angle) = mu :  %.4f\n"
+		    "  target distance      :  %.3f km\n"
+		    "  target v_los         : % .3f m/s\n"
+		    "  solar rotation model :  %s (%s)\n"
+		    "  rotataion rate       :  %.5f murad/s\n"
+		    "  impact parameter     :  %.3f km\n",
 		    
 		    eph->observer, eph->utcdate,
 		    eph->jdate,
 		    eph->rsun_as,
 		    eph->B0,
 		    //eph->P0,
-		    eph->L0,
+		    eph->L0hg,
+		    eph->L0cr,
 		    eph->dist_sun,
 		    eph->vlos_sun * 1000,
 		    eph->x, eph->y,
@@ -757,8 +763,8 @@ int mode_fits (
 	    fits_report_error (stderr, status);
 	    return FAILURE;
 	}
-	printf ("Warning: no binary timestamps available, using EXPTIME"
-		" + DELTIME instead. This might be unreliable.\n");
+	printf ("Warning: no binary timestamps found, using EXPTIME"
+		" + DELTIME (unreliable)\n");
     }
     
     fits_create_file (&fptrout, outfile, &status);
@@ -825,25 +831,25 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 	return FAILURE;
     
     /* define table structure */
-    int tfields = 16;
+    int tfields = 17;
     char tname[] = "ephemeris table";
     char *ttype[] = { "jdate",
 		      //"utcdate", "observer",
-		      "B0", "L0", "P0",
+		      "B0", "L0hg", "L0cr", "P0",
 		      "dist_sun", "vlos_sun", "rsun_as",
 		      //"modelname", "modeldescr",
 		      "lon", "lat", "x", "y", "mu", "dist", "vlos",
 		      "rho_hc", "omega" };
     char *tform[] = { "D",
 		      //"32A", "32A",
-		      "D", "D", "D",
+		      "D", "D", "D", "D",
 		      "D", "D", "D",
 		      //"32A", "32A",
 		      "D", "D", "D", "D", "D", "D", "D",
 		      "D", "D" };
     char *tunit[] = { "sec",
 		      //'\0', '\0',
-		      "deg", "deg", "deg",
+		      "deg", "deg", "deg", "deg", "deg",
 		      "km", "km/s", "arcsec",
 		      //'\0', '\0',
 		      "deg", "deg", "arcsec", "arcsec", '\0', "km", "km/s",
@@ -880,11 +886,13 @@ int write_fits_ephtable_row (
 #define EPHTABLE_ADDCELL(type, ptr) fits_write_col (fptr, type, col++,	\
 						    firstrow, 1, 1,	\
 						    (void*)ptr, status)
+
     EPHTABLE_ADDCELL (TDOUBLE, &eph->jdate);
     /* EPHTABLE_ADDCELL (TSTRING, eph->utcdate); */
     /* EPHTABLE_ADDCELL (TSTRING, eph->observer); */
     EPHTABLE_ADDCELL (TDOUBLE, &eph->B0);
-    EPHTABLE_ADDCELL (TDOUBLE, &eph->L0);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->L0hg);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->L0cr);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->P0);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->dist_sun);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos_sun);
