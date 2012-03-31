@@ -1,10 +1,12 @@
 KPL/MK
 
-\begintext
+    File:     solarv.tm
+    Author:   Hans-Peter Doerr (KIS)
+    Date:     2012-02-10
 
-	Meta kernel to load all the required kernels for solarv
 
-	written 2012-02-10, Hans-Peter Doerr
+    Meta-kernel that loads the required spice kernels for the 'solarv'
+    solar ephemers tool.
 
 \begindata
 
