@@ -182,7 +182,7 @@ int main (int argc, char **argv)
 	if (FAILURE == parse_sunpos (argv[optind + 1], argv[optind + 2],
 					    argv[optind + 3], &position))
 	{
-	    errmesg ("could not parse target coorindates\n");
+	    errmesg ("could not parse target coordinates\n");
 	    return EXIT_FAILURE;
 	}
     }
@@ -192,6 +192,7 @@ int main (int argc, char **argv)
     }
     
     if (dumpinfo) {
+	version ();
 	fprintf (stdout, "CSPICE toolkit version: %s\n", tkvrsn_c ("toolkit"));
     }
 

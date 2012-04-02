@@ -26,8 +26,8 @@
 
 static const char _name[] = "solarv";
 static const char _author[] = "Hans-Peter Doerr";
-static const char _version[] = "0.2";
-static const char _versiondate[] = "2012-03-18";
+static const char _version[] = "0.2.1a";
+static const char _versiondate[] = "2012-04-02";
 
 #include "SpiceUsr.h"
 
