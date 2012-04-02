@@ -1,11 +1,11 @@
 \begindata
-         SITES         = ( 'IZANA') 
-         IZANA_CENTER = 399
-         IZANA_FRAME  = 'EARTH_FIXED'
-         IZANA_IDCODE = 399919 
-         IZANA_LATLON    = ( 28.3024, 343.4088, 2.413 )
+         SITES         = ('VTT') 
+         VTT_CENTER = 399
+         VTT_FRAME  = 'EARTH_FIXED'
+         VTT_IDCODE = 399919 
+         VTT_LATLON    = ( 28.3024, 343.4088, 2.413 )
 
 \begintext
-         ot station data from jpl horizons:
-         IZANA_LATLON    = ( 28.2917871, 343.503300, 2.1200779 )
+         vtt station data from jpl horizons:
+         VTT_LATLON    = ( 28.2917871, 343.503300, 2.1200779 )
 

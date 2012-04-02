@@ -49,7 +49,7 @@ void usage (FILE *stream)
 	    "  -m model      set solar rotation model 'model'\n"
 	    "                use 'list' to list available models\n"
 	    "  -O observer   set observer location. can be any NAIF body code.\n"
-	    "                pre-defined sites: 'izana'\n"
+	    "                pre-defined sites: 'vtt'\n"
 	    "  -p            pretty-print ephemeris data\n"
 	    "  -v            print program version\n"
 	    "  -K kernel     load additional text kernel 'kernel'\n"
@@ -75,15 +75,20 @@ void usage (FILE *stream)
 	    "   IDL> e = mrdfits ('pco3_xxxx_ephem.fits', 1, header)\n",
 	    
 	    _name, _version, _versiondate
-	    
 	);
 }
 
-void version (void)
+void program_info (FILE *stream)
 {
-    printf ("%s v%s, %s\n"
-	    "Copyright (c) 2012 %s\n",
-	    _name, _version, _versiondate, _author);
+    fprintf (stream, "%s v%s, %s\n"
+	     "Copyright (c) 2012 %s\n",
+	     _name, _version, _versiondate, _author);
+}
+
+void version_info (FILE *stream)
+{
+    fprintf (stream, "%s v%s, %s\n",
+	    _name, _version, _versiondate);
 }
 
 
@@ -116,7 +121,7 @@ int main (int argc, char **argv)
     char outdir[MAXPATH+1] = "";
     char addkernel[MAXPATH+1] = "na";
     char time_utc[80];
-    char observer[65] = "izana";
+    char observer[65] = "VTT";
     SpiceDouble stepsize = 1; /* minutes */
     SpiceInt nsteps = 1;
     bool fancy = false;
@@ -161,7 +166,7 @@ int main (int argc, char **argv)
         case 'p': fancy = true; break;
 	case 'O': strncpy (observer, optarg, 64); break;
 	case 'o': strncpy (outdir, optarg, MAXPATH); break;
-	case 'v': version (); return EXIT_SUCCESS; break;
+	case 'v': program_info (stdout); return EXIT_SUCCESS; break;
 	case 'f': fitsmode = true; break;
 	case 'K': strncpy (addkernel, optarg, MAXPATH); break;
         default: usage (stdout); return EXIT_FAILURE;
@@ -192,7 +197,7 @@ int main (int argc, char **argv)
     }
     
     if (dumpinfo) {
-	version ();
+	version_info (stdout);
 	fprintf (stdout, "CSPICE toolkit version: %s\n", tkvrsn_c ("toolkit"));
     }
 
@@ -256,7 +261,7 @@ int soleph (
     SpiceDouble deltaT;
     deltet_c (et, "ET", &deltaT);
     /* we use the utc julain date here, so substract the delta */
-    eph->jdate = unitim_c (et, "ET", "JDTDB") - deltaT / spd_c();
+    eph->jday = unitim_c (et, "ET", "JDTDB") - deltaT / spd_c();
     et2utc_c (et, "C", 2, 79, eph->utcdate);
     strcpy (eph->observer, observer);
 
@@ -533,13 +538,13 @@ int relstate_sun_target (
 
 void reset_soleph (soleph_t *eph)
 {
-    eph->jdate = 0.0;
+    eph->jday = 0.0;
     strcpy (eph->utcdate, "na");
     strcpy (eph->observer, "na");
     eph->B0 = 0.0;
     eph->L0cr = 0.0;
     eph->L0hg = 0.0;
-    eph->P0 = 0.0;
+    eph->P0 = -999999; /* we don't compute p0 yet */
     eph->dist_sun = 0.0;
     eph->vlos_sun = 0.0;
     eph->rsun_as = 0.0;
@@ -579,54 +584,57 @@ SpiceDouble omega_sun (SpiceDouble lat, int model)
 
 void print_ephtable_head (FILE *stream)
 {
-    fprintf (stream, "#jdate          B0(deg)  P0(deg)   L0(deg)   "
+    fprintf (stream, "#jday          B0(deg)  P0(deg)   L0(deg)   "
 	     "vlos_t     d_t             vlos_sun  d_sun \n");
 }
 
 void print_ephtable_row (FILE *stream, soleph_t *eph)
 {
     fprintf (stream, "%.6f %7.4f %9.4f %10.4f %9.4f  %14.3f  %9.4f  %13.3f\n",
-	     eph->jdate, eph->B0, eph->P0, eph->L0cr,
+	     eph->jday, eph->B0, eph->P0, eph->L0cr,
 	     eph->vlos * 1000, eph->dist, eph->vlos_sun * 1000, eph->dist_sun);
 }
 
 void fancy_print_eph (FILE *stream, soleph_t *eph)
 {
-	    printf ("Solar ephemeris for %s, %s\n"
+	    printf ("Solar ephemeris for %s\n"
+		    "  Observer             :  %s\n"
 		    "  UTC julian day       : % f\n"
-		    "  disk radius          :  %.2f arcsec\n"
-		    "  B0                   : % -.4f deg\n"
+		    "  Apparent disk radius :  %.2f arcsec\n"
 		    //"  P0                    :% .4f deg\n"
-		    "  heliographic L0      : % .4f deg\n"
-		    "  carrington L0        : % .4f deg\n"
-		    "  center distance      :  %.3f km\n"
-		    "  center v_los         : % .3f m/s\n"
-		    "  disc coordinates     : % .2f, %.2f arcsec\n"
-		    "  lola coordinates     : % .3f, %.3f deg\n"
-		    "  cos(hel. angle) = mu :  %.4f\n"
-		    "  target distance      :  %.3f km\n"
-		    "  target v_los         : % .3f m/s\n"
-		    "  solar rotation model :  %s (%s)\n"
-		    "  rotataion rate       :  %.5f murad/s\n"
-		    "  impact parameter     :  %.3f km\n",
+		    "  B0                   : % -.4f deg\n"
+		    "  Stonyhurst L0        : % .4f deg\n"
+		    "  Carrington L0        : % .4f deg\n"
+		    "  Center distance      :  %.3f km\n"
+		    "  Center v_los         : % .3f m/s\n"
+		    "  Disk coordinates     : % .2f, %.2f arcsec\n"
+		    "  Lola coordinates     : % .3f, %.3f deg\n"
+		    "  Impact parameter     :  %.3f km\n"
+		    "  Cos(hel. angle) = mu :  %.4f\n"
+		    "  Target distance      :  %.3f km\n"
+		    "  Target v_los         : % .3f m/s\n"
+		    "  Solar rotation model :  %s (%s)\n"
+		    "  Rotataion rate       :  %.5f murad/s\n"
+		    ,
 		    
-		    eph->observer, eph->utcdate,
-		    eph->jdate,
+		    eph->utcdate, eph->observer,
+		    eph->jday,
 		    eph->rsun_as,
-		    eph->B0,
 		    //eph->P0,
+ 		    eph->B0,
 		    eph->L0hg,
 		    eph->L0cr,
 		    eph->dist_sun,
 		    eph->vlos_sun * 1000,
 		    eph->x, eph->y,
 		    eph->lon, eph->lat,
+		    eph->rho_hc,
 		    eph->mu,
 		    eph->dist,
 		    eph->vlos * 1000,
 		    eph->modelname, eph->modeldescr,
-		    eph->omega,
-		    eph->rho_hc);
+		    eph->omega
+		);
 }
 
 
@@ -794,10 +802,13 @@ int mode_fits (
 	    fitsframe_bcddate (fptr, i+1, naxes[1], utcstr, &status);
 	    if (status) break;
 	    str2et_c (utcstr, &et);
+	} else {
+	    /* EXPTIME header is expected to be the exact time when the
+	     * shutter opens, so we add half of the exptime to get a kind of
+	     * weighted time of exposure */
+	    et += i * (h_exptime / 1000.0 + h_deltime / 1000.0)
+		+ 0.5 * h_exptime / 1000.0;
 	}
-	else
-	    et += i * (h_exptime / 1000.0 + h_deltime / 1000.0);
-	
 	if (SUCCESS != soleph (observer, et, position, &eph, rotmodel)) {
 	    errmesg ("could not compute ephemeris data\n");
 	    fits_close_file (fptr, &status);
@@ -888,7 +899,7 @@ int write_fits_ephtable_row (
 						    firstrow, 1, 1,	\
 						    (void*)ptr, status)
 
-    EPHTABLE_ADDCELL (TDOUBLE, &eph->jdate);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->jday);
     /* EPHTABLE_ADDCELL (TSTRING, eph->utcdate); */
     /* EPHTABLE_ADDCELL (TSTRING, eph->observer); */
     EPHTABLE_ADDCELL (TDOUBLE, &eph->B0);

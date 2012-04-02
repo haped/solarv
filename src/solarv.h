@@ -111,7 +111,7 @@ enum PosType {lola = 0, xy = 1, loy = 2, xlat = 3};
 typedef struct
 {
     /* common data; sun global parameters */
-    SpiceDouble jdate;          /* julian day of the event                    */
+    SpiceDouble jday;           /* julian day of the event                    */
     SpiceChar utcdate[MAXKEY];  /* ascii date in UTC                          */
     SpiceChar observer[MAXKEY]; /* NAIF station name                          */
     SpiceDouble B0;             /* lat of sub-observer point, lt corrected    */
