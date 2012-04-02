@@ -22,7 +22,7 @@ else
 endif
 
 ifndef KERNEL_PATH
-	KERNEL_PATH = "../data/kernels"
+	KERNEL_PATH = ../data/kernels
 endif
 
 CC = c99
@@ -38,7 +38,7 @@ all: solarv solarv.tm
 .PHONY: clean check
 
 clean:
-	rm -f solarv solarv.o solarv.tm
+	rm -f solarv solarv.o solarv.tm stations.bsp
 
 solarv.o: solarv.h solarv.c
 
@@ -48,3 +48,9 @@ solarv: solarv.o solarv.h
 
 solarv.tm: solarv.tm.in Makefile
 	@sed 's#KERNEL_SYSPATH#$(KERNEL_PATH)#g' solarv.tm.in > solarv.tm
+
+
+stations.bsp: stations.defs
+	pinpoint -def stations.defs \
+	-pck $(KERNEL_PATH)/pck00010.tpc \
+	-spk stations.bsp

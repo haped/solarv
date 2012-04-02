@@ -6,7 +6,7 @@ KPL/MK
 
 
     Meta-kernel that loads the required spice kernels for the 'solarv'
-    solar ephemers tool.
+    solar ephemeris tool.
 
 \begindata
 
@@ -21,9 +21,11 @@ KPL/MK
 			'$SYSKERN/earth_fixed.tf',
 			'$SYSKERN/earth_assoc_itrf93.tf',
 			'$SYSKERN/earth_000101_120411_120119.bpc',
-			'$SYSKERN/izana.bsp',
-			'$SYSKERN/izana.txt'
+			'$SYSKERN/stations.bsp',
+			'$SYSKERN/stations.tf'
 			)		
 \begintext
+
+     [END OF KERNEL]
 
 
