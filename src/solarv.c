@@ -790,25 +790,29 @@ int mode_fits (
     /* in case the file does not provide the BCD timestamps, we have to
       extrapolate the time of exosure via T = DATE-OBS + i * (EXPTIME + DELTIME) */
     SpiceDouble et;
-    if (! haveBCDdate)
-	str2et_c (h_dateobs, &et);
+    if (! haveBCDdate) {
+	str2et_c (h_dateobs, &et); 
+	/* add half the exposure time here and increase by EXPTIME + DELTIME
+	 * in the frame loop below */
+	et += 0.5 * h_exptime / 1000.0;
+    }
     
     for (long i = 0; i < nframes; ++i)
     {
 	soleph_t eph;
-
+	
 	if (haveBCDdate) {
 	    char utcstr[64];
 	    fitsframe_bcddate (fptr, i+1, naxes[1], utcstr, &status);
 	    if (status) break;
 	    str2et_c (utcstr, &et);
+	    /* add half the exposure time to get a mean time of exposure
+	     * assuming constant photon flux */
+	    et += 0.5 * h_exptime / 1000.0;
 	} else {
-	    /* EXPTIME header is expected to be the exact time when the
-	     * shutter opens, so we add half of the exptime to get a kind of
-	     * weighted time of exposure */
-	    et += i * (h_exptime / 1000.0 + h_deltime / 1000.0)
-		+ 0.5 * h_exptime / 1000.0;
+	    et += (h_exptime + h_deltime) / 1000.0;
 	}
+
 	if (SUCCESS != soleph (observer, et, position, &eph, rotmodel)) {
 	    errmesg ("could not compute ephemeris data\n");
 	    fits_close_file (fptr, &status);
