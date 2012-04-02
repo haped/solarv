@@ -1,5 +1,5 @@
 ## you may define these
-#CSPICE_PATH = /usr/local/pkg/cspice_N0064
+CSPICE_PATH = ../cspice
 #CFITSIO_PATH = /usr/local/pkg/cfitsio-3250
 #KERNEL_PATH = /usr/local/share/data/solarv/kernels
 PINPOINT = pinpoint
@@ -17,7 +17,7 @@ endif
 ifdef CSPICE_PATH
 	SPICE_I = -I$(CSPICE_PATH)/include
 	SPICE_L = $(CSPICE_PATH)/lib/cspice.a
-	PINPOINT = $(CSPICE_PATH)/bin/pinpoint
+	PINPOINT = $(CSPICE_PATH)/exe/pinpoint
 else
 	SPICE_MISSING = 1
 endif
