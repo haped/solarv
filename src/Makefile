@@ -1,8 +1,8 @@
 ## you may define these
-CSPICE_PATH = /home/doerr/coding/lfc/solarv/cspice
-#CFITSIO_PATH = 
+#CSPICE_PATH = /usr/local/pkg/cspice_N0064
+#CFITSIO_PATH = /usr/local/pkg/cfitsio-3250
 #KERNEL_PATH = /usr/local/share/data/solarv/kernels
-
+PINPOINT = pinpoint
 
 ## defining CFITSIO_PATH is optional, could also be pre-installed
 ## on the system
@@ -17,6 +17,7 @@ endif
 ifdef CSPICE_PATH
 	SPICE_I = -I$(CSPICE_PATH)/include
 	SPICE_L = $(CSPICE_PATH)/lib/cspice.a
+	PINPOINT = $(CSPICE_PATH)/bin/pinpoint
 else
 	SPICE_MISSING = 1
 endif
@@ -26,10 +27,12 @@ ifndef KERNEL_PATH
 endif
 
 CC = c99
-CFLAGS = -Wall -O0 -g $(SPICE_I) $(FITSIO_I) \
+CFLAGS = -O2 -m64 $(SPICE_I) $(FITSIO_I) \
 	-DKERNEL_PATH=\"$(KERNEL_PATH)\"
-LD = $(CC)
-LDFLAGS = $(SPICE_L) $(FITSIO_L) -lm
+LD = $(CC) 
+LDFLAGS = -m64 $(SPICE_L) $(FITSIO_L) -lm 
+# solaris
+#LDFLAGS = -m64 $(SPICE_L) $(FITSIO_L) -lm -lsocket -lnsl
 
 
 all: solarv solarv.tm
@@ -51,6 +54,6 @@ solarv.tm: solarv.tm.in Makefile
 
 
 stations.bsp: stations.defs
-	pinpoint -def stations.defs \
+	$(PINPOINT) -def stations.defs \
 	-pck $(KERNEL_PATH)/pck00010.tpc \
 	-spk stations.bsp
