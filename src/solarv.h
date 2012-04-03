@@ -24,10 +24,10 @@
 #ifndef _SOLARV_H_
 #define _SOLARV_H_
 
-static const char _name[] = "solarv";
+static const char _name[] = "SolaRV";
 static const char _author[] = "Hans-Peter Doerr";
 static const char _version[] = "0.2.1a";
-static const char _versiondate[] = "2012-04-02";
+static const char _versiondate[] = "3 Mar 2012";
 
 #include "SpiceUsr.h"
 

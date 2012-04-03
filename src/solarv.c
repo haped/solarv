@@ -80,8 +80,9 @@ void usage (FILE *stream)
 
 void program_info (FILE *stream)
 {
-    fprintf (stream, "%s v%s, %s\n"
-	     "Copyright (c) 2012 %s\n",
+    fprintf (stream, "%s v%s %s\n"
+	     "Copyright (C) 2012 by %s\n"
+	     "Licencse: MIT X11\n",
 	     _name, _version, _versiondate, _author);
 }
 
@@ -597,44 +598,53 @@ void print_ephtable_row (FILE *stream, soleph_t *eph)
 
 void fancy_print_eph (FILE *stream, soleph_t *eph)
 {
-	    printf ("Solar ephemeris for %s\n"
-		    "  Observer             :  %s\n"
-		    "  UTC julian day       : % f\n"
-		    "  Apparent disk radius :  %.2f arcsec\n"
-		    //"  P0                    :% .4f deg\n"
-		    "  B0                   : % -.4f deg\n"
-		    "  Stonyhurst L0        : % .4f deg\n"
-		    "  Carrington L0        : % .4f deg\n"
-		    "  Center distance      :  %.3f km\n"
-		    "  Center v_los         : % .3f m/s\n"
-		    "  Disk coordinates     : % .2f, %.2f arcsec\n"
-		    "  Lola coordinates     : % .3f, %.3f deg\n"
-		    "  Impact parameter     :  %.3f km\n"
-		    "  Cos(hel. angle) = mu :  %.4f\n"
-		    "  Target distance      :  %.3f km\n"
-		    "  Target v_los         : % .3f m/s\n"
-		    "  Solar rotation model :  %s (%s)\n"
-		    "  Rotataion rate       :  %.5f murad/s\n"
-		    ,
-		    
-		    eph->utcdate, eph->observer,
-		    eph->jday,
-		    eph->rsun_as,
-		    //eph->P0,
- 		    eph->B0,
-		    eph->L0hg,
-		    eph->L0cr,
-		    eph->dist_sun,
-		    eph->vlos_sun * 1000,
-		    eph->x, eph->y,
-		    eph->lon, eph->lat,
-		    eph->rho_hc,
-		    eph->mu,
-		    eph->dist,
-		    eph->vlos * 1000,
-		    eph->modelname, eph->modeldescr,
-		    eph->omega
-		);
+    SpiceDouble latlon[3];
+    SpiceInt maxn = 3;
+    SpiceInt dim = 0;
+    
+    //bodvrd_c (eph->observer, "LATLON", maxn, &dim, latlon);
+
+    printf ("Solar ephemeris for %s\n"
+	    "  Observer             :  %s\n"
+	    //"  Observer             :  %s, pos=(%3.5f, %3.5f) deg, alt=%.2f m\n"
+	    "  UTC julian day       : % f\n"
+	    "  Apparent disk radius :  %.2f arcsec\n"
+	    //"  P0                    :% .4f deg\n"
+	    "  B0                   : % -.4f deg\n"
+	    "  Stonyhurst L0        : % .4f deg\n"
+	    "  Carrington L0        : % .4f deg\n"
+	    "  Center distance      :  %.3f km\n"
+	    "  Center v_los         : % .3f m/s\n"
+	    "  Disk coordinates     : % .2f, %.2f arcsec\n"
+	    "  Lola coordinates     : % .3f, %.3f deg\n"
+	    "  Impact parameter     :  %.3f km\n"
+	    "  Cos(hel. angle) = mu :  %.4f\n"
+	    "  Target distance      :  %.3f km\n"
+	    "  Target v_los         : % .3f m/s\n"
+	    "  Solar rotation model :  %s (%s)\n"
+	    "  Rotataion rate       :  %.5f murad/s\n"
+	    ,
+	    
+	    eph->utcdate,
+	    eph->observer,
+	    //latlon[0], latlon[1], latlon[2]* 1000,
+	    eph->jday,
+	    eph->rsun_as,
+	    //eph->P0,
+	    eph->B0,
+	    eph->L0hg,
+	    eph->L0cr,
+	    eph->dist_sun,
+	    eph->vlos_sun * 1000,
+	    eph->x, eph->y,
+	    eph->lon, eph->lat,
+	    eph->rho_hc,
+	    eph->mu,
+	    eph->dist,
+	    eph->vlos * 1000,
+	    eph->modelname, eph->modeldescr,
+	    eph->omega
+	);
 }
 
 
