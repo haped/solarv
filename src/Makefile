@@ -1,7 +1,8 @@
 ## you may define these
-CSPICE_PATH = ../cspice
+CSPICE_PATH = /usr/local/cspice
 #CFITSIO_PATH = /usr/local/pkg/cfitsio-3250
-#KERNEL_PATH = /usr/local/share/data/solarv/kernels
+KERNEL_PATH = /usr/local/share/data/solarv/kernels
+BINARY_PATH = /usr/local/bin
 PINPOINT = pinpoint
 
 ## defining CFITSIO_PATH is optional, could also be pre-installed
@@ -27,7 +28,7 @@ ifndef KERNEL_PATH
 endif
 
 CC = c99
-CFLAGS = -O2 -m64 $(SPICE_I) $(FITSIO_I) \
+CFLAGS = -Wall -pedantic -O2 -m64 $(SPICE_I) $(FITSIO_I) \
 	-DKERNEL_PATH=\"$(KERNEL_PATH)\"
 LD = $(CC) 
 LDFLAGS = -m64 $(SPICE_L) $(FITSIO_L) -lm 
@@ -37,13 +38,16 @@ LDFLAGS = -m64 $(SPICE_L) $(FITSIO_L) -lm
 
 all: solarv solarv.tm
 
+install: solarv solarv.tm
+	install -D solarv.tm $(KERNEL_PATH)/solarv.tm
+	install -D solarv $(BINARY_PATH)/solarv
 
 .PHONY: clean check
 
 clean:
 	rm -f solarv solarv.o solarv.tm stations.bsp
 
-solarv.o: solarv.h solarv.c
+solarv.o: solarv.h solarv.c Makefile
 
 solarv: solarv.o solarv.h
 	$(LD) $< -o solarv $(LDFLAGS)
