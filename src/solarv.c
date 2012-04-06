@@ -38,28 +38,34 @@
 
 void usage (FILE *stream)
 {
-    printf ("%s v%s, %s\n"
+    printf ("%s v%s (%s) -- Compute precise Sun-Observer radial velocity\n"
 	    "\n"
-	    "compute precision radial velocities between earth-based "
-	    "observatories\nand a given position on the sun.\n"
+	    "Usage:\n"
+	    "solarv [options] <timespec|-f fitsfile> <lola|xy> <lat> <lon> "
+	    "[<tstep> <nsteps>]\n"
 	    "\n"
-	    "usage: solarv [options] [<date>|-f fitsfile] <lola|xy> <lat> <lon> [<tstep> <nsteps>]\n"
-	    "options:\n"
+	    "Options:\n"
 	    "  -h            show this help\n"
 	    "  -m model      set solar rotation model 'model'\n"
 	    "                use 'list' to list available models\n"
-	    "  -O observer   set observer location. can be any NAIF body code.\n"
-	    "                pre-defined sites: 'vtt'\n"
+	    "  -f file       read timespec from the DATE-OBS header in fits "
+	    "file 'file' and write ephemeris data to a fits binary table "
+	    "'file_ephem.fits'. Use PCO camera binary timestamps instead "
+	    "of DATE-OBS if available.\n"
+	    "  -O observer   set observer. Can be any NAIF body code.\n"
+	    "                pre-defined sites: 'VTT'\n"
 	    "  -p            pretty-print ephemeris data\n"
 	    "  -v            print program version\n"
-	    "  -K kernel     load additional text kernel 'kernel'\n"
+	    "  -K kernel     load additional SPICE kernel 'kernel'\n"
+	    "                this kernel will be loaded last in kernel pool\n"
 	    "\n"
-	    "The 'date' parameter understands the common time strings like "
+	    "The 'timespec' parameter understands the common time strings like "
 	    "'2010-01-01 12:00:00'. If no time zone is given, UTC is assumed. "
-	    "Latitude and longitude are Stonyhurst coordinates given in degree. "
-	    "The step width 'tstep' is in minutes.\n"
+	    "Latitude and longitude are Stonyhurst coordinates given in degrees "
+	    "(lola) or Helioprojective-Cartesian given in arcsecs from disk "
+	    "center (xy). The step width 'tstep' is in minutes.\n"
 	    "\n"
-	    "Examples\n"
+	    "Examples:\n"
 	    "\n"
 	    "Compute radial velocity at the western limb at 45deg latitude "
 	    "using Snodgrass & Ulrich (1990) spectroscopy rotation model:\n"
@@ -80,7 +86,7 @@ void usage (FILE *stream)
 
 void program_info (FILE *stream)
 {
-    fprintf (stream, "%s v%s %s\n"
+    fprintf (stream, "%s v%s (%s)\n"
 	     "Copyright (C) 2012 by %s\n"
 	     "Licencse: MIT X11\n",
 	     _name, _version, _versiondate, _author);
@@ -88,7 +94,7 @@ void program_info (FILE *stream)
 
 void version_info (FILE *stream)
 {
-    fprintf (stream, "%s v%s, %s\n",
+    fprintf (stream, "%s v%s (%s)\n",
 	    _name, _version, _versiondate);
 }
 
