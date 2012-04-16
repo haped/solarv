@@ -1,7 +1,7 @@
 ## you may define these
 CSPICE_PATH = /usr/local/cspice
 #CFITSIO_PATH = /usr/local/pkg/cfitsio-3250
-KERNEL_PATH = /usr/local/share/data/solarv/kernels
+KERNEL_PATH = /usr/local/share/solarv/kernels
 BINARY_PATH = /usr/local/bin
 PINPOINT = pinpoint
 
@@ -40,12 +40,13 @@ all: solarv solarv.tm
 
 install: solarv solarv.tm
 	install -D solarv.tm $(KERNEL_PATH)/solarv.tm
+	install -D stations.bsp $(KERNEL_PATH)/stations.bsp
 	install -D solarv $(BINARY_PATH)/solarv
 
 .PHONY: clean check
 
 clean:
-	rm -f solarv solarv.o solarv.tm stations.bsp
+	rm -f solarv solarv.o solarv.tm
 
 solarv.o: solarv.h solarv.c Makefile
 

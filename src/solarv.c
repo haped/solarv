@@ -512,6 +512,7 @@ int relstate_sun_target (
 
     /* additional veloctiy from (differential) rotation according to
      * rotation model specified */
+    /* FIXME: describe more precisley what exactly we're doing here */
     SpiceDouble omegas = omega_sun (latrd, rotmodel);
     SpiceDouble omega[] = {0.0, 0.0, omegas};
     SpiceDouble radius[] = {state_stt_fixed[0], state_stt_fixed[1], 0.0};
@@ -519,6 +520,7 @@ int relstate_sun_target (
 
     eph->omega = omegas * 1E6; /* we store omega in murad/s */
     eph->rotmodel = rotmodel;
+    /* FIXME: use strncpy() */
     strcpy (eph->modelname, RotModels[rotmodel].name);
     strcpy (eph->modeldescr, RotModels[rotmodel].descr);
 
@@ -604,9 +606,9 @@ void print_ephtable_row (FILE *stream, soleph_t *eph)
 
 void fancy_print_eph (FILE *stream, soleph_t *eph)
 {
-    SpiceDouble latlon[3];
-    SpiceInt maxn = 3;
-    SpiceInt dim = 0;
+    /* SpiceDouble latlon[3]; */
+    /* SpiceInt maxn = 3; */
+    /* SpiceInt dim = 0; */
     
     //bodvrd_c (eph->observer, "LATLON", maxn, &dim, latlon);
 
@@ -1032,6 +1034,8 @@ int fitsframe_bcddate (
     int sec = val[6];
     int msec = (int) (bcd[7]);
 
+    /* some rather relaxed consistency checks. the used kernel probably
+     * won't allow for larger time spans anyway */
     if (! ((1950 < year && 2100 > year) &&
 	   (mon > 0 && mon <= 12)       &&
 	   (day > 0 && day <= 31)       &&
