@@ -58,7 +58,8 @@ static const char _versiondate[] = "3 Mar 2012";
 #define FAILURE (0)
 #endif
 
-#define RSUN (6.96E8) /* meters, Stix (2004) */
+//#define RSUN (6.96E8) /* meters, Stix (2004) */
+const SpiceDouble RSUN = 6.96E8; /* meters, Stix (2004) */
 
 #define ABCORR "LT+S"
 
@@ -112,6 +113,7 @@ typedef struct
 {
     /* common data; sun global parameters */
     SpiceDouble jday;           /* julian day of the event                    */
+    SpiceDouble mjd;            /* modified julian day                        */
     SpiceChar utcdate[MAXKEY];  /* ascii date in UTC                          */
     SpiceChar observer[MAXKEY]; /* NAIF station name                          */
     SpiceDouble B0;             /* lat of sub-observer point, lt corrected    */
@@ -120,6 +122,7 @@ typedef struct
     SpiceDouble P0;             /* polar angle, lt corrected                  */
     SpiceDouble dist_sun;       /* distance obs. to solar center              */
     SpiceDouble vlos_sun;       /* radial velocity of obs to solar center     */
+    SpiceDouble rsun_ref;       /* reference radius of the sun in meter       */
     SpiceDouble rsun_as;        /* apparent radius of the sun in arcsecs      */
     int rotmodel;               /* solar rotation model used                  */
     char modelname[MAXKEY];     /* name of the rotation model                 */

@@ -269,6 +269,7 @@ int soleph (
     deltet_c (et, "ET", &deltaT);
     /* we use the utc julain date here, so substract the delta */
     eph->jday = unitim_c (et, "ET", "JDTDB") - deltaT / spd_c();
+    eph->mjd = eph->jday - 2400000.5; 
     et2utc_c (et, "C", 2, 79, eph->utcdate);
     strcpy (eph->observer, observer);
 
@@ -311,6 +312,7 @@ int soleph (
     /* helicentric impact paramter */
     eph->mu = sqrt (1.0 - (eph->rho_hc * 1000 / RSUN) *
 		    (eph->rho_hc * 1000 / RSUN));
+    eph->rsun_ref = RSUN;
 
     return SUCCESS;
 }
@@ -548,6 +550,7 @@ int relstate_sun_target (
 void reset_soleph (soleph_t *eph)
 {
     eph->jday = 0.0;
+    eph->mjd = 0.0;
     strcpy (eph->utcdate, "na");
     strcpy (eph->observer, "na");
     eph->B0 = 0.0;
@@ -556,6 +559,7 @@ void reset_soleph (soleph_t *eph)
     eph->P0 = -999999; /* we don't compute p0 yet */
     eph->dist_sun = 0.0;
     eph->vlos_sun = 0.0;
+    eph->rsun_ref = 0.0;
     eph->rsun_as = 0.0;
     eph->rotmodel = 0;
     strcpy (eph->modelname, "na");
@@ -616,6 +620,8 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	    "  Observer             :  %s\n"
 	    //"  Observer             :  %s, pos=(%3.5f, %3.5f) deg, alt=%.2f m\n"
 	    "  UTC julian day       : % f\n"
+	    "  Modified julian day  : % f\n"
+	    "  Sun reference radius :  %.0f km\n"
 	    "  Apparent disk radius :  %.2f arcsec\n"
 	    //"  P0                    :% .4f deg\n"
 	    "  B0                   : % -.4f deg\n"
@@ -637,6 +643,8 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	    eph->observer,
 	    //latlon[0], latlon[1], latlon[2]* 1000,
 	    eph->jday,
+	    eph->mjd,
+	    eph->rsun_ref / 1000.0,
 	    eph->rsun_as,
 	    //eph->P0,
 	    eph->B0,
@@ -865,26 +873,26 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 	return FAILURE;
     
     /* define table structure */
-    int tfields = 17;
+    int tfields = 18;
     char tname[] = "ephemeris table";
-    char *ttype[] = { "jdate",
+    char *ttype[] = { "jdate", "mjd",
 		      //"utcdate", "observer",
 		      "B0", "L0hg", "L0cr", "P0",
-		      "dist_sun", "vlos_sun", "rsun_as",
+		      "dist_sun", "vlos_sun", "rsun_as", "rsun_ref",
 		      //"modelname", "modeldescr",
 		      "lon", "lat", "x", "y", "mu", "dist", "vlos",
 		      "rho_hc", "omega" };
-    char *tform[] = { "D",
+    char *tform[] = { "D", "D",
 		      //"32A", "32A",
 		      "D", "D", "D", "D",
-		      "D", "D", "D",
+		      "D", "D", "D", "D",
 		      //"32A", "32A",
 		      "D", "D", "D", "D", "D", "D", "D",
 		      "D", "D" };
-    char *tunit[] = { "sec",
+    char *tunit[] = { "sec", "sec",
 		      //'\0', '\0',
 		      "deg", "deg", "deg", "deg", "deg",
-		      "km", "km/s", "arcsec",
+		      "km", "km/s", "arcsec", "km",
 		      //'\0', '\0',
 		      "deg", "deg", "arcsec", "arcsec", '\0', "km", "km/s",
 		      "km", "murad/s"};
@@ -922,6 +930,7 @@ int write_fits_ephtable_row (
 						    (void*)ptr, status)
 
     EPHTABLE_ADDCELL (TDOUBLE, &eph->jday);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->mjd);
     /* EPHTABLE_ADDCELL (TSTRING, eph->utcdate); */
     /* EPHTABLE_ADDCELL (TSTRING, eph->observer); */
     EPHTABLE_ADDCELL (TDOUBLE, &eph->B0);
@@ -931,6 +940,7 @@ int write_fits_ephtable_row (
     EPHTABLE_ADDCELL (TDOUBLE, &eph->dist_sun);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos_sun);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->rsun_as);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->rsun_ref);
     /* EPHTABLE_ADDCELL (TSTRING, eph->modelname); */
     /* EPHTABLE_ADDCELL (TSTRING, eph->modeldescr); */
     EPHTABLE_ADDCELL (TDOUBLE, &eph->lon);
