@@ -32,7 +32,7 @@
 #include <getopt.h>
 #include <math.h>
 #include <time.h>
-#include <fitsio.h>
+#include <cfitsio/fitsio.h>
 
 #include "solarv.h"
 
