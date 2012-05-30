@@ -58,6 +58,7 @@ void usage (FILE *stream)
 	    "  -v            print program version\n"
 	    "  -K kernel     load additional SPICE kernel 'kernel'\n"
 	    "                this kernel will be loaded last in kernel pool\n"
+	    "  -R radius     specifiy a different solar radius in meters\n"
 	    "\n"
 	    "The 'timespec' parameter understands the common time strings like "
 	    "'2010-01-01 12:00:00'. If no time zone is given, UTC is assumed. "
@@ -140,7 +141,7 @@ int main (int argc, char **argv)
     sunpos_t position;
 
     int c; opterr = 0;
-    while ((c = getopt (argc, argv, "+hm:pr:O:o:vfK:i")) != -1)
+    while ((c = getopt (argc, argv, "+hm:pr:O:o:vfK:iR:")) != -1)
     {
         switch (c)
         {
@@ -176,6 +177,7 @@ int main (int argc, char **argv)
 	case 'v': program_info (stdout); return EXIT_SUCCESS; break;
 	case 'f': fitsmode = true; break;
 	case 'K': strncpy (addkernel, optarg, MAXPATH); break;
+	case 'R': RSUN = atof (optarg);  break;
         default: usage (stdout); return EXIT_FAILURE;
         }
     }
@@ -794,7 +796,8 @@ int mode_fits (
 	fits_read_key (fptr, TSTRING, "DATE-OBS", h_dateobs, 0, &status);
 	fits_read_key (fptr, TDOUBLE, "DELTIME", &h_deltime, 0, &status);
 	if (status) {
-	    errmesg ("no time of exposure information found in fits file, aborting\n");
+	    errmesg ("no time of exposure information found in "
+		     "fits file, aborting\n");
 	    fits_report_error (stderr, status);
 	    return FAILURE;
 	}
@@ -873,27 +876,27 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 	return FAILURE;
     
     /* define table structure */
-    int tfields = 18;
+    int tfields = 23;
     char tname[] = "ephemeris table";
-    char *ttype[] = { "jdate", "mjd",
-		      //"utcdate", "observer",
+    char *ttype[] = { "jd", "mjd",
+		      "utc", "observer",
 		      "B0", "L0hg", "L0cr", "P0",
 		      "dist_sun", "vlos_sun", "rsun_as", "rsun_ref",
-		      //"modelname", "modeldescr",
+		      "modelname", "modeldescr",
 		      "lon", "lat", "x", "y", "mu", "dist", "vlos",
 		      "rho_hc", "omega" };
     char *tform[] = { "D", "D",
-		      //"32A", "32A",
+		      "32A", "32A",
 		      "D", "D", "D", "D",
 		      "D", "D", "D", "D",
-		      //"32A", "32A",
+		      "32A", "32A",
 		      "D", "D", "D", "D", "D", "D", "D",
 		      "D", "D" };
     char *tunit[] = { "sec", "sec",
-		      //'\0', '\0',
+		      "\0", "\0",
 		      "deg", "deg", "deg", "deg", "deg",
 		      "km", "km/s", "arcsec", "km",
-		      //'\0', '\0',
+		      '\0', '\0',
 		      "deg", "deg", "arcsec", "arcsec", '\0', "km", "km/s",
 		      "km", "murad/s"};
 
@@ -925,14 +928,18 @@ int write_fits_ephtable_row (
     long firstrow = row;
     long col = 1;
 
-#define EPHTABLE_ADDCELL(type, ptr) fits_write_col (fptr, type, col++,	\
-						    firstrow, 1, 1,	\
-						    (void*)ptr, status)
+#define EPHTABLE_ADDCELL(type, ptr)					\
+    fits_write_col (fptr, type, col++,					\
+		    firstrow, 1, 1,					\
+		    (void*)ptr, status)
+    
+
+    //printf ("strlen (%s)=%zi\n", eph->observer, strlen (eph->observer));
 
     EPHTABLE_ADDCELL (TDOUBLE, &eph->jday);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->mjd);
-    /* EPHTABLE_ADDCELL (TSTRING, eph->utcdate); */
-    /* EPHTABLE_ADDCELL (TSTRING, eph->observer); */
+    EPHTABLE_ADDCELL (TBYTE, eph->utcdate);
+    EPHTABLE_ADDCELL (TSBYTE, eph->observer);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->B0);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->L0hg);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->L0cr);
@@ -941,8 +948,8 @@ int write_fits_ephtable_row (
     EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos_sun);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->rsun_as);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->rsun_ref);
-    /* EPHTABLE_ADDCELL (TSTRING, eph->modelname); */
-    /* EPHTABLE_ADDCELL (TSTRING, eph->modeldescr); */
+    EPHTABLE_ADDCELL (TBYTE, eph->modelname);
+    EPHTABLE_ADDCELL (TBYTE, eph->modeldescr);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->lon);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->lat);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->x);

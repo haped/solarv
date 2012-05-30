@@ -40,7 +40,7 @@ static const char _versiondate[] = "3 Mar 2012";
 #ifdef MAXKEY
 #undef MAXKEY
 #endif
-#define MAXKEY (128)
+#define MAXKEY (32)
 
 #ifndef EXIT_SUCCESS
 #define EXIT_SUCCESS (0)
@@ -59,7 +59,7 @@ static const char _versiondate[] = "3 Mar 2012";
 #endif
 
 //#define RSUN (6.96E8) /* meters, Stix (2004) */
-const SpiceDouble RSUN = 6.96E8; /* meters, Stix (2004) */
+SpiceDouble RSUN = 6.96E8; /* meters, Stix (2004) */
 
 #define ABCORR "LT+S"
 
