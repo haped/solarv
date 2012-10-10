@@ -112,6 +112,7 @@ enum PosType {lola = 0, xy = 1, loy = 2, xlat = 3};
 typedef struct
 {
     /* common data; sun global parameters */
+    SpiceDouble et;             /* SPICE ephemeris time */
     SpiceDouble jday;           /* julian day of the event                    */
     SpiceDouble mjd;            /* modified julian day                        */
     SpiceChar utcdate[MAXKEY];  /* ascii date in UTC                          */

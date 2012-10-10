@@ -123,6 +123,32 @@ void dump_kernel_info (FILE *stream)
     }
 }
 
+
+void station_geopos (SpiceChar * station, SpiceDouble et,
+		     SpiceDouble *lon, SpiceDouble *lat, SpiceDouble *alt)
+{
+    SpiceDouble state_station[6];
+    SpiceDouble lt;
+    SpiceDouble abc[3], f, r_eq, r_pl;
+    SpiceInt dim;
+
+    spkezr_c (station, et, "EARTH_FIXED", "NONE", "EARTH", state_station, &lt);
+    bodvrd_c( "EARTH", "RADII", 3, &dim, abc);
+    r_eq = abc[0];
+    r_pl = abc[2]; 
+    f = (r_eq - r_pl) / r_eq;
+    printf ("f=%g\n", f);
+    recgeo_c (state_station, r_eq, f, lon, lat, alt);
+}
+
+void station_state_j2000 (SpiceChar *station, SpiceDouble et,
+			  SpiceDouble *state, SpiceDouble *lt)
+{
+    SpiceDouble ltt;
+    spkezr_c (station, et, "J2000", "LT+S", "SSB",  state, &ltt);
+    if (lt) *lt = ltt;
+}
+
 int main (int argc, char **argv)
 {   
     char fitsfile[MAXPATH+1] = "";
@@ -612,15 +638,11 @@ void print_ephtable_row (FILE *stream, soleph_t *eph)
 
 void fancy_print_eph (FILE *stream, soleph_t *eph)
 {
-    /* SpiceDouble latlon[3]; */
-    /* SpiceInt maxn = 3; */
-    /* SpiceInt dim = 0; */
-    
-    //bodvrd_c (eph->observer, "LATLON", maxn, &dim, latlon);
+    double lon, lat, alt;
+    station_geopos (eph->observer, eph->et, &lon, &lat, &alt);
 
     printf ("Solar ephemeris for %s\n"
-	    "  Observer             :  %s\n"
-	    //"  Observer             :  %s, pos=(%3.5f, %3.5f) deg, alt=%.2f m\n"
+	    "  Observer Station     :  %s (%3.5f E, %3.5f N, %.2f m)\n"
 	    "  UTC julian day       : % f\n"
 	    "  Modified julian day  : % f\n"
 	    "  Sun reference radius :  %.0f km\n"
@@ -643,7 +665,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	    
 	    eph->utcdate,
 	    eph->observer,
-	    //latlon[0], latlon[1], latlon[2]* 1000,
+	    lon * dpr_c(), lat * dpr_c(), alt * 1000.0,
 	    eph->jday,
 	    eph->mjd,
 	    eph->rsun_ref / 1000.0,
