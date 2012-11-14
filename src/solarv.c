@@ -137,7 +137,6 @@ void station_geopos (SpiceChar * station, SpiceDouble et,
     r_eq = abc[0];
     r_pl = abc[2]; 
     f = (r_eq - r_pl) / r_eq;
-    printf ("f=%g\n", f);
     recgeo_c (state_station, r_eq, f, lon, lat, alt);
 }
 
@@ -642,25 +641,25 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
     station_geopos (eph->observer, eph->et, &lon, &lat, &alt);
 
     printf ("Solar ephemeris for %s\n"
-	    "  Observer Station     :  %s (%3.5f E, %3.5f N, %.2f m)\n"
-	    "  UTC julian day       : % f\n"
-	    "  Modified julian day  : % f\n"
-	    "  Sun reference radius :  %.0f km\n"
-	    "  Apparent disk radius :  %.2f arcsec\n"
-	    //"  P0                    :% .4f deg\n"
-	    "  B0                   : % -.4f deg\n"
-	    "  Stonyhurst L0        : % .4f deg\n"
-	    "  Carrington L0        : % .4f deg\n"
-	    "  Center distance      :  %.3f km\n"
-	    "  Center v_los         : % .3f m/s\n"
-	    "  Disk coordinates     : % .2f, %.2f arcsec\n"
-	    "  Lola coordinates     : % .3f, %.3f deg\n"
-	    "  Impact parameter     :  %.3f km\n"
-	    "  Cos(hel. angle) = mu :  %.4f\n"
-	    "  Target distance      :  %.3f km\n"
-	    "  Target v_los         : % .3f m/s\n"
-	    "  Solar rotation model :  %s (%s)\n"
-	    "  Rotataion rate       :  %.5f murad/s\n"
+	    "  Observer Station ...........  %s (%3.5f E, %3.5f N, %.2f m)\n"
+	    "  UTC julian day ............. % f\n"
+	    "  Modified julian day ........ % f\n"
+	    "  Sun reference radius .......  %.0f km\n"
+	    "  Apparent disk radius .......  %.2f arcsec\n"
+	    //"  P0                         :% .4f deg\n"
+	    "  B0 ......................... % -.4f deg\n"
+	    "  Stonyhurst L0 .............. % .4f deg\n"
+	    "  Carrington L0 .............. % .4f deg\n"
+	    "  Solar barycenter distance...  %.3f km\n"
+	    "  Solar barycenter v_los...... % .3f m/s\n"
+	    "  Disk coordinates ........... % .2f, %.2f arcsec\n"
+	    "  Lola coordinates ........... % .3f, %.3f deg\n"
+	    "  Impact parameter ...........  %.3f km\n"
+	    "  Heliocentric parameter mu ..  %.4f\n"
+	    "  Target distance ............  %.3f km\n"
+	    "  Target v_los ............... % .3f m/s\n"
+	    "  Solar rotation model .......  %s (%s)\n"
+	    "  Rotataion rate .............  %.5f murad/s\n"
 	    ,
 	    
 	    eph->utcdate,
