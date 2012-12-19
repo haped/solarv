@@ -144,7 +144,7 @@ void station_state_j2000 (SpiceChar *station, SpiceDouble et,
 			  SpiceDouble *state, SpiceDouble *lt)
 {
     SpiceDouble ltt;
-    spkezr_c (station, et, "J2000", "LT+S", "SSB",  state, &ltt);
+    spkezr_c (station, et, "J2000", ABCORR, "SSB",  state, &ltt);
     if (lt) *lt = ltt;
 }
 
@@ -357,7 +357,7 @@ int relstate_observer_sun (
     SpiceDouble los_otc[3];       /* los vector obs. to sun center   */
     
     /* vlos and distance to sun barycenter: km, km/s */
-    spkezr_c ("SUN", et, "J2000",  "LT+S", station, state_otc, &lt);
+    spkezr_c ("SUN", et, "J2000",  ABCORR, station, state_otc, &lt);
     unorm_c (state_otc, los_otc, &(eph->dist_sun));
     eph->vlos_sun = vdot_c (los_otc, &state_otc[3]);
     
