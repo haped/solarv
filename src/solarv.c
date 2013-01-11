@@ -96,9 +96,8 @@ void program_info (FILE *stream)
 void version_info (FILE *stream)
 {
     fprintf (stream, "%s v%s (%s)\n",
-	    _name, _version, _versiondate);
+	     _name, _version, _versiondate);
 }
-
 
 void dump_kernel_info (FILE *stream)
 {
@@ -267,6 +266,24 @@ int main (int argc, char **argv)
     return EXIT_SUCCESS;
 }
 
+/* convert from pointing coordinates in arcsecs to heliographic lon,lat
+ * coordinates */
+int sol_xy2lola (SpiceDouble x, SpiceDouble y, SpiceDouble dist,
+		 SpiceDouble *lon, SpiceDouble *lat)
+{
+    /* assume target positon always on the solar surface at distance RSUN,
+     * so we can compute the missing third component of the rectangular
+     * coordinates */
+    SpiceDouble up = sin (y / 3600.0 * rpd_c()) * RSUN;
+    SpiceDouble right = sin (x / 3600.0 * rpd_c()) * RSUN;
+    SpiceDouble forw = sqrt (RSUN * RSUN - up * up - right * right);
+    SpiceDouble xyz[3] = {forw, right, up};
+
+    SpiceDouble rt;
+    reclat_c (xyz, &rt, lon, lat);
+
+    printf ("dist=%g  r=%g  right=%g  up=%g  forw=%g\n", dist, rt, right, up, forw);
+}
 
 
 /*
@@ -327,6 +344,7 @@ int soleph (
 	return FAILURE;
     }
 
+
     /* compute observer to target by adding ots + stt */
     vaddg_c (state_ots, state_stt, 6, state_ott);
     unorm_c (state_ott, los_ott, &(eph->dist));
@@ -337,8 +355,8 @@ int soleph (
     ************************************************************************/
 
     /* helicentric impact paramter */
-    eph->mu = sqrt (1.0 - (eph->rho_hc * 1000 / RSUN) *
-		    (eph->rho_hc * 1000 / RSUN));
+    eph->mu = sqrt (1.0 - (eph->rho * 1000 / RSUN) *
+		    (eph->rho * 1000 / RSUN));
     eph->rsun_ref = RSUN;
 
     return SUCCESS;
@@ -362,7 +380,8 @@ int relstate_observer_sun (
     eph->vlos_sun = vdot_c (los_otc, &state_otc[3]);
     
     /* apparent diameter of the disc in arcsec */
-    eph->rsun_as = RSUN / (eph->dist_sun * 1000) * dpr_c() * 3600.0;
+    eph->rsun_as = asin (RSUN / (eph->dist_sun * 1000)) * dpr_c() * 3600;
+
 
     return SUCCESS;
 }
@@ -471,6 +490,15 @@ void xy2lola (
 }
 
 
+void printstate (SpiceDouble *s)
+{
+
+    printf ("x=(%g, %g, %g), v=(%g, %g, %g), |x|=%g\n",
+	    s[0], s[1], s[2],
+	    s[3], s[4], s[5],
+	    sqrt (s[0]*s[0] + s[1]*s[1] + s[2]*s[2]));
+}
+
 
 /* compute relative state from solar center to target position on the
  * surface in IAU_SUN frame */
@@ -488,6 +516,7 @@ int relstate_sun_target (
     SpiceDouble subrad, sublon, sublat; /* lola cords of sub-observer point   */
     SpiceDouble xform[6][6];            /* transf. matrix body-fixed -> j2000 */
     SpiceDouble state_stt_fixed[6];     /* sun-to-target state vector         */
+    SpiceDouble state_stt_fixed2[6];     /* sun-to-target state vector         */
     SpiceDouble lonrd, latrd;
     
     /* for the following procedure, also see:
@@ -532,44 +561,43 @@ int relstate_sun_target (
     eph->lon = lonrd * dpr_c();
     eph->lat = latrd * dpr_c();
 
-    
-    /* rectangular, body fixed coorindates of target point given in
-     * stonyhurst coordinates */
+
+    /* we want the relative state vector between the target and solar
+     * center. therefore, from the heliographic target coordinates, we
+     * compute the corresponding rectangular, body-centered coordinates on a
+     * sphere with solar radius.  */
     SpiceDouble tlon = lonrd + sublon;
     SpiceDouble tlat = latrd;
     latrec_c (RSUN / 1000.0, tlon, tlat, state_stt_fixed);
 
-    /* additional veloctiy from (differential) rotation according to
-     * rotation model specified */
-    /* FIXME: describe more precisley what exactly we're doing here */
+    /* we compute the state velocities from the requested rotation
+     * model. velocity is omega cross radius */
     SpiceDouble omegas = omega_sun (latrd, rotmodel);
     SpiceDouble omega[] = {0.0, 0.0, omegas};
     SpiceDouble radius[] = {state_stt_fixed[0], state_stt_fixed[1], 0.0};
     vcrss_c (omega, radius, &state_stt_fixed[3]);
-
-    eph->omega = omegas * 1E6; /* we store omega in murad/s */
+    eph->omega = omegas * 1E6; /* we follow the convention to store omega in murad/s */
     eph->rotmodel = rotmodel;
-    /* FIXME: use strncpy() */
-    strcpy (eph->modelname, RotModels[rotmodel].name);
-    strcpy (eph->modeldescr, RotModels[rotmodel].descr);
+    strncpy (eph->modelname, RotModels[rotmodel].name, MAXKEY);
+    strncpy (eph->modeldescr, RotModels[rotmodel].descr, MAXKEY);
 
-    /* now, rotate body-fixed state to j20000 */
+    /* now, we transform the relative sun-target state to the J2000 frame
+       and are basically done ... */
     sxform_c ("HCI", "J2000", et, xform);
     mxvg_c (xform, state_stt_fixed, 6, 6, state_stt);
 
-    /* helioprojective-cartesian coordinates (pointing coordinates). use the
-     * stt_fixed vector again. this time we substract the sub-observer
-     * latitude. sub-observer longitude is always zero in stondyhurst
-     * coordinates per definition */
-    latrec_c (RSUN / 1000.0, lonrd, latrd - sublat, state_stt_fixed);
+    /* ... but we also need the impact parameter */
+    latrec_c (RSUN / 1000.0, lonrd, latrd, state_stt_fixed);
+    eph->rho = sqrt (state_stt_fixed[1] * state_stt_fixed[1] + 
+			state_stt_fixed[2] * state_stt_fixed[2]);
+
 
     /* Thompson (2005) eq 4 */
-    eph->x = atan (state_stt_fixed[1] / eph->dist_sun) * dpr_c () * 3600.0;
-    eph->y = atan (state_stt_fixed[2] / eph->dist_sun) * dpr_c () * 3600.0;
+    double px = state_stt_fixed[1];
+    double py = state_stt_fixed[2];
+    eph->x = atan (px / eph->dist_sun) * dpr_c () * 3600.0;
+    eph->y = atan (py / eph->dist_sun) * dpr_c () * 3600.0;
 
-    /* radial distance from target to solar rotation axis */
-    eph->rho_hc = sqrt (state_stt_fixed[1] * state_stt_fixed[1] + 
-			state_stt_fixed[2] * state_stt_fixed[2]);
 
     return SUCCESS;
 }
@@ -599,7 +627,7 @@ void reset_soleph (soleph_t *eph)
     eph->mu = 0.0;
     eph->dist = 0.0;
     eph->vlos = 0.0;
-    eph->rho_hc = 0.0;
+    eph->rho = 0.0;
     eph->omega = 0.0;
 }
 
@@ -677,7 +705,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	    eph->vlos_sun * 1000,
 	    eph->x, eph->y,
 	    eph->lon, eph->lat,
-	    eph->rho_hc,
+	    eph->rho,
 	    eph->mu,
 	    eph->dist,
 	    eph->vlos * 1000,
@@ -905,7 +933,7 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 		      "dist_sun", "vlos_sun", "rsun_as", "rsun_ref",
 		      "modelname", "modeldescr",
 		      "lon", "lat", "x", "y", "mu", "dist", "vlos",
-		      "rho_hc", "omega" };
+		      "rho", "omega" };
     char *tform[] = { "D", "D",
 		      "32A", "32A",
 		      "D", "D", "D", "D",
@@ -978,7 +1006,7 @@ int write_fits_ephtable_row (
     EPHTABLE_ADDCELL (TDOUBLE, &eph->mu);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->dist);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos);
-    EPHTABLE_ADDCELL (TDOUBLE, &eph->rho_hc);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->rho);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->omega);
     
     if (*status) {
