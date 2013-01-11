@@ -266,25 +266,6 @@ int main (int argc, char **argv)
     return EXIT_SUCCESS;
 }
 
-/* convert from pointing coordinates in arcsecs to heliographic lon,lat
- * coordinates */
-int sol_xy2lola (SpiceDouble x, SpiceDouble y, SpiceDouble dist,
-		 SpiceDouble *lon, SpiceDouble *lat)
-{
-    /* assume target positon always on the solar surface at distance RSUN,
-     * so we can compute the missing third component of the rectangular
-     * coordinates */
-    SpiceDouble up = sin (y / 3600.0 * rpd_c()) * RSUN;
-    SpiceDouble right = sin (x / 3600.0 * rpd_c()) * RSUN;
-    SpiceDouble forw = sqrt (RSUN * RSUN - up * up - right * right);
-    SpiceDouble xyz[3] = {forw, right, up};
-
-    SpiceDouble rt;
-    reclat_c (xyz, &rt, lon, lat);
-
-    printf ("dist=%g  r=%g  right=%g  up=%g  forw=%g\n", dist, rt, right, up, forw);
-}
-
 
 /*
  * this is the entry point to compute the solar ephemeris parameters for a
