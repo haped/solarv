@@ -298,6 +298,7 @@ int soleph (
     int rotmodel)
 {
     SpiceDouble subpoint[3];
+    SpiceDouble xform[6][6];
     SpiceDouble srfvec[3];
     SpiceDouble trgepc;
     SpiceDouble subrad, sublon, sublat; /* lola cords of sub-observer point */
@@ -328,6 +329,7 @@ int soleph (
     subpnt_c ("Near point: ellipsoid", "SUN", et, "IAU_SUN",
     	      ABCORR, observer, subpoint, &trgepc, srfvec);
     reclat_c (subpoint, &subrad, &sublon, &sublat);
+
     /* store carrington longitude as 0 ... 2 pi */
     eph->L0cr = (sublon < 0 ? 2 * pi_c() + sublon : sublon) * dpr_c();
     
@@ -353,11 +355,14 @@ int soleph (
     /************************************************************************
      compute further ephemeris data from the parameters we gathered so far
     ************************************************************************/
-
-    /* helicentric impact paramter */
-    eph->mu = sqrt (1.0 - (eph->rho * 1000 / RSUN) *
-		    (eph->rho * 1000 / RSUN));
     eph->rsun_ref = RSUN;
+
+    /* impact parameter, heliocentric parameter mu */
+    SpiceDouble angle = vsep_c (state_ots, state_ott);
+    eph->rho = eph->dist * sin (angle);
+    eph->mu = cos (asin (eph->rho * 1000 / RSUN));
+
+
 
     return SUCCESS;
 }
@@ -582,22 +587,13 @@ int relstate_sun_target (
     strncpy (eph->modeldescr, RotModels[rotmodel].descr, MAXKEY);
 
     /* now, we transform the relative sun-target state to the J2000 frame
-       and are basically done ... */
+       and are done */
     sxform_c ("HCI", "J2000", et, xform);
     mxvg_c (xform, state_stt_fixed, 6, 6, state_stt);
 
-    /* ... but we also need the impact parameter */
-    latrec_c (RSUN / 1000.0, lonrd, latrd, state_stt_fixed);
-    eph->rho = sqrt (state_stt_fixed[1] * state_stt_fixed[1] + 
-			state_stt_fixed[2] * state_stt_fixed[2]);
 
 
-    /* Thompson (2005) eq 4 */
-    double px = state_stt_fixed[1];
-    double py = state_stt_fixed[2];
-    eph->x = atan (px / eph->dist_sun) * dpr_c () * 3600.0;
-    eph->y = atan (py / eph->dist_sun) * dpr_c () * 3600.0;
-
+    
 
     return SUCCESS;
 }
@@ -675,9 +671,9 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	    "  Sun reference radius .......  %.0f km\n"
 	    "  Apparent disk radius .......  %.2f arcsec\n"
 	    //"  P0                         :% .4f deg\n"
-	    "  B0 ......................... % -.4f deg\n"
-	    "  Stonyhurst L0 .............. % .4f deg\n"
-	    "  Carrington L0 .............. % .4f deg\n"
+	    "  B0 ......................... % -.6f deg\n"
+	    "  Stonyhurst L0 .............. % .6f deg\n"
+	    "  Carrington L0 .............. % .6f deg\n"
 	    "  Solar barycenter distance...  %.3f km\n"
 	    "  Solar barycenter v_los...... % .3f m/s\n"
 	    "  Disk coordinates ........... % .2f, %.2f arcsec\n"
