@@ -58,8 +58,8 @@ static const char _versiondate[] = "26 Sep 2012";
 #define FAILURE (0)
 #endif
 
-//#define RSUN (6.96E8) /* meters, Stix (2004) */
-SpiceDouble RSUN = 6.96E8; /* meters, Stix (2004) */
+/* solar photospheric radius from Brown and Dalsgaard (1998), APJ */
+SpiceDouble RSUN = 6.95508E8;
 
 #define ABCORR "LT+S"
 
