@@ -210,5 +210,21 @@ int fitsframe_bcddate (
 SpiceDouble aspr(void);
 void printstate (SpiceDouble *s);
 void printvec (SpiceDouble *s);
+char* wordsep (char *str, char *token);
+int mode_batch (
+    SpiceChar *observer,
+    int rotmodel,
+    bool fancy,
+    FILE *istream,
+    FILE *ostream);
+int handle_request (
+    SpiceChar *observer,
+    int argc,
+    char **argv,
+    int rotmodel,
+    bool fancy,
+    FILE *ostream);
+
+
 
 #endif /* _SOLARV_H_ */

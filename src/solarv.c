@@ -21,11 +21,13 @@
   DEALINGS IN THE SOFTWARE.
 */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
 #include <libgen.h>
+#include <ctype.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <stdarg.h>
@@ -37,22 +39,24 @@
 #include "solarv.h"
 
 
+
 void usage (FILE *stream)
 {
     printf ("%s v%s (%s) -- Compute precise Sun-Observer radial velocity\n"
 	    "\n"
 	    "Usage:\n"
-	    "  solarv [options] <timespec> <lola|xy> <cord1> <cord2> "
-	    "[<nsteps> <tstep>]\n"
+	    "  solarv [options] [request | file]\n"
 	    "\n"
+            "Request specification:\n"
+            "  <timespec> <xy|lola> <cord1> <cord2> [<nsteps> <tstep>]\n"
+            "\n"
+            "The request is either read from the commandline, from 'file' or from "
+            "STDIN if no arguments are given.\n"
+            "\n"
 	    "Options:\n"
 	    "  -h            show this help\n"
 	    "  -m model      set solar rotation model 'model'\n"
 	    "                use 'list' to list available models\n"
-	    /* "  -f file       read timespec from the DATE-OBS header in fits " */
-	    /* "file 'file' and write ephemeris data to a fits binary table " */
-	    /* "'file_ephem.fits'. Use PCO camera binary timestamps instead " */
-	    /* "of DATE-OBS if available.\n" */
 	    "  -O observer   set observer position. Can be any NAIF body code.\n"
 	    "                pre-defined sites: 'VTT'\n"
 	    "  -p            pretty-print ephemeris data\n"
@@ -63,7 +67,8 @@ void usage (FILE *stream)
 	    "\n"
 	    "The 'timespec' parameter understands the common time strings like "
 	    "'2010-01-01 12:00:00'. If no time zone is given, UTC is assumed. "
-	    "Latitude and longitude are Stonyhurst coordinates given in degrees "
+	    "Latitude and longitude are Stonyhurst Heliographic coordinates given "
+            "in degrees "
 	    "(lola) or Helioprojective-Cartesian given in arcsecs from disk "
 	    "center (x, y). The step width 'tstep' is in minutes.\n"
 	    "\n"
@@ -71,16 +76,8 @@ void usage (FILE *stream)
 	    "\n"
 	    "Compute radial velocity at the western limb at 45deg latitude "
 	    "using Snodgrass & Ulrich (1990) spectroscopy rotation model:\n"
-	    "  solarv -p -m su90s \"2010 Jan 1 12:00:00.0\" lola 90 45\n"
+	    "  solarv -p -m su90s \"2012 Jan 1 12:00:00.0\" lola 89.5 45\n"
 	    "\n"
-	    /* "Create a fits binary table with all ephemeris data with an " */
-	    /* "row for each frame in a fits cube. The date is extracted from the " */
-	    /* "binary time stamp in each frame or the 'DATE-OBS' keyword:\n" */
-	    /* "  solarv -f pco3_xxxx.fits xy 0 0\n" */
-	    /* "\n" */
-	    /* "The ephemeris table is then called 'pco3_xxxx_ephem.fits' which " */
-	    /* "can be read in IDL with:\n" */
-	    /* "   IDL> e = mrdfits ('pco3_xxxx_ephem.fits', 1, header)\n", */
 	    ,
 	    _name, _version, _versiondate
 	);
@@ -150,23 +147,18 @@ void station_state_j2000 (SpiceChar *station, SpiceDouble et,
 
 int main (int argc, char **argv)
 {   
-    char fitsfile[MAXPATH+1] = "";
-    char outdir[MAXPATH+1] = "";
+    FILE *batchstream = stdin;
+    bool batchmode = false;
     char addkernel[MAXPATH+1] = "na";
-    char time_utc[MAXKEY+1];
     char observer[MAXKEY+1] = "VTT";
-    SpiceDouble stepsize = 1; /* minutes */
-    SpiceInt nsteps = 1;
     bool fancy = false;
-    bool fitsmode = false;
     int rotmodel = fixed;
     int errorcode = SUCCESS;
     bool dumpinfo = false;
 
-    sunpos_t position;
 
     int c; opterr = 0;
-    while ((c = getopt (argc, argv, "+hm:pr:O:o:vfK:iR:")) != -1)
+    while ((c = getopt (argc, argv, "+h:m:pr:O:vfK:iR:")) != -1)
     {
         switch (c)
         {
@@ -198,36 +190,31 @@ int main (int argc, char **argv)
 	    break;
         case 'p': fancy = true; break;
 	case 'O': strncpy (observer, optarg, MAXKEY); break;
-	case 'o': strncpy (outdir, optarg, MAXPATH); break;
 	case 'v': program_info (stdout); return EXIT_SUCCESS; break;
-	case 'f': fitsmode = true; break;
+	/* case 'f': fitsmode = true; break; */
 	case 'K': strncpy (addkernel, optarg, MAXPATH); break;
 	case 'R': RSUN = atof (optarg);  break;
         default: usage (stdout); return EXIT_FAILURE;
         }
     }
+    int posargs = argc - optind;
 
-    /* commandline args */
-    if (! (argc - optind == 4 || argc - optind == 6)) {
-	usage (stdout);
-	return EXIT_FAILURE;
+    if (posargs == 0) {
+	batchmode = true;
+	batchstream = stdin;
     }
-    if (fitsmode)
-	strncpy (fitsfile, argv[optind], 1023);
-    else
-	strncpy (time_utc, argv[optind], MAXKEY);
-    if (argc - optind == 4 || argc - optind == 6)
-    {
-	if (FAILURE == parse_sunpos (argv[optind + 1], argv[optind + 2],
-					    argv[optind + 3], &position))
-	{
-	    errmesg ("could not parse target coordinates\n");
+    else if (posargs == 1) {
+	batchmode = true;
+	FILE *b = fopen (argv[optind], "r");
+	if (NULL == b) {
+	    errmesg ("can not open input file %s\n", argv[optind+posargs]);
 	    return EXIT_FAILURE;
 	}
+	batchstream = b;
     }
-    if (argc - optind == 6 && ! fitsmode) {
-	nsteps = atoi (argv[optind + 4]);
-	stepsize = atof (argv[optind + 5]);
+    if (posargs != 0 && posargs != 1 && posargs != 4 && posargs != 6) {
+	usage (stdout);
+	return EXIT_FAILURE;
     }
     
     if (dumpinfo) {
@@ -247,12 +234,11 @@ int main (int argc, char **argv)
 	dump_kernel_info (stdout);
     }
 
-    if (fitsmode) {
-	errorcode = mode_fits (observer, fitsfile, outdir, position, rotmodel);
-    }
-    else {
-	errorcode = mode_plain (observer, time_utc, position,
-				stepsize, nsteps, fancy, stdout, rotmodel);
+    if (batchmode) {
+	errorcode = mode_batch (observer, rotmodel, fancy,  batchstream, stdout);
+    } else {
+	errorcode = handle_request (observer, posargs, &argv[optind],
+				    rotmodel, fancy, stdout);
     }
     
     unload_c (KERNEL_PATH "/" METAKERNEL);
@@ -362,9 +348,9 @@ int soleph (
     SpiceDouble px = vdot_c (earth_ez, ex);
     SpiceDouble py = vdot_c (earth_ez, ey);
 
-    double a1 = acos(px) * dpr_c();
-    double a2 = acos(py) * dpr_c();
-    double a3 = asin(px) * dpr_c();
+    /* double a1 = acos(px) * dpr_c(); */
+    /* double a2 = acos(py) * dpr_c(); */
+    /* double a3 = asin(px) * dpr_c(); */
     double a4 = asin(py) * dpr_c();
 
     eph->P0 = a4;
@@ -680,15 +666,15 @@ SpiceDouble omega_sun (SpiceDouble lat, int model)
 
 void print_ephtable_head (FILE *stream)
 {
-    fprintf (stream, "#jday          B0(deg)  P0(deg)   L0(deg)   "
-	     "vlos_t     d_t             vlos_sun  d_sun \n");
+    fprintf (stream, "#jday           B0(deg)  P0(deg)    L0(deg)   "
+	     "vlos(m/s)  dist(m)         vlos_sun(m/s)  dist_sun(m) \n");
 }
 
 void print_ephtable_row (FILE *stream, soleph_t *eph)
 {
-    fprintf (stream, "%.6f %7.4f %9.4f %10.4f %9.4f  %14.3f  %9.4f  %13.3f\n",
+    fprintf (stream, "%.6f  % -7.4f  % -8.4f %10.4f %9.4f  %14.3f  %9.4f       %13.3f\n",
 	     eph->jday, eph->B0, eph->P0, eph->L0cr,
-	     eph->vlos * 1000, eph->dist, eph->vlos_sun * 1000, eph->dist_sun);
+	     eph->vlos *1000, eph->dist * 1000, eph->vlos_sun*1000, eph->dist_sun * 1000);
 }
 
 void fancy_print_eph (FILE *stream, soleph_t *eph)
@@ -760,39 +746,101 @@ void list_rotation_models (FILE *stream)
     }
 }
 
-int mode_plain (
-    SpiceChar *observer, /* NAIF body name/code of the observer     */ 
-    char *time_utc,      /* Spice ephemeris time of the observation */
-    sunpos_t position,
-    SpiceDouble stepsize,
-    int nsteps,
+int handle_request (
+    SpiceChar *observer,
+    int argc,
+    char **argv,
+    int rotmodel,
     bool fancy,
-    FILE * stream,
-    int rotmodel)
+    FILE *ostream)
 {
+    sunpos_t position;
     SpiceDouble et;
-    str2et_c (time_utc, &et);
+    size_t nsteps = 1;
+    SpiceDouble stepsize = 60.0;
 
-    if (! fancy)
-	print_ephtable_head (stdout);
-    for (SpiceInt i  = 0; i < nsteps; ++i)
+    if (argc < 4 || argc > 6) {
+	errmesg ("insufficent input data in request\n");
+	return FAILURE;
+    }
+    
+    str2et_c (argv[0], &et);
+    
+    if (FAILURE == parse_sunpos (argv[1], argv[2], argv[3], &position)) {
+	errmesg ("invalid coordinate specification\n");
+	return FAILURE;
+    }
+    if (argc == 6) {
+	nsteps = atoi (argv[4]);
+	stepsize = atof (argv[5]);
+    }
+
+    for (int i = 0; i < nsteps; ++i)
     {
 	soleph_t eph;
 	if (SUCCESS != soleph (observer, et, position, &eph, rotmodel)) {
 	    errmesg ("could not compute ephemeris data\n");
 	    return FAILURE;
 	}
-
 	if (fancy) {
-	    fancy_print_eph (stream, &eph);
-	    if (i < nsteps - 1) fprintf (stream, "\n");
+	    fancy_print_eph (ostream, &eph);
+	    if (i < nsteps - 1) fprintf (ostream, "\n");
 	}
 	else
-	    print_ephtable_row (stdout, &eph);
-
+	    print_ephtable_row (ostream, &eph);
 	et += stepsize * 60.0;
     }
 
+    return SUCCESS;
+}
+
+
+int mode_batch (
+    SpiceChar *observer,
+    int rotmodel,
+    bool fancy,
+    FILE *istream,
+    FILE *ostream)
+{
+    char **argv = malloc (6 * sizeof (char*));
+    for (int i = 0; i < 6; ++i) {
+	argv[i] = malloc (sizeof(char) * MAXPATH);
+    }
+
+    if (! fancy)
+	print_ephtable_head (ostream);
+
+    ssize_t nread;
+    char *line = 0;
+    size_t len;
+
+    /* read batchfile line by line */
+    size_t lineno = 1;
+    while (-1 != (nread = getline(&line, &len, istream)))
+    {
+	/* decode request into an array of strings to fake an **argv */
+	char *tp = line;
+	int argc = 0;
+	while ( (tp = wordsep (tp, argv[argc++])) != 0) {
+	    if (argc > 5) {
+		errmesg ("invalid request in input line %zu\n", lineno);
+		return FAILURE;
+	    }
+	}
+	argc--;
+	
+	if (SUCCESS != handle_request (observer, argc, argv,
+				       rotmodel, fancy, ostream)) {
+	    errmesg ("invalid request in input line %zu\n", lineno);
+	    return FAILURE;
+	}
+	lineno++;
+    }
+    fprintf (ostream, "\n");
+
+    for (int i = 0; i < 6; ++i) free (argv[i]);
+    free (argv);
+    
     return SUCCESS;
 }
 
@@ -1169,4 +1217,69 @@ void printstate (SpiceDouble *s)
 void printvec (SpiceDouble *s)
 {
     printf ("x=(%g, %g, %g)\n", s[0], s[1], s[2]);
+}
+
+/* word tokenizer to separate words at whitespace boundaries. substrings
+   enclosed in double quotes are supported */
+char* wordsep (char *str, char *token)
+{
+    enum {NONE, INWORD, INSTRING} state = NONE;
+    char *token_start = str;
+    char *w;
+    size_t len;
+
+    for (w = str; *w != '\0'; ++w)
+    {
+	char c = *w;
+
+	switch (state)
+	{
+	case NONE:
+	    if (isspace (c)) continue;
+
+	    if (c == '"') {
+		state = INSTRING;
+		token_start = w + 1;
+		continue;
+	    }
+	    state = INWORD;
+	    token_start = w;
+	    continue;
+
+	case INSTRING:
+	    if (c == '"') { /* closing quote */
+		len = w - token_start;
+		memcpy (token, token_start, len);
+		token[len] = 0;
+		return ++w; /* forward away from the quote */
+	    }
+	    continue;
+
+	case INWORD:
+	    if (isspace(c)) {
+		len = w - token_start;
+		memcpy (token, token_start, len);
+		token[len] = 0;
+		return w;
+	    }
+	    else if (*(w+1) == '\0') {
+		len = w - token_start + 1;
+		memcpy (token, token_start, len);
+		token[len] = 0;
+		return w;
+	    }
+	    
+	    continue;
+	}
+    }
+
+    /* we forgive a missing closing quote at the end of the sourc string */
+    if (state == INSTRING) {
+	len= w - token_start;
+	memcpy (token, token_start, len);
+	token[len] = 0;
+	return w;
+    }
+
+    return NULL;
 }
