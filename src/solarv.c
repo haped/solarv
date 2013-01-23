@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012 Hans-Peter Doerr <doerr@kis.uni-freiburg.de>,
+  Copyright (c) 2012, 2013 Hans-Peter Doerr <doerr@kis.uni-freiburg.de>,
     Kiepenheuer-Institut fuer Sonnenphysik, Freiburg, Germany.
  
   Permission is hereby granted, free of charge, to any person obtaining a
@@ -36,23 +36,24 @@
 
 #include "solarv.h"
 
+
 void usage (FILE *stream)
 {
     printf ("%s v%s (%s) -- Compute precise Sun-Observer radial velocity\n"
 	    "\n"
 	    "Usage:\n"
-	    "solarv [options] <timespec|-f fitsfile> <lola|xy> <lat> <lon> "
-	    "[<tstep> <nsteps>]\n"
+	    "  solarv [options] <timespec> <lola|xy> <cord1> <cord2> "
+	    "[<nsteps> <tstep>]\n"
 	    "\n"
 	    "Options:\n"
 	    "  -h            show this help\n"
 	    "  -m model      set solar rotation model 'model'\n"
 	    "                use 'list' to list available models\n"
-	    "  -f file       read timespec from the DATE-OBS header in fits "
-	    "file 'file' and write ephemeris data to a fits binary table "
-	    "'file_ephem.fits'. Use PCO camera binary timestamps instead "
-	    "of DATE-OBS if available.\n"
-	    "  -O observer   set observer. Can be any NAIF body code.\n"
+	    /* "  -f file       read timespec from the DATE-OBS header in fits " */
+	    /* "file 'file' and write ephemeris data to a fits binary table " */
+	    /* "'file_ephem.fits'. Use PCO camera binary timestamps instead " */
+	    /* "of DATE-OBS if available.\n" */
+	    "  -O observer   set observer position. Can be any NAIF body code.\n"
 	    "                pre-defined sites: 'VTT'\n"
 	    "  -p            pretty-print ephemeris data\n"
 	    "  -v            print program version\n"
@@ -64,7 +65,7 @@ void usage (FILE *stream)
 	    "'2010-01-01 12:00:00'. If no time zone is given, UTC is assumed. "
 	    "Latitude and longitude are Stonyhurst coordinates given in degrees "
 	    "(lola) or Helioprojective-Cartesian given in arcsecs from disk "
-	    "center (xy). The step width 'tstep' is in minutes.\n"
+	    "center (x, y). The step width 'tstep' is in minutes.\n"
 	    "\n"
 	    "Examples:\n"
 	    "\n"
@@ -72,15 +73,15 @@ void usage (FILE *stream)
 	    "using Snodgrass & Ulrich (1990) spectroscopy rotation model:\n"
 	    "  solarv -p -m su90s \"2010 Jan 1 12:00:00.0\" lola 90 45\n"
 	    "\n"
-	    "Create a fits binary table with all ephemeris data with an "
-	    "row for each frame in a fits cube. The date is extracted from the "
-	    "binary time stamp in each frame or the 'DATE-OBS' keyword:\n"
-	    "  solarv -f pco3_xxxx.fits xy 0 0\n"
-	    "\n"
-	    "The ephemeris table is then called 'pco3_xxxx_ephem.fits' which "
-	    "can be read in IDL with:\n"
-	    "   IDL> e = mrdfits ('pco3_xxxx_ephem.fits', 1, header)\n",
-	    
+	    /* "Create a fits binary table with all ephemeris data with an " */
+	    /* "row for each frame in a fits cube. The date is extracted from the " */
+	    /* "binary time stamp in each frame or the 'DATE-OBS' keyword:\n" */
+	    /* "  solarv -f pco3_xxxx.fits xy 0 0\n" */
+	    /* "\n" */
+	    /* "The ephemeris table is then called 'pco3_xxxx_ephem.fits' which " */
+	    /* "can be read in IDL with:\n" */
+	    /* "   IDL> e = mrdfits ('pco3_xxxx_ephem.fits', 1, header)\n", */
+	    ,
 	    _name, _version, _versiondate
 	);
 }
@@ -88,9 +89,9 @@ void usage (FILE *stream)
 void program_info (FILE *stream)
 {
     fprintf (stream, "%s v%s (%s)\n"
-	     "Copyright (C) 2012 by %s\n"
+	     "Copyright (C) %s\n"
 	     "Licencse: MIT X11\n",
-	     _name, _version, _versiondate, _author);
+	     _name, _version, _versiondate, _copyright);
 }
 
 void version_info (FILE *stream)
@@ -143,7 +144,7 @@ void station_state_j2000 (SpiceChar *station, SpiceDouble et,
 			  SpiceDouble *state, SpiceDouble *lt)
 {
     SpiceDouble ltt;
-    spkezr_c (station, et, "J2000", ABCORR, "SSB",  state, &ltt);
+    spkezr_c (station, et, "j2000", ABCORR, "SSB",  state, &ltt);
     if (lt) *lt = ltt;
 }
 
@@ -152,8 +153,8 @@ int main (int argc, char **argv)
     char fitsfile[MAXPATH+1] = "";
     char outdir[MAXPATH+1] = "";
     char addkernel[MAXPATH+1] = "na";
-    char time_utc[80];
-    char observer[65] = "VTT";
+    char time_utc[MAXKEY+1];
+    char observer[MAXKEY+1] = "VTT";
     SpiceDouble stepsize = 1; /* minutes */
     SpiceInt nsteps = 1;
     bool fancy = false;
@@ -196,7 +197,7 @@ int main (int argc, char **argv)
 	    }					
 	    break;
         case 'p': fancy = true; break;
-	case 'O': strncpy (observer, optarg, 64); break;
+	case 'O': strncpy (observer, optarg, MAXKEY); break;
 	case 'o': strncpy (outdir, optarg, MAXPATH); break;
 	case 'v': program_info (stdout); return EXIT_SUCCESS; break;
 	case 'f': fitsmode = true; break;
@@ -214,7 +215,7 @@ int main (int argc, char **argv)
     if (fitsmode)
 	strncpy (fitsfile, argv[optind], 1023);
     else
-	strncpy (time_utc, argv[optind], 79);
+	strncpy (time_utc, argv[optind], MAXKEY);
     if (argc - optind == 4 || argc - optind == 6)
     {
 	if (FAILURE == parse_sunpos (argv[optind + 1], argv[optind + 2],
@@ -225,8 +226,8 @@ int main (int argc, char **argv)
 	}
     }
     if (argc - optind == 6 && ! fitsmode) {
-	stepsize = atof (argv[optind + 4]);
-	nsteps = atoi (argv[optind + 5]);
+	nsteps = atoi (argv[optind + 4]);
+	stepsize = atof (argv[optind + 5]);
     }
     
     if (dumpinfo) {
@@ -279,7 +280,6 @@ int soleph (
     int rotmodel)
 {
     SpiceDouble subpoint[3];
-    SpiceDouble xform[6][6];
     SpiceDouble srfvec[3];
     SpiceDouble trgepc;
     SpiceDouble subrad, sublon, sublat; /* lola cords of sub-observer point */
@@ -327,7 +327,6 @@ int soleph (
 	return FAILURE;
     }
 
-
     /* compute observer to target by adding ots + stt */
     vaddg_c (state_ots, state_stt, 6, state_ott);
     unorm_c (state_ott, los_ott, &(eph->dist));
@@ -338,12 +337,37 @@ int soleph (
     ************************************************************************/
     eph->rsun_ref = RSUN;
 
-    /* impact parameter, heliocentric parameter mu */
-    SpiceDouble angle = vsep_c (state_ots, state_ott);
-    eph->rho = eph->dist * sin (angle);
-    eph->mu = cos (asin (eph->rho * 1000 / RSUN));
+    /* impact parameter (projected  distance to solar center) */
+    SpiceDouble obsangle = vsep_c (state_ots, state_ott);
+    eph->rho = eph->dist * sin (obsangle);
+    
+    /* angle between sub-observer-point -> solar center, center -> target */
+    SpiceDouble sunangle = asin (eph->rho * 1E3 / RSUN);
+
+    /* heliocentric angle is the angle between the los and the surface
+     * normal at the target */
+    eph->mu = cos (obsangle + sunangle);
 
 
+    /* this one to compute the P angle is hightly experimental */
+    SpiceDouble xform[3][3];
+    SpiceDouble ex[3] = {1, 0, 0};
+    SpiceDouble ey[3] = {0, 1, 0};
+    SpiceDouble ez[3] = {0, 0, 1};
+    SpiceDouble earth_ez[3] = {0, 1, 0};
+
+    pxform_c ("EARTH_FIXED", "HEEQ", et, xform);
+    mxv_c (xform, ez, earth_ez);
+
+    SpiceDouble px = vdot_c (earth_ez, ex);
+    SpiceDouble py = vdot_c (earth_ez, ey);
+
+    double a1 = acos(px) * dpr_c();
+    double a2 = acos(py) * dpr_c();
+    double a3 = asin(px) * dpr_c();
+    double a4 = asin(py) * dpr_c();
+
+    eph->P0 = a4;
 
     return SUCCESS;
 }
@@ -361,13 +385,12 @@ int relstate_observer_sun (
     SpiceDouble los_otc[3];       /* los vector obs. to sun center   */
     
     /* vlos and distance to sun barycenter: km, km/s */
-    spkezr_c ("SUN", et, "J2000",  ABCORR, station, state_otc, &lt);
+    spkezr_c ("SUN", et, "j2000",  ABCORR, station, state_otc, &lt);
     unorm_c (state_otc, los_otc, &(eph->dist_sun));
     eph->vlos_sun = vdot_c (los_otc, &state_otc[3]);
     
     /* apparent diameter of the disc in arcsec */
     eph->rsun_as = asin (RSUN / (eph->dist_sun * 1000)) * dpr_c() * 3600;
-
 
     return SUCCESS;
 }
@@ -441,12 +464,14 @@ void hcc2xy (
     SpiceDouble *xp,
     SpiceDouble *yp)
 {
+    printf ("hcci2xy: in: x=%f y=%f z=%f ds=%f\n", x, y, z, ds);
     SpiceDouble dt = sqrt (x*x + y*y + (ds - z) * (ds - z));
+    printf ("dt=%f\n", dt);
     *xp = atan2 (ds - z, x);
     *yp = asin (y / dt);
 }
 
-void lola2xy (
+void lola2xy_ (
     SpiceDouble lon,
     SpiceDouble lat,
     SpiceDouble L0,
@@ -458,6 +483,7 @@ void lola2xy (
     SpiceDouble x, y, z;
     
     lola2hcc (lon, lat, L0, B0, &x, &y, &z);
+    printf ("hcc: pos=(%f, %f, %f)  ds=%f\n", x, y, z, ds);
     hcc2xy (x, y, z, ds, xp, yp);
 }
  
@@ -475,16 +501,47 @@ void xy2lola (
     hcc2lola (x, y, z, B0, lon, lat);
 }
 
-
-void printstate (SpiceDouble *s)
+void xy2lola__ (
+    SpiceDouble x,
+    SpiceDouble y,
+    SpiceDouble sublon,
+    SpiceDouble sublat,
+    SpiceDouble sundist,
+    SpiceDouble *lon,
+    SpiceDouble *lat)
 {
-
-    printf ("x=(%g, %g, %g), v=(%g, %g, %g), |x|=%g\n",
-	    s[0], s[1], s[2],
-	    s[3], s[4], s[5],
-	    sqrt (s[0]*s[0] + s[1]*s[1] + s[2]*s[2]));
+    /* SpiceDouble rotmat[3][3]; */
+    /* SpiceDouble state[3], rotstate[3]; */
+    
+    
 }
 
+void lola2xy (
+    SpiceDouble lon,
+    SpiceDouble lat,
+    SpiceDouble sublon,
+    SpiceDouble sublat,
+    SpiceDouble sundist,
+    SpiceDouble *x,
+    SpiceDouble *y)
+{
+    SpiceDouble rotmat[3][3];
+    SpiceDouble state[3], rotstate[3];
+
+    SpiceDouble tlon = lon; 
+    SpiceDouble tlat = lat;
+    latrec_c (RSUN / 1000.0, tlon, tlat, state);
+
+    rotate_c (-sublat, 2, rotmat);
+    //rotmat_c (rotmat, sublon, 3, rotmat);
+    mxvg_c (rotmat, state, 3, 3, rotstate);
+    double dx = rotstate[0];
+    double dy = rotstate[1];
+    double dz = rotstate[2];
+
+    *x =  asin (dy / (sundist - dx)) * aspr();
+    *y =  asin (dz / (sundist - dx)) * aspr();
+}
 
 /* compute relative state from solar center to target position on the
  * surface in IAU_SUN frame */
@@ -502,7 +559,6 @@ int relstate_sun_target (
     SpiceDouble subrad, sublon, sublat; /* lola cords of sub-observer point   */
     SpiceDouble xform[6][6];            /* transf. matrix body-fixed -> j2000 */
     SpiceDouble state_stt_fixed[6];     /* sun-to-target state vector         */
-    SpiceDouble state_stt_fixed2[6];     /* sun-to-target state vector         */
     SpiceDouble lonrd, latrd;
     
     /* for the following procedure, also see:
@@ -521,26 +577,25 @@ int relstate_sun_target (
 	      subpoint, &trgepc, srfvec);
     reclat_c (subpoint, &subrad, &sublon, &sublat);
 
-    /* SpiceDouble subpnt_dist = vnorm_c (srfvec); */
-    /* printf ("subobserver-distance=%f\n", subpnt_dist); */
-    
 
+    /* TODO: also support polar coordinates in phi, mu */
 
     /* now that we know the heliographic sub-observer coordinates, we can
      * easily compute the helio-projective cartesian coordinates (x,y) from
      * the given position in (lon,lat) and vice versa */
-    if (position.type == lola) {
+    if (position.type == lola)
+    {
 	lonrd = position.x * rpd_c();
 	latrd = position.y * rpd_c();
+	/* FIXME: respect sub-observer hg longitude */
+	lola2xy (lonrd, latrd, 0.0, sublat, eph->dist_sun, &eph->x, &eph->y);
     }
-    else if (position.type == xy) {
+    else if (position.type == xy)
+    {
 	SpiceDouble xp = position.x / 3600.0 * rpd_c();
 	SpiceDouble yp = position.y / 3600.0 * rpd_c();
-	
-	/* if (position.x > eph->rsun_as || position.y > eph->rsun_as) { */
-	/*     errmesg ("target position outside the disc.\n"); */
-	/*     return FAILURE; */
-	/* } */
+	eph->x = position.x;
+	eph->y = position.y;
 	xy2lola (xp, yp, eph->dist_sun * 1000, sublat, &lonrd, &latrd);
     }
     
@@ -569,12 +624,8 @@ int relstate_sun_target (
 
     /* now, we transform the relative sun-target state to the J2000 frame
        and are done */
-    sxform_c ("HCI", "J2000", et, xform);
+    sxform_c ("HCI", "j2000", et, xform);
     mxvg_c (xform, state_stt_fixed, 6, 6, state_stt);
-
-
-
-    
 
     return SUCCESS;
 }
@@ -646,25 +697,27 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
     station_geopos (eph->observer, eph->et, &lon, &lat, &alt);
 
     printf ("Solar ephemeris for %s\n"
-	    "  Observer Station ...........  %s (%3.5f E, %3.5f N, %.2f m)\n"
-	    "  UTC julian day ............. % f\n"
-	    "  Modified julian day ........ % f\n"
-	    "  Sun reference radius .......  %.0f km\n"
-	    "  Apparent disk radius .......  %.2f arcsec\n"
-	    //"  P0                         :% .4f deg\n"
-	    "  B0 ......................... % -.6f deg\n"
-	    "  Stonyhurst L0 .............. % .6f deg\n"
-	    "  Carrington L0 .............. % .6f deg\n"
-	    "  Solar barycenter distance...  %.3f km\n"
-	    "  Solar barycenter v_los...... % .3f m/s\n"
-	    "  Disk coordinates ........... % .2f, %.2f arcsec\n"
-	    "  Lola coordinates ........... % .3f, %.3f deg\n"
-	    "  Impact parameter ...........  %.3f km\n"
-	    "  Heliocentric parameter mu ..  %.4f\n"
-	    "  Target distance ............  %.3f km\n"
-	    "  Target v_los ............... % .3f m/s\n"
-	    "  Solar rotation model .......  %s (%s)\n"
-	    "  Rotataion rate .............  %.5f murad/s\n"
+	    "  Observer Station.............  %s (%3.5f E, %3.5f N, %.2f m)\n"
+	    "  UTC julian day...............  %f\n"
+	    "  Modified julian day..........  %f\n"
+	    "  Abberation correction........  %s\n"
+	    "  Sun reference radius......... % .0f m\n"
+	    "  Apparent disk radius......... % .12f arcsec\n"
+	    "  P angle...................... % -.4f deg\n"
+	    "  Sub-observer latitude........ % -.5f deg\n"
+	    "  Sub-observer Stonyhurst lon.. % -.5f deg\n"
+	    "  Sub-observer Carrington lon..  %.5f deg\n"
+	    "  Solar barycenter distance....  %.1f m\n"
+	    "  Solar barycenter v_los....... % -.3f m/s\n"
+	    "  Disk coordinates............. % -.3f, %.3f arcsec\n"
+	    "  Lola coordinates............. % -.3f, %.3f deg\n"
+	    "  Impact parameter.............  %.1f m\n"
+	    "  Heliocentric parameter mu....  %.6f\n"
+	    "  Target distance..............  %.1f m\n"
+	    "  Target v_los................. % -.6f m/s\n"
+	    "  diff to center............... % -.6f m/s\n"
+	    "  Solar rotation model ........  %s (%s)\n"
+	    "  Siderial rotation rate.......  %.5f murad/s\n"
 	    ,
 	    
 	    eph->utcdate,
@@ -672,20 +725,22 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	    lon * dpr_c(), lat * dpr_c(), alt * 1000.0,
 	    eph->jday,
 	    eph->mjd,
-	    eph->rsun_ref / 1000.0,
-	    eph->rsun_as,
-	    //eph->P0,
+	    ABCORR,
+	    eph->rsun_ref,
+	    eph->rsun_as, /* adopt this to displayed number of digits */
+	    eph->P0,
 	    eph->B0,
 	    eph->L0hg,
 	    eph->L0cr,
-	    eph->dist_sun,
+	    eph->dist_sun * 1000,
 	    eph->vlos_sun * 1000,
 	    eph->x, eph->y,
 	    eph->lon, eph->lat,
-	    eph->rho,
+	    eph->rho * 1000,
 	    eph->mu,
-	    eph->dist,
+	    eph->dist * 1000,
 	    eph->vlos * 1000,
+	    (eph->vlos - eph->vlos_sun) * 1000,
 	    eph->modelname, eph->modeldescr,
 	    eph->omega
 	);
@@ -1093,4 +1148,25 @@ int fitsframe_bcddate (
 	      year, mon, day, hour, min, sec, msec);
 
     return SUCCESS;
+}
+
+/* arcseconds per radian */
+SpiceDouble aspr(void)
+{
+    return dpr_c() * 3600.0;
+}
+
+/* helper to dump a full state vector */
+void printstate (SpiceDouble *s)
+{
+    printf ("x=(%g, %g, %g), v=(%g, %g, %g), |x|=%g\n",
+	    s[0], s[1], s[2],
+	    s[3], s[4], s[5],
+	    sqrt (s[0]*s[0] + s[1]*s[1] + s[2]*s[2]));
+}
+
+/* helper to dump a vector */
+void printvec (SpiceDouble *s)
+{
+    printf ("x=(%g, %g, %g)\n", s[0], s[1], s[2]);
 }

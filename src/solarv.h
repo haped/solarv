@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2012 Hans-Peter Doerr <doerr@kis.uni-freiburg.de>,
+ Copyright (C) 2012, 2013 Hans-Peter Doerr <doerr@kis.uni-freiburg.de>,
  Kiepenheuer-Institut fuer Sonnenphysik, Freiburg, Germany.
  
  Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,8 +26,9 @@
 
 static const char _name[] = "SolaRV";
 static const char _author[] = "Hans-Peter Doerr";
-static const char _version[] = "0.2.1b";
-static const char _versiondate[] = "26 Sep 2012";
+static const char _version[] = "0.3.0a";
+static const char _versiondate[] = "Jan 2013";
+static const char _copyright[] = "2012, 2013 Hans-Peter Doerr";
 
 #include "SpiceUsr.h"
 
@@ -40,7 +41,7 @@ static const char _versiondate[] = "26 Sep 2012";
 #ifdef MAXKEY
 #undef MAXKEY
 #endif
-#define MAXKEY (32)
+#define MAXKEY (64)
 
 #ifndef EXIT_SUCCESS
 #define EXIT_SUCCESS (0)
@@ -60,8 +61,7 @@ static const char _versiondate[] = "26 Sep 2012";
 
 /* solar photospheric radius from Brown and Dalsgaard (1998), APJ */
 SpiceDouble RSUN = 6.95508E8;
-
-#define ABCORR "LT+S"
+SpiceChar ABCORR[8] = "None";
 
 typedef struct
 {
@@ -72,6 +72,7 @@ typedef struct
     char descr[129];
 } rotmodel_t;
 
+/* TODO: add carringtion model  2.86532908457173 urad/s */
 static const rotmodel_t RotModels[] =
 {
     {0.000,  0.000,  0.000, "fixed", "no rotation, fixed to J2000 frame"},
@@ -206,5 +207,8 @@ int fitsframe_bcddate (
     char *utcstr,
     int *status);
 
+SpiceDouble aspr(void);
+void printstate (SpiceDouble *s);
+void printvec (SpiceDouble *s);
 
 #endif /* _SOLARV_H_ */
