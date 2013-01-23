@@ -212,7 +212,7 @@ int main (int argc, char **argv)
 	}
 	batchstream = b;
     }
-    if (posargs != 0 && posargs != 1 && posargs != 4 && posargs != 6) {
+    else if (posargs != 0 && posargs != 1 && posargs != 4 && posargs != 6) {
 	usage (stdout);
 	return EXIT_FAILURE;
     }
@@ -235,7 +235,8 @@ int main (int argc, char **argv)
     }
 
     if (batchmode) {
-	errorcode = mode_batch (observer, rotmodel, fancy,  batchstream, stdout);
+	errorcode = mode_batch (observer, rotmodel,
+				fancy,  batchstream, stdout);
     } else {
 	errorcode = handle_request (observer, posargs, &argv[optind],
 				    rotmodel, fancy, stdout);
@@ -774,6 +775,9 @@ int handle_request (
 	nsteps = atoi (argv[4]);
 	stepsize = atof (argv[5]);
     }
+
+    if (! fancy)
+	print_ephtable_head (ostream);
 
     for (int i = 0; i < nsteps; ++i)
     {
