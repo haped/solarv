@@ -187,7 +187,7 @@ int mode_fits (
 
 SpiceDouble omega_sun (SpiceDouble lat, int model);
 
-void print_ephtable_head (FILE *stream);
+void print_ephtable_head (FILE *stream, SpiceChar *observer);
 void print_ephtable_row (FILE *stream, soleph_t *eph);
 void fancy_print_eph (FILE *stream, soleph_t *eph);
 void list_rotation_models (FILE *stream);
