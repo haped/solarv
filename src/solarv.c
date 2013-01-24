@@ -670,7 +670,6 @@ SpiceDouble omega_sun (SpiceDouble lat, int model)
 
 void print_ephtable_head (FILE *stream, SpiceChar *observer)
 {
-
     fprintf (stream,
 	     "#***************************************************************"
 	     "***************\n"
@@ -680,7 +679,7 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer)
 	     "#***************************************************************"
 	     "***************\n"
 	     , _version, _versiondate, tkvrsn_c ("toolkit"));
-
+    
     double lon, lat, alt;
     station_geopos (observer, 1.0, &lon, &lat, &alt);
     fprintf (stream,
@@ -692,16 +691,15 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer)
 	     "#  data follows:\n"
 	     , observer, lon * dpr_c(),
 	     lat * dpr_c(), alt * 1000, RSUN, ABCORR);
-
+    
     fprintf (stream, "# %21s %16s %10s %13s  %7s  %7s  %7s  %7s %10s %13s\n",
-	     "UTC", "MJD", "vlos", "dist", "B0", "L0", "P", "R_sun", "v_sun", "dist_sun");
+	     "UTC", "MJD", "vlos", "dist", "B0", "L0", "P", "R_sun", "vlos_sun", "dist_sun");
 }
 
 void print_ephtable_row (FILE *stream, soleph_t *eph)
 {
-    SpiceChar pictur[] = "YYYY-MM-DDTHR:MN:SC.### ::UTC";
     SpiceChar utcstr[48];
-    timout_c (eph->et, pictur, 48, utcstr);
+    timout_c (eph->et, "YYYY-MM-DDTHR:MN:SC.### ::UTC", 48, utcstr);
     fprintf (stream,
 	     "%s %16.7f % 10.3f % 13.0f  % 7.3f  %7.3f  % 7.3f  %7.3f % 10.3f %13.0f\n",
 	     utcstr, eph->mjd, eph->vlos * 1000,
