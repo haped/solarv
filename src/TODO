@@ -4,6 +4,7 @@ solarv TODO
   * in soleph_t, store all members in native spice units
   * compute the j2000 state of observer, sun and target, and include
     these in the output ephemeris
+  * remove need for a prepared kernel to specify the observer location
   * re-enable fits mode, so that the full set of available data can be stored
     in a fits table
 

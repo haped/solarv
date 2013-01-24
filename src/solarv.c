@@ -693,7 +693,7 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer)
 	     , observer, lon * dpr_c(),
 	     lat * dpr_c(), alt * 1000, RSUN, ABCORR);
 
-    fprintf (stream, "# %21s %14s %10s %13s  %7s  %7s  %7s  %7s %10s %13s\n",
+    fprintf (stream, "# %21s %16s %10s %13s  %7s  %7s  %7s  %7s %10s %13s\n",
 	     "UTC", "MJD", "vlos", "dist", "B0", "L0", "P", "R_sun", "v_sun", "dist_sun");
 }
 
@@ -703,7 +703,7 @@ void print_ephtable_row (FILE *stream, soleph_t *eph)
     SpiceChar utcstr[48];
     timout_c (eph->et, pictur, 48, utcstr);
     fprintf (stream,
-	     "%s %14.5f % 10.3f % 13.0f  % 7.3f  %7.3f  % 7.3f  %7.3f % 10.3f %13.0f\n",
+	     "%s %16.7f % 10.3f % 13.0f  % 7.3f  %7.3f  % 7.3f  %7.3f % 10.3f %13.0f\n",
 	     utcstr, eph->mjd, eph->vlos * 1000,
 	     eph->dist * 1000, eph->B0, eph->L0cr, eph->P0,
 	     eph->rsun_as, eph->vlos_sun*1000, eph->dist_sun*1000);
