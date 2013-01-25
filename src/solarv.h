@@ -140,6 +140,10 @@ typedef struct
     SpiceDouble vlos;           /* radial velocity of target                  */
     SpiceDouble rho;            /* heliocentric impact parameter              */
     SpiceDouble omega;          /* actually used omega value (murad/s)        */
+
+    /* observer, target state vectors */
+    SpiceDouble state_obs[6];
+    SpiceDouble state_sun[6];
 } soleph_t;
 
 
