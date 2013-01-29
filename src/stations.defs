@@ -1,11 +1,40 @@
 \begindata
-         SITES         = ('VTT') 
+         SITES      = ('VTT', 'SST', 'SCHAUINSLAND', 'DST', 'MCMATH')
          VTT_CENTER = 399
          VTT_FRAME  = 'EARTH_FIXED'
          VTT_IDCODE = 399919 
-         VTT_LATLON    = ( 28.3024, 343.4088, 2.413 )
+         VTT_LATLON    = ( 28.30239, -16.510051, 2.413 )
+
+         SST_CENTER = 399
+         SST_FRAME  = 'EARTH_FIXED'
+         SST_IDCODE = 399920
+         SST_LATLON    = ( 28.759733, -17.880736, 2.360 )
+
+         SCHAUINSLAND_CENTER = 399
+         SCHAUINSLAND_FRAME  = 'EARTH_FIXED'
+         SCHAUINSLAND_IDCODE = 399921
+         SCHAUINSLAND_LATLON = ( 47.913471, 7.905229, 1.300 )
+
+         DST_CENTER = 399
+         DST_FRAME  = 'EARTH_FIXED'
+         DST_IDCODE = 399922
+         DST_LATLON = ( 32.78729, -105.820498, 2.800 )
+
+         MCMATH_CENTER = 399
+         MCMATH_FRAME  = 'EARTH_FIXED'
+         MCMATH_IDCODE = 399923
+         MCMATH_LATLON = ( 31.958446, -111.595243, 2.096 )
 
 \begintext
+
          vtt station data from jpl horizons:
          VTT_LATLON    = ( 28.2917871, 343.503300, 2.1200779 )
+
+         Data sources
+          VTT:          google maps
+          SST:          wikipedia
+          SCHAUINSLAND: google maps
+          DST:          google maps, site-info
+          MCMATH:       google maps, site-info
+
 
