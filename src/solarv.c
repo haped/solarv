@@ -122,8 +122,13 @@ void dump_kernel_info (FILE *stream)
 }
 
 
-void station_geopos (SpiceChar * station, SpiceDouble et,
-		     SpiceDouble *lon, SpiceDouble *lat, SpiceDouble *alt)
+/* get the body centered, body fixed coordinates of a location on earth */
+void station_geopos (
+    SpiceChar * station,
+    SpiceDouble et,
+    SpiceDouble *lon,
+    SpiceDouble *lat,
+    SpiceDouble *alt)
 {
     SpiceDouble state_station[6];
     SpiceDouble lt;
@@ -158,7 +163,6 @@ int main (int argc, char **argv)
     int errorcode = SUCCESS;
     bool dumpinfo = false;
 
-
     int c; opterr = 0;
     while ((c = getopt (argc, argv, "+h:m:pr:O:vfK:iR:")) != -1)
     {
@@ -172,18 +176,14 @@ int main (int argc, char **argv)
 		list_rotation_models (stdout);
 		return EXIT_SUCCESS;
 	    }
-	    else if (strcasecmp (optarg, "rigid") == 0)
-		rotmodel = rigid;
-	    else if (strcasecmp (optarg, "fixed") == 0)
-		rotmodel = fixed;
-	    else if (strcasecmp (optarg, "su90s") == 0)
-		rotmodel = su90s;
-	    else if (strcasecmp (optarg, "su90g") == 0)
-		rotmodel = su90g;
-	    else if (strcasecmp (optarg, "su90m") == 0)
-		rotmodel = su90m;
-	    else if (strcasecmp (optarg, "s84s") == 0)
-		rotmodel = s84s;
+	    else if (strcasecmp (optarg, "rigid") == 0) rotmodel = rigid;
+	    else if (strcasecmp (optarg, "carrington") == 0)
+		rotmodel = carrington;
+	    else if (strcasecmp (optarg, "fixed") == 0) rotmodel = fixed;
+	    else if (strcasecmp (optarg, "su90s") == 0)	rotmodel = su90s;
+	    else if (strcasecmp (optarg, "su90g") == 0)	rotmodel = su90g;
+	    else if (strcasecmp (optarg, "su90m") == 0)	rotmodel = su90m;
+	    else if (strcasecmp (optarg, "s84s") == 0)	rotmodel = s84s;
 	    else {
 		fprintf (stderr, "unknown rotation model: %s\n", optarg);
 		list_rotation_models (stderr);
@@ -193,7 +193,6 @@ int main (int argc, char **argv)
         case 'p': fancy = true; break;
 	case 'O': strncpy (observer, optarg, MAXKEY); break;
 	case 'v': program_info (stdout); return EXIT_SUCCESS; break;
-	/* case 'f': fitsmode = true; break; */
 	case 'K': strncpy (addkernel, optarg, MAXPATH); break;
 	case 'R': RSUN = atof (optarg);  break;
         default: usage (stdout); return EXIT_FAILURE;
@@ -737,14 +736,10 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	     "*************************\n"
 	     "#  Data units        : km, arcsec, deg\n"
 	     "# %21s %16s %10s %13s  %7s  %7s  %7s  %7s %10s %13s "
-	     /* "%12s  %12s  %12s  %9s  %9s  %9s " */
-	     /* "%16s  %16s  %16s  %9s  %9s  %9s" */
 	     "\n"
 	     ,
 	     "UTC", "JD", "vlos", "dist", "B0", "L0", "P", "R_sun",
 	     "vlos_sun", "dist_sun"
-	     /* "x_sun", "y_sun", "z_sun", "vx_sun", "vy_sun", "vz_sun", */
-	     /* "x_obs", "y_obs", "z_obs", "vx_obs", "vy_obs", "vz_obs" */
 	);
 }
 
@@ -755,18 +750,10 @@ void print_ephtable_row (FILE *stream, soleph_t *eph)
     fprintf (stream,
     	     "%s % 16.7f % 10.6f % 13.0f  % 7.3f  %7.3f  % 7.3f  "
     	     "%7.3f % 10.4f %13.0f\n"
-    	     /* "%s % 16.7f % .12e % .12e % .12e % .12e % .12e % .12e % .12e % .12e" */
-	     /* "\n" */
-    	     /* "% 12.3f  % 12.3f  % 12.3f  % 9.5f  % 9.5f  % 9.5f " */
-    	     /* "% 16.3f  % 16.3f  % 16.3f  % 9.5f  % 9.5f  % 9.5f\n" */
     	     ,
     	     utcstr, eph->jday, eph->vlos * 1000,
     	     eph->dist, eph->B0, eph->L0cr, eph->P0,
     	     eph->rsun_as, eph->vlos_sun, eph->dist_sun
-    	     /* eph->state_sun[0], eph->state_sun[1], eph->state_sun[2], */
-    	     /* eph->state_sun[3], eph->state_sun[4], eph->state_sun[5], */
-    	     /* eph->state_obs[0], eph->state_obs[1], eph->state_obs[2], */
-    	     /* eph->state_obs[3], eph->state_obs[4], eph->state_obs[5] */
     	);
 }
 
@@ -776,27 +763,26 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
     station_geopos (eph->observer, eph->et, &lon, &lat, &alt);
 
     printf ("Solar ephemeris for %s\n"
-	    "  Observer Station.............  %s (%3.5f N, %3.5f E, %.0f m)\n"
+	    "  Observer location............  %s (%3.5f N, %3.5f E, %.0f m)\n"
 	    "  TDB ephemeris time...........  %.3f\n"
 	    "  UTC julian day...............  %f\n"
 	    "  Modified julian day..........  %f\n"
 	    "  Abberation correction........  %s\n"
-	    "  Sun reference radius......... % .0f m\n"
-	    "  Observed disk radius......... % .4f arcsec\n"
-	    "  P angle...................... % -.4f deg\n"
-	    "  Sub-observer latitude........ % -.4f deg\n"
-	    "  Sub-observer Stonyhurst lon.. % -.4f deg\n"
-	    "  Sub-observer Carrington lon..  %.4f deg\n"
-	    "  Solar barycenter distance....  %.1f m\n"
-	    "  Solar barycenter v_los....... % -.3f m/s\n"
-	    "  Disk coordinates............. % -.3f, %.3f arcsec\n"
-	    "  Lola coordinates............. % -.3f, %.3f deg\n"
-	    "  Impact parameter.............  %.1f m\n"
-	    "  Heliocentric parameter mu....  %.6f\n"
+	    "  Sun Reference Radius......... % .0f m\n"
+	    "  Apparent Disk radius......... % .4f arcsec\n"
+	    "  Solar Position angle P....... % -.4f deg\n"
+	    "  Sub-obsrv. Latitude (B0)..... % -.4f deg\n"
+	    "  Sub-obsrv. Stonyhurst lon.... %  .4f deg\n"
+	    "  Sub-obsrv. Carrington lon.... % -.4f deg\n"
+	    "  Solar Barycenter distance....  %.1f m\n"
+	    "  Solar Barycenter v_los....... % -.3f m/s\n"
+	    "  Target Disk coordinates...... % -.3f, %.3f arcsec\n"
+	    "  Target Lola coordinates...... % -.3f, %.3f deg\n"
+	    "  Target Impact parameter......  %.1f m\n"
+	    "  Target mu....................  %.6f\n"
 	    "  Target distance..............  %.1f m\n"
 	    "  Target v_los................. % -.3f m/s\n"
-	    "  diff to center............... % -.3f m/s\n"
-	    "  Solar rotation model ........  %s (%s)\n"
+	    "  Solar Rotation Model ........  %s (%s)\n"
 	    "  Siderial rotation rate.......  %.5f murad/s\n"
 	    ,
 	    
@@ -821,7 +807,6 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	    eph->mu,
 	    eph->dist * 1000,
 	    eph->vlos * 1000,
-	    (eph->vlos - eph->vlos_sun) * 1000,
 	    eph->modelname, eph->modeldescr,
 	    eph->omega
 	);
