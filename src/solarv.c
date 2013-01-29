@@ -48,10 +48,14 @@ void usage (FILE *stream)
 	    "  solarv [options] [request | file]\n"
 	    "\n"
             "Request specification:\n"
-            "  <timespec> <xy|lola> <cord1> <cord2> [<nsteps> <tstep>]\n"
+            "  <timespec> <xy|lola|muphi> <cord1> <cord2> [<nsteps> <tstep>]\n"
             "\n"
-            "The request is either read from the commandline, from 'file' or from "
-            "STDIN if no arguments are given.\n"
+            "The request is either read from the commandline, from 'file' "
+	    "or from STDIN if no arguments are given. The position can be "
+	    "specified in arcseconds from disk center (xy), (stonyhurst-) "
+	    "heliographic longitude and latitude (lola), or in polar "
+	    "coordinates with mu and an angle phi counter-clock wise from "
+	    "solar north (muphi)\n"
             "\n"
 	    "Options:\n"
 	    "  -h            show this help\n"
@@ -581,6 +585,18 @@ int relstate_sun_target (
 	eph->x = position.x;
 	eph->y = position.y;
 	xy2lola (xp, yp, eph->dist_sun * 1000, sublat, &lonrd, &latrd);
+    }
+    else if (position.type == muphi)
+    {
+	/* FIXME: this is approximate, do the real math */
+	SpiceDouble phi = position.y * rpd_c();
+	SpiceDouble theta = acos (position.x);
+	SpiceDouble rads = tan (RSUN / eph->dist_sun / 1000.0);
+	SpiceDouble xp = sin(phi) * sin (theta) * rads;
+	SpiceDouble yp = cos(phi) * sin (theta) * rads;
+	xy2lola (xp, yp, eph->dist_sun * 1000, sublat, &lonrd, &latrd);
+	eph->x = xp * aspr();
+	eph->y = yp * aspr();
     }
     
     eph->lon = lonrd * dpr_c();
@@ -1185,6 +1201,8 @@ int parse_sunpos (
 	pos->type = lola;
     else if (strcasecmp (type, "xy") == 0)
 	pos->type = xy;
+    else if (strcasecmp (type, "muphi") == 0)
+	pos->type = muphi;
     else {
 	errmesg ("bad coordinate type: %s\n", type);
 	return FAILURE;

@@ -102,7 +102,7 @@ typedef struct
     SpiceDouble y;
     int type;
 } sunpos_t;
-enum PosType {lola = 0, xy = 1, loy = 2, xlat = 3};
+enum PosType {lola = 0, xy = 1, muphi, loy = 2, xlat = 3};
 
 
 /* 
