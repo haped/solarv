@@ -1,6 +1,8 @@
 solarv TODO
 
 
+  * implement a full light-time abberation correction
+  * cleanup our temporary station body codes -- need to use id from the private pool for these
   * in soleph_t, store all members in native spice units
   * compute the j2000 state of observer, sun and target, and include
     these in the output ephemeris
