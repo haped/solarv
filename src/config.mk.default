@@ -1,0 +1,14 @@
+## CSPICE INSTALL DIR
+CSPICE_PATH = /usr/local/pkg/cspice
+## where required SPICE kernels are
+KERNEL_PATH = /usr/local/share/solarv/kernels
+## where to put the 'solarv' binary
+BINARY_PATH = /usr/local/bin
+## the pinpoint utility is needed to update the 
+## stations.bsp binary kernel
+PINPOINT = $(CSPICE_PATH)/exe/pinpoint
+
+CC = c99
+CFLAGS = -m64 -g -Wall -pedantic -O2
+LDFLAGS = -m64
+
