@@ -1,5 +1,5 @@
 \begindata
-         SITES      = ('VTT', 'SST', 'SCHAUINSLAND', 'DST', 'MCMATH')
+         SITES      = ('VTT', 'SST', 'SCHAUINSLAND', 'DST', 'MCMATH', 'BIGBEAR')
          VTT_CENTER = 399
          VTT_FRAME  = 'EARTH_FIXED'
          VTT_IDCODE = 399919 
@@ -24,6 +24,13 @@
          MCMATH_FRAME  = 'EARTH_FIXED'
          MCMATH_IDCODE = 399923
          MCMATH_LATLON = ( 31.958446, -111.595243, 2.096 )
+
+         BIGBEAR_CENTER = 399
+         BIGBEAR_FRAME  = 'EARTH_FIXED'
+         BIGBEAR_IDCODE = 399924
+         BIGBEAR_LATLON = ( 34.258518, -116.92127,  2.043)
+
+
 
 \begintext
 
