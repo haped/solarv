@@ -66,12 +66,17 @@ void usage (FILE *stream)
 	    "  -h            show this help\n"
 	    "  -m model      set solar rotation model 'model' [fixed]\n"
 	    "                use 'list' to list available models\n"
+	    "  -t            use the ITRF93 precision earth rotation kernel\n"
+	    "                Note: this kernel has a limited time coverage and needs\n"
+	    "                to be updated regularily\n"
 	    "  -O observer   set observer position. Can be any NAIF body code.\n"
-	    "                pre-defined sites: 'VTT'\n"
+	    "                pre-defined sites: 'VTT', 'SCHAUINSLAND', 'SST',\n"
+	    "                'DST', 'MCMATH'\n"
 	    "  -p            pretty-print ephemeris data\n"
 	    "  -v            print program version\n"
-	    "  -K kernel     load additional SPICE kernel 'kernel'\n"
+	    "  -k kernel     load additional SPICE kernel 'kernel'\n"
 	    "                this kernel will be loaded last in kernel pool\n"
+	    "  -K kernel     load 'kernel' instead of the default meta kernel\n"
 	    "  -R radius     specifiy a different solar radius in meters\n"
 	    "\n"
 	    "Examples:\n"
@@ -264,14 +269,16 @@ int main (int argc, char **argv)
     FILE *batchstream = stdin;
     bool batchmode = false;
     char addkernel[MAXPATH + 1] = "na";
+    char metakernel[MAXPATH + 1] = "na";
     char observer[MAXKEY + 1] = "VTT";
     bool fancy = false;
     int rotmodel = fixed;
+    bool earth_itrf93 = false;
     int errorcode = SUCCESS;
     bool dumpinfo = false;
-
+    
     int c; opterr = 0;
-    while ((c = getopt (argc, argv, "+h:m:pr:O:vfK:iR:")) != -1)
+    while ((c = getopt (argc, argv, "+h:m:pr:O:vfK:k:tiR:")) != -1)
     {
         switch (c)
         {
@@ -299,13 +306,15 @@ int main (int argc, char **argv)
         case 'p': fancy = true; break;
 	case 'O': strncpy (observer, optarg, MAXKEY); break;
 	case 'v': program_info (stdout); return EXIT_SUCCESS; break;
-	case 'K': strncpy (addkernel, optarg, MAXPATH); break;
+	case 'k': strncpy (addkernel, optarg, MAXPATH); break;
+	case 'K': strncpy (metakernel, optarg, MAXPATH); break;
+	case 't': earth_itrf93 = true; break;
 	case 'R': RSUN = atof (optarg);  break;
         default: usage (stdout); return EXIT_FAILURE;
         }
     }
     int posargs = argc - optind;
-
+    
     if (posargs == 0) {
 	batchmode = true;
 	batchstream = stdin;
@@ -328,12 +337,21 @@ int main (int argc, char **argv)
 	version_info (stdout);
 	fprintf (stdout, "CSPICE toolkit version: %s\n", tkvrsn_c ("toolkit"));
     }
-
+    
     /* required kernels are coded in solarv.tm  meta kernel */
-    furnsh_c (KERNEL_PATH "/" METAKERNEL);
+    if (strcmp (metakernel, "na") == 0) {
+	strncpy (metakernel , KERNEL_PATH "/" METAKERNEL, MAXPATH);
+	/* we only handle the -t flag, if we load the default meta kernel */
+	if (earth_itrf93) {
+	    furnsh_c (KERNEL_PATH "/earth_assoc_itrf93.tf");
+	    furnsh_c (KERNEL_PATH "/earth_itrf.tf");
+	} else {
+	    furnsh_c (KERNEL_PATH "/earth_fixed.tf");
+	}
+    }
+    furnsh_c (metakernel);
     if (strcmp (addkernel, "na") != 0) {
-	if (dumpinfo)
-	    printf ("loading user-supplied kernel %s\n", addkernel);
+	printf ("Loading user-supplied additional kernel %s\n", addkernel);
 	furnsh_c (addkernel);
     }
 
@@ -686,11 +704,7 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	cnmfrm_c ("EARTH", MAXKEY, &frcode, frname, &found);
     else
 	cnmfrm_c (observer, MAXKEY, &frcode, frname, &found);
-<<<<<<< HEAD
-	
-=======
     
->>>>>>> 494433e... killed waring by ignoring the found flag
     fprintf (stream,
 	     "#*****************************************************"
 	     "*************************\n"

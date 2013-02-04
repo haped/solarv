@@ -1,9 +1,4 @@
-## you may define these
-CSPICE_PATH = /usr/local/cspice
-#CFITSIO_PATH = /usr/local/pkg/cfitsio-3250
-KERNEL_PATH = /usr/local/share/solarv/kernels
-BINARY_PATH = /usr/local/bin
-PINPOINT = pinpoint
+include config.mk
 
 ## defining CFITSIO_PATH is optional, could also be pre-installed
 ## on the system
@@ -27,21 +22,32 @@ ifndef KERNEL_PATH
 	KERNEL_PATH = ../data/kernels
 endif
 
-CC = c99
-CFLAGS = -Wall -pedantic -O2 -m64 $(SPICE_I) $(FITSIO_I) \
+ifndef CC
+	CC = c99
+endif
+CFLAGS += $(SPICE_I) $(FITSIO_I) \
 	-DKERNEL_PATH=\"$(KERNEL_PATH)\"
 LD = $(CC) 
-LDFLAGS = -m64 $(SPICE_L) $(FITSIO_L) -lm 
-# solaris
-#LDFLAGS = -m64 $(SPICE_L) $(FITSIO_L) -lm -lsocket -lnsl
+LDFLAGS += $(SPICE_L) $(FITSIO_L) -lm 
 
 
 all: solarv solarv.tm
 
 install: solarv solarv.tm
-	install -D solarv.tm $(KERNEL_PATH)/solarv.tm
-	install -D stations.bsp $(KERNEL_PATH)/stations.bsp
+	install -D -m 0644 solarv.tm $(KERNEL_PATH)/solarv.tm
+	install -D -m 0644 stations.bsp $(KERNEL_PATH)/stations.bsp
+	install -D -m 0644 earth_itrf.tf $(KERNEL_PATH)/earth_itrf.tf
+	install -D -m 0644 earth_fixed.tf $(KERNEL_PATH)/earth_fixed.tf
 	install -D solarv $(BINARY_PATH)/solarv
+
+update-kernels:
+	./getkernels.sh || exit
+	install -D -m 0644 _tmp_/de421.bsp $(KERNEL_PATH)/de421.bsp
+	install -D -m 0644 _tmp_/earth_latest_high_prec.bpc \
+		$(KERNEL_PATH)/earth_latest_high_prec.bpc
+	install -D -m 0644 _tmp_/naif0010.tls $(KERNEL_PATH)/naif0010.tls
+	install -D -m 0644 _tmp_/pck00010.tpc $(KERNEL_PATH)/pck00010.tpc
+	rm -rf _tmp_
 
 .PHONY: clean check
 
