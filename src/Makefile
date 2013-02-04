@@ -39,6 +39,7 @@ install: solarv solarv.tm
 	install -D -m 0644 stations.tf $(KERNEL_PATH)/stations.tf
 	install -D -m 0644 earth_itrf.tf $(KERNEL_PATH)/earth_itrf.tf
 	install -D -m 0644 earth_fixed.tf $(KERNEL_PATH)/earth_fixed.tf
+	install -D -m 0644 heliospheric.tf $(KERNEL_PATH)/heliospheric.tf
 	install -D solarv $(BINARY_PATH)/solarv
 
 update-kernels:
@@ -48,6 +49,7 @@ update-kernels:
 		$(KERNEL_PATH)/earth_latest_high_prec.bpc
 	install -D -m 0644 _tmp_/naif0010.tls $(KERNEL_PATH)/naif0010.tls
 	install -D -m 0644 _tmp_/pck00010.tpc $(KERNEL_PATH)/pck00010.tpc
+	install -D -m 0644 _tmp_/earth_assoc_itrf93.tf $(KERNEL_PATH)/earth_assoc_itrf93.tf
 	rm -rf _tmp_
 
 .PHONY: clean check
