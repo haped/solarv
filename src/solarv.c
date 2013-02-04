@@ -38,8 +38,6 @@
 
 #include "solarv.h"
 
-
-
 void usage (FILE *stream)
 {
     printf ("%s v%s (%s) -- Compute precise Sun-Observer radial velocity\n"
@@ -52,14 +50,21 @@ void usage (FILE *stream)
             "\n"
             "The request is either read from the commandline, from 'file' "
 	    "or from STDIN if no arguments are given. The position can be "
-	    "specified in arcseconds from disk center (xy), (stonyhurst-) "
-	    "heliographic longitude and latitude (lola), or in polar "
-	    "coordinates with mu and an angle phi counter-clock wise from "
-	    "solar north (muphi)\n"
-            "\n"
+	    "specified in helio-projective cartesian coordinates as "
+	    "arcseconds from disk center (xy), Stonyhurst heliographic "
+	    "coordinates in degree longitude and latitude (lola) or in a "
+	    "polar coordinate system with the heliocentric parameter mu "
+	    "and a position angle phi, counter-clockwise from solar north "
+	    "(muphi). The 'timespec' parameter understands the common time "
+	    "strings like '2010-01-01 12:00:00 EST'. If no time zone is "
+	    "given, UTC is assumed. I highly recommend to use the ISO 8601 "
+	    "standard, e.g. '2012-01-01T00:00:00'. The optional 'nsteps' "
+	    "and 'tstep' (in minutes) arguments can be used to compute a "
+	    "set of values in a given time interval."
+	    "\n\n"
 	    "Options:\n"
 	    "  -h            show this help\n"
-	    "  -m model      set solar rotation model 'model'\n"
+	    "  -m model      set solar rotation model 'model' [fixed]\n"
 	    "                use 'list' to list available models\n"
 	    "  -O observer   set observer position. Can be any NAIF body code.\n"
 	    "                pre-defined sites: 'VTT'\n"
@@ -69,18 +74,16 @@ void usage (FILE *stream)
 	    "                this kernel will be loaded last in kernel pool\n"
 	    "  -R radius     specifiy a different solar radius in meters\n"
 	    "\n"
-	    "The 'timespec' parameter understands the common time strings like "
-	    "'2010-01-01 12:00:00'. If no time zone is given, UTC is assumed. "
-	    "Latitude and longitude are Stonyhurst Heliographic coordinates given "
-            "in degrees "
-	    "(lola) or Helioprojective-Cartesian given in arcsecs from disk "
-	    "center (x, y). The step width 'tstep' is in minutes.\n"
-	    "\n"
 	    "Examples:\n"
 	    "\n"
-	    "Compute radial velocity at the western limb at 45deg latitude "
-	    "using Snodgrass & Ulrich (1990) spectroscopy rotation model:\n"
-	    "  solarv -p -m su90s \"2012 Jan 1 12:00:00.0\" lola 89.5 45\n"
+	    "Compute radial velocity at disk center, assuming a "
+	    "carrington rotation model, pretty-print output:\n"
+	    "  solarv -m carrington -p 2012-01-01T12:00:00 xy 0 0"
+	    "\n\n"
+	    "Compute radial velocity at the western limb using Snodgrass "
+	    "& Ulrich (1990) spectroscopy rotation model for one year "
+	    "with one sample per day:\n"
+	    "  solarv -m su90s 2012-01-01T12:00:00.0 muphi 0.0 90 365 1440\n"
 	    "\n"
 	    ,
 	    _name, _version, _versiondate
@@ -93,7 +96,7 @@ void program_info (FILE *stream)
 	     "SPICE toolkit version: %s\n"
 	     "Copyright (C) %s\n"
 	     "Licencse: MIT X11\n",
-	     _name, _version, _versiondate, tkvrsn_c("toolkit"),_copyright);
+	     _name, _version, _versiondate, tkvrsn_c("toolkit"), _copyright);
 }
 
 void version_info (FILE *stream)
@@ -114,9 +117,9 @@ void dump_kernel_info (FILE *stream)
     ktotal_c ("all", &nkernels);
     for (int i = 0; i < nkernels; ++i)
     {
-	SpiceChar file[MAXPATH];
-	SpiceChar filetype[TYPLEN];
-	SpiceChar source[SRCLEN];
+	SpiceChar file[MAXPATH+1];
+	SpiceChar filetype[TYPLEN+1];
+	SpiceChar source[SRCLEN+1];
 	
 	kdata_c (i, "all", MAXPATH, TYPLEN, SRCLEN,
 		 file, filetype, source, &handle, &found);
@@ -147,21 +150,121 @@ void station_geopos (
     recgeo_c (state_station, r_eq, f, lon, lat, alt);
 }
 
-/* get the j2000 state of a naif body */
-void body_getstate (SpiceChar *body, SpiceDouble et,
-		    SpiceDouble *state, SpiceDouble *lt)
+/* get inertial state of a target on the sun, given it's heliographic
+ * coordinates an the inertial state of the solar barycenter */
+int getstate_solar_target (
+    SpiceDouble et,
+    SpiceDouble lon,
+    SpiceDouble lat,
+    SpiceDouble omegas,
+    SpiceDouble *sunstate,  /* in: inertial state of sun barycenter */
+    SpiceDouble *tgtstate)  /* out: intertial state of target */
+{
+    SpiceDouble relstate[6], relstatei[6];
+    
+    /* state of target relative to solar center in j2000; sublon is the
+     * stonyhurst longitude. by usng the HEEQ frame, we do not need the
+     * sub-observer latitude, because HEEQ has is x-axis in the sub-
+     * observer point*/
+    latrec_c (RSUN, lon, lat, relstate);
+    SpiceDouble xform[6][6];
+    sxform_c ("HEEQ", "J2000", et, xform);
+    mxvg_c (xform, relstate, 6, 6, relstatei);
+    
+    /* compute state velocity from given omega */
+    SpiceDouble radius[] = {relstate[0], relstate[1], 0.0};
+    SpiceDouble omegav[] = {0.0, 0.0, omegas};
+    vcrss_c (omegav, radius, &relstatei[3]);
+    vaddg_c (sunstate, relstatei, 6, tgtstate);
+
+    return SUCCESS;
+}
+
+/* get inertial state of an observer on any body */
+int getstate_observer (
+    SpiceChar *body,
+    SpiceDouble et,
+    SpiceDouble lon,  /* -pi .. pi     */
+    SpiceDouble lat,  /* -pi/2 .. pi/2 */
+    SpiceDouble alt,  /* kilometer     */
+    SpiceDouble *state,
+    SpiceDouble *bstate
+    )
+{
+    SpiceDouble bodstate[6];   /* body inertial state             */
+    SpiceDouble relstate[6];   /* observer state relative to body */
+    SpiceDouble relstatei[6];  /* observer relative to inertial   */ 
+
+    SpiceInt dim, frcode;
+    SpiceDouble radi[3], equatr, polar, f;
+    SpiceBoolean found;
+
+    /* positon vector relative to body center */
+    bodvrd_c (body, "RADII", 3, &dim, radi);
+    equatr = radi[0];
+    polar = radi[2];
+    f = (equatr - polar) / equatr;
+    georec_c (lon, lat, alt, equatr, f, relstate);
+
+    /* find native reference frame of 'body' and use it to translate the
+     * position vector to a inertial state */
+    SpiceChar frname[MAXKEY + 1];
+    cnmfrm_c (body, MAXKEY, &frcode, frname, &found);
+    if (! found) {
+	errmesg ("Could not find coordinate system for body %s\n", body);
+	return FAILURE;
+    }
+    SpiceDouble xform[6][6];
+    sxform_c (frname, "J2000", et, xform);
+    mxvg_c (xform, relstate, 6, 6, relstatei);
+
+    /* add observer state to body center inertial state */
+    getstate_body (body, et, bodstate);
+    vaddg_c (bodstate, relstatei, 6, state);
+
+    /* let caller know the body barycenter state if he wants so */
+    if (bstate) {
+	memcpy (bstate, bodstate, 6 * sizeof(SpiceDouble));
+    }
+
+    return SUCCESS;
+}
+
+
+
+/* get J2000 inertial state of a body */
+void getstate_body (
+    SpiceChar *body,
+    SpiceDouble et,
+    SpiceDouble *state)
 {
     SpiceDouble ltt;
-    spkezr_c (body, et, "j2000", ABCORR, "SSB",  state, &ltt);
-    if (lt) *lt = ltt;
+    spkezr_c (body, et, "J2000", "NONE", "SSB",  state, &ltt);
 }
+
+/* get the relative state vector between two state vectors */
+void relstate (
+    SpiceDouble *sobs,
+    SpiceDouble *stgt,
+    SpiceDouble *srel,
+    SpiceDouble *losv,  /* line of sight vector */
+    SpiceDouble *dist,
+    SpiceDouble *vrad,  /* radial velocity */
+    SpiceDouble *lt)
+{
+    vsubg_c (stgt, sobs, 6, srel);
+    unorm_c (srel, losv, dist);
+    *vrad = vdot_c (losv, &srel[3]);
+    *lt = *dist / clight_c();
+}
+
 
 int main (int argc, char **argv)
 {   
     FILE *batchstream = stdin;
     bool batchmode = false;
-    char addkernel[MAXPATH+1] = "na";
-    char observer[MAXKEY+1] = "VTT";
+    char addkernel[MAXPATH + 1] = "na";
+    char observer[MAXKEY + 1] = "VTT";
     bool fancy = false;
     int rotmodel = fixed;
     int errorcode = SUCCESS;
@@ -181,8 +284,7 @@ int main (int argc, char **argv)
 		return EXIT_SUCCESS;
 	    }
 	    else if (strcasecmp (optarg, "rigid") == 0) rotmodel = rigid;
-	    else if (strcasecmp (optarg, "carrington") == 0)
-		rotmodel = carrington;
+	    else if (strcasecmp (optarg, "crgt") == 0)	rotmodel = crgt;
 	    else if (strcasecmp (optarg, "fixed") == 0) rotmodel = fixed;
 	    else if (strcasecmp (optarg, "su90s") == 0)	rotmodel = su90s;
 	    else if (strcasecmp (optarg, "su90g") == 0)	rotmodel = su90g;
@@ -212,7 +314,7 @@ int main (int argc, char **argv)
 	batchmode = true;
 	FILE *b = fopen (argv[optind], "r");
 	if (NULL == b) {
-	    errmesg ("can not open input file %s\n", argv[optind+posargs]);
+	    errmesg ("Can not open input file %s\n", argv[optind+posargs]);
 	    return EXIT_FAILURE;
 	}
 	batchstream = b;
@@ -239,6 +341,7 @@ int main (int argc, char **argv)
 	dump_kernel_info (stdout);
     }
 
+    /* the real work is done here */
     if (batchmode) {
 	errorcode = mode_batch (observer, rotmodel,
 				fancy,  batchstream, stdout);
@@ -254,13 +357,65 @@ int main (int argc, char **argv)
 	unload_c (addkernel);
 	
     if (FAILURE == errorcode) {
-	errmesg ("there where errors, please check results\n");
+	fprintf (stderr, "Aborting, please check input!\n");
 	return EXIT_FAILURE;
     }
     
     return EXIT_SUCCESS;
 }
 
+int anypos2lola (
+    sunpos_t pos,
+    SpiceDouble et,
+    SpiceDouble *state_obs,
+    SpiceDouble *state_sun,
+    SpiceDouble *lon,
+    SpiceDouble *lat)
+{
+    if (pos.type == lola)
+    {
+	*lon = pos.x * rpd_c();
+	*lat = pos.y * rpd_c();
+    }
+    else if (pos.type == xy)
+    {
+	SpiceDouble xp = pos.x * rpas();
+	SpiceDouble yp = pos.y * rpas();
+	SpiceBoolean on;
+	pointing2lola (state_sun, et, xp, yp, state_obs, lon, lat, &on);
+	if (! on) {
+	    errmesg ("Coordinates xy=(%.3f, %.3f) not within "
+		     "the visible disk\n", xp * aspr(), yp * aspr());
+	    return FAILURE;
+	}
+    }
+    else if (pos.type == muphi)
+    {
+	if (pos.x < 0.0  || pos.x > 1.0) {
+	    errmesg ("Value of mu not in range [0,1]\n");
+	    return FAILURE;
+	}
+	SpiceDouble diff[3];
+	vsub_c (state_sun, state_obs, diff);
+
+	/* FIXME: this is approximate, do the real math */
+	SpiceDouble phi = pos.y * rpd_c();
+	SpiceDouble theta = acos (pos.x);
+	SpiceDouble ang = RSUN / vnorm_c(diff);
+	SpiceDouble rads = tan (ang);
+	SpiceDouble xp = sin(phi) * sin (theta) * rads;
+	SpiceDouble yp = cos(phi) * sin (theta) * rads;
+	SpiceBoolean on;
+	pointing2lola (state_sun, et, xp, yp, state_obs, lon, lat, &on);
+	if (! on) {
+	    errmesg ("Coordinates xy=(%.3f, %.3f) not within "
+		     "the visible disk\n", xp * aspr(), yp * aspr());
+	    return FAILURE;
+	}
+    }
+
+    return SUCCESS;
+}
 
 /*
  * this is the entry point to compute the solar ephemeris parameters for a
@@ -268,7 +423,7 @@ int main (int argc, char **argv)
  */
 int soleph (
     SpiceChar *observer, /* NAIF body name/code of the observer     */ 
-    SpiceDouble et,     /* Spice ephemeris time of the observation */
+    SpiceDouble et,      /* Spice ephemeris time of the observation */
     sunpos_t position,
     soleph_t *eph,
     int rotmodel)
@@ -277,12 +432,18 @@ int soleph (
     SpiceDouble srfvec[3];
     SpiceDouble trgepc;
     SpiceDouble subrad, sublon, sublat; /* lola cords of sub-observer point */
-    SpiceDouble state_ots[6];
-    SpiceDouble state_stt[6];
-    SpiceDouble state_ott[6];
-    SpiceDouble los_ott[3];
+    SpiceDouble
+	state_obs[6],       /* inertial state of the observer */
+	state_sun[6],       /* inertial state of sun barycenter */
+	state_tgt[6],       /* inertial state of the target */
+	relstate_sun[6],    /* relative state observer -> sun barycenter */
+	relstate_tgt[6];    /* relative state observer -> target */
 
     reset_soleph (eph);
+    strncpy (eph->observer, observer, MAXKEY);
+    /* we make heavy use of the observer-centric radial tangential normal
+     * frame which is referenced to the observer station */
+    pcpool_c ( "FRAME_1803430_PRI_TARGET", 1, strlen (observer)-1,  observer);
 
     /* remember julian date and ascii utc string of the event */
     SpiceDouble deltaT;
@@ -291,344 +452,142 @@ int soleph (
     /* we use the utc julain date here, so substract the delta */
     eph->jday = unitim_c (et, "ET", "JDTDB") - deltaT / spd_c();
     eph->mjd = eph->jday - 2400000.5; 
-    et2utc_c (et, "C", 2, 79, eph->utcdate);
-    strcpy (eph->observer, observer);
+    et2utc_c (et, "C", 2, MAXKEY, eph->utcdate);
 
-    /* heliographic sub-observer coordinates */
+    /* stonyhurst heliographic sub-observer coordinates */
     subpnt_c ("Near point: ellipsoid", "SUN", et, "HEEQ",
     	      ABCORR, observer, subpoint, &trgepc, srfvec);
     reclat_c (subpoint, &subrad, &sublon, &sublat);
-    eph->B0 = sublat * dpr_c();
-    eph->L0hg = sublon * dpr_c();
+    eph->B0 = sublat;
+    eph->L0hg = sublon;
 
-    /* carrington sub-observer coordinates */
+    /* carrington sub-observer coordinates, carrington is 0...2pi */
     subpnt_c ("Near point: ellipsoid", "SUN", et, "IAU_SUN",
     	      ABCORR, observer, subpoint, &trgepc, srfvec);
     reclat_c (subpoint, &subrad, &sublon, &sublat);
+    eph->L0cr = (sublon < 0 ? 2 * pi_c() + sublon : sublon);
 
-    /* store carrington longitude as 0 ... 2 pi */
-    eph->L0cr = (sublon < 0 ? 2 * pi_c() + sublon : sublon) * dpr_c();
+    /*
+     * first, we compute the relative state between observer and sun
+     * barycenter. we need this now to be able to translate between pointing
+     * coordinates and heliographic coordinates
+     */
+    SpiceDouble los_tgt[3], los_sun[3], lt_sun, lt_tgt;
+    //getstate_observer ("earth", et, 0, 0, 0, state_obs, NULL);
+    getstate_body (observer, et, state_obs);
+    getstate_body ("SUN", et, state_sun);
+    relstate (state_obs, state_sun, relstate_sun,
+	      los_sun, &eph->dist_sun, &eph->vlos_sun, &lt_sun);
     
-    /* compute solar barycenter state relative to observer */
-    if (SUCCESS != relstate_observer_sun (observer, et, eph, state_ots)) {
-	errmesg ("could not compute sun-observer state\n");
+    /* figure out target heliographic coordinates from use input */
+    if (SUCCESS != (anypos2lola (position, et, state_obs, state_sun,
+				 &eph->lon, &eph->lat))) {
+	errmesg ("Could not process target coordinates\n");
 	return FAILURE;
     }
+    
+    /* angular velocity from rotation model is needed to compute the full
+     * target state */
+    SpiceDouble omegas = omega_sun (eph->lat, rotmodel);
+    eph->omega = omegas * 1E6;
+    eph->rotmodel = rotmodel;
+    strncpy (eph->modelname, RotModels[rotmodel].name, MAXKEY);
+    strncpy (eph->modeldescr, RotModels[rotmodel].descr, MAXKEY);
 
-    /* compute target state relative to sun barycenter */
-    if (SUCCESS != relstate_sun_target (observer, et, position,
-					rotmodel, eph, state_stt)) {
-	errmesg ("could not compute sun-target state\n");
-	return FAILURE;
-    }
-
-    /* compute observer to target by adding ots + stt */
-    vaddg_c (state_ots, state_stt, 6, state_ott);
-    unorm_c (state_ott, los_ott, &(eph->dist));
-    eph->vlos = vdot_c (los_ott, &state_ott[3]);
+    /* TODO: handle light-time correction */
+    getstate_solar_target (et, eph->lon, eph->lat,
+			   omegas, state_sun, state_tgt);
+    relstate (state_obs, state_tgt, relstate_tgt,
+	      los_tgt, &eph->dist, &eph->vlos, &lt_tgt);
+    get_pointing (et, relstate_sun, relstate_tgt, &eph->x, &eph->y);
 
     /************************************************************************
      compute further ephemeris data from the parameters we gathered so far
     ************************************************************************/
     eph->rsun_ref = RSUN;
+    eph->rsun_obs = asin (RSUN / eph->dist_sun);
 
     /* impact parameter (projected  distance to solar center) */
-    SpiceDouble obsangle = vsep_c (state_ots, state_ott);
+    SpiceDouble obsangle = vsep_c (relstate_tgt, relstate_sun);
     eph->rho = eph->dist * sin (obsangle);
     
     /* angle between sub-observer-point -> solar center, center -> target */
-    SpiceDouble sunangle = asin (eph->rho * 1E3 / RSUN);
+    SpiceDouble sunangle = asin (eph->rho / RSUN);
 
     /* heliocentric angle is the angle between the los and the surface
      * normal at the target */
     eph->mu = cos (obsangle + sunangle);
 
-    /* TODO: reliably compute P angle */
-    /* SpiceDouble xform[3][3]; */
-    /* SpiceDouble ez[3] = {0, 0, 1}, sol[3]; */
-    /* pxform_c ("GEORTN", "EARTH_FIXED", et, xform); */
-    /* mxv_c (xform, ez, sol); */
-    /* SpiceDouble P0 = acos (sol[2]); */
-    /* eph->P0 = P0 * dpr_c(); */
-    eph->P0 = -99;
+    /* P angle */
+    SpiceDouble xform[3][3];
+    SpiceDouble e[3] = {0, 0, 1}, sol[3];
+    pxform_c ("EARTH_FIXED", "OBSCRTN", et, xform);
+    mxv_c (xform, e, sol);
+    eph->P0 = atan2 (sol[1], sol[2]);
 
-    /* observer state */
-    /* FIXME: this is redundant, we want to get rid of this eventually */
-    /* body_getstate (observer, et, eph->state_obs, NULL); */
-    /* body_getstate ("SUN", et, eph->state_sun, 0); */
+    
 
     return SUCCESS;
 }
 
-/* compute relative state of observer to solar barycenter in the j2000
- * reference frame */
-int relstate_observer_sun (
-    SpiceChar *station,   /* NAIF body name of observer ("Izana") */
-    SpiceDouble et,       /* ephemeris time of event              */
-    soleph_t *eph,
-    SpiceDouble *state_otc /* obs. to sun center state vector */
-    )
-{
-    SpiceDouble lt;
-    SpiceDouble los_otc[3];       /* los vector obs. to sun center   */
-    
-    /* vlos and distance to sun barycenter: km, km/s */
-    spkezr_c ("SUN", et, "J2000",  ABCORR, station, state_otc, &lt);
-    unorm_c (state_otc, los_otc, &(eph->dist_sun));
-    eph->vlos_sun = vdot_c (los_otc, &state_otc[3]);
-    
-    /* apparent diameter of the disc in arcsec */
-    eph->rsun_as = asin (RSUN / (eph->dist_sun * 1000)) * dpr_c() * 3600;
 
-    return SUCCESS;
-}
-
-/* Thompson (2005) eq. (11) */
-void lola2hcc (
-    SpiceDouble lon,
-    SpiceDouble lat,
-    SpiceDouble L0,
-    SpiceDouble B0,
-    SpiceDouble *x,
-    SpiceDouble *y,
-    SpiceDouble *z)
-{
-    SpiceDouble costheta = cos (lat);
-    SpiceDouble sintheta = sin (lat);
-    SpiceDouble cosphimphi0 = cos (lon - L0);
-    SpiceDouble cosB0 = cos (B0);
-    SpiceDouble sinB0 = sin (B0);
-    
-    *x = RSUN * costheta * sin (lon - L0);
-    *y = RSUN * (sintheta * cosB0 - costheta * cosphimphi0 * sinB0);
-    *z = RSUN * (sintheta * sinB0 + costheta * cosphimphi0 * cosB0);
-}
-
-/* Thompson (2005) eq (12) */
-void hcc2lola (
-    SpiceDouble x,
-    SpiceDouble y,
-    SpiceDouble z,
-    SpiceDouble B0,
-    SpiceDouble *lon,
-    SpiceDouble *lat)
-{
-    SpiceDouble cosB0 = cos (B0);
-    SpiceDouble sinB0 = sin (B0);
-    
-    *lon = atan2 (x, z * cosB0 - y * sinB0);
-    *lat = asin ((y * cosB0 + z * sinB0) / RSUN);
-}
-
-/* thomposn (2005) eq (15) */
-void xy2hcc (
-    SpiceDouble xp, /* helio-projective x */
-    SpiceDouble yp, /* helio-projective y */
-    SpiceDouble ds, /* dist obs-sun */
-    SpiceDouble *x,
-    SpiceDouble *y,
-    SpiceDouble *z)
-{
-    SpiceDouble cosx = cos (xp);
-    SpiceDouble sinx = sin (xp);
-    SpiceDouble cosy = cos (yp);
-    SpiceDouble siny = sin (yp);
-    
-    SpiceDouble q = ds * cosy * cosx;
-    SpiceDouble dist = q * q - ds * ds + RSUN * RSUN;
-    dist =  q - sqrt (dist);
-
-    *x = dist * cosy * sinx;
-    *y = dist * siny;
-    *z = ds - dist * cosy * cosx;
-}
-
-/* Thompson (2005) eq (16) */
-void hcc2xy (
-    SpiceDouble x,
-    SpiceDouble y,
-    SpiceDouble z,
-    SpiceDouble ds, /* dist obs-sun */
-    SpiceDouble *xp,
-    SpiceDouble *yp)
-{
-    printf ("hcci2xy: in: x=%f y=%f z=%f ds=%f\n", x, y, z, ds);
-    SpiceDouble dt = sqrt (x*x + y*y + (ds - z) * (ds - z));
-    printf ("dt=%f\n", dt);
-    *xp = atan2 (ds - z, x);
-    *yp = asin (y / dt);
-}
-
-void lola2xy_ (
-    SpiceDouble lon,
-    SpiceDouble lat,
-    SpiceDouble L0,
-    SpiceDouble B0,
-    SpiceDouble ds, /* dist obs - sun */
-    SpiceDouble *xp,
-    SpiceDouble *yp)
-{
-    SpiceDouble x, y, z;
-    
-    lola2hcc (lon, lat, L0, B0, &x, &y, &z);
-    printf ("hcc: pos=(%f, %f, %f)  ds=%f\n", x, y, z, ds);
-    hcc2xy (x, y, z, ds, xp, yp);
-}
- 
-void xy2lola (
-    SpiceDouble xp,
-    SpiceDouble yp,
-    SpiceDouble ds,
-    SpiceDouble B0,
-    SpiceDouble *lon,
-    SpiceDouble *lat)
-{
-    SpiceDouble x, y, z;
-    
-    xy2hcc (xp, yp, ds, &x, &y, &z);
-    hcc2lola (x, y, z, B0, lon, lat);
-}
-
-void xy2lola__ (
-    SpiceDouble x,
-    SpiceDouble y,
-    SpiceDouble sublon,
-    SpiceDouble sublat,
-    SpiceDouble sundist,
-    SpiceDouble *lon,
-    SpiceDouble *lat)
-{
-    /* SpiceDouble rotmat[3][3]; */
-    /* SpiceDouble state[3], rotstate[3]; */
-    
-    
-}
-
-void lola2xy (
-    SpiceDouble lon,
-    SpiceDouble lat,
-    SpiceDouble sublon,
-    SpiceDouble sublat,
-    SpiceDouble sundist,
+void get_pointing (
+    SpiceDouble et,
+    SpiceDouble *relstate_sun,
+    SpiceDouble *relstate_tgt,
     SpiceDouble *x,
     SpiceDouble *y)
 {
-    SpiceDouble rotmat[3][3];
-    SpiceDouble state[3], rotstate[3];
+    SpiceDouble sun[3], tgt[3];
 
-    SpiceDouble tlon = lon; 
-    SpiceDouble tlat = lat;
-    latrec_c (RSUN / 1000.0, tlon, tlat, state);
+    SpiceDouble xform[3][3];
+    pxform_c ("J2000", "OBSCRTN", et, xform);
+    mxv_c (xform, relstate_tgt, tgt);
+    mxv_c (xform, relstate_sun, sun);
 
-    rotate_c (-sublat, 2, rotmat);
-    //rotmat_c (rotmat, sublon, 3, rotmat);
-    mxvg_c (rotmat, state, 3, 3, rotstate);
-    double dx = rotstate[0];
-    double dy = rotstate[1];
-    double dz = rotstate[2];
+    SpiceDouble sun_x[3] = {sun[0], sun[1], 0};
+    SpiceDouble sun_y[3] = {sun[0], 0, sun[2]};
+    SpiceDouble tgt_x[3] = {tgt[0], tgt[1], 0};
+    SpiceDouble tgt_y[3] = {tgt[0], 0, tgt[2]};
 
-    *x =  asin (dy / (sundist - dx)) * aspr();
-    *y =  asin (dz / (sundist - dx)) * aspr();
+    /* FIXME: more elegant way to handle negative angles? */
+    *x = vsep_c (sun_x, tgt_x);
+    *y = vsep_c (sun_y, tgt_y);
+    if (tgt_x[1] < sun_x[1]) *x = -*x;
+    if (tgt_y[2] < sun_y[2]) *y = -*y;
 }
 
-/* compute relative state from solar center to target position on the
- * surface in IAU_SUN frame */
-int relstate_sun_target (
-    SpiceChar *station,
+/* pointing (angle from disk center) coordinatates to planetographic */
+void pointing2lola (
+    SpiceDouble *state_sun,
     SpiceDouble et,
-    sunpos_t position,
-    int rotmodel,
-    soleph_t *eph,
-    SpiceDouble *state_stt)
+    SpiceDouble x,           /* pointing angle from disk center */
+    SpiceDouble y,           /* pointing angle from disk center */
+    SpiceDouble *state_obs,  /* observer inertial state */
+    SpiceDouble *lon,
+    SpiceDouble *lat,
+    SpiceBoolean *onbody)
 {
-    SpiceDouble subpoint[3];
-    SpiceDouble srfvec[3];
-    SpiceDouble trgepc;
-    SpiceDouble subrad, sublon, sublat; /* lola cords of sub-observer point   */
-    SpiceDouble xform[6][6];            /* transf. matrix body-fixed -> j2000 */
-    SpiceDouble state_stt_fixed[6];     /* sun-to-target state vector         */
-    SpiceDouble lonrd, latrd;
-    
-    /* for the following procedure, also see:
-       http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/pck.html#
-       Transforming%20a%20body-fixed%20state%20to%20the%20inertial%20J2000%20frame
-    */
+    SpiceDouble obsbd[3], vsurf[3];
+    vsub_c (state_obs, state_sun, obsbd);
+    SpiceDouble sundist = vnorm_c (obsbd);
 
-    /* again we compute the sub-observer point, but this time in the fixed
-     * Heliocentric Inertial frame. the sub-observer longitude computed in
-     * such a way is then used as an offset to compute the rectangluar
-     * target position on a sphere with solar radius. this coordinates are
-     * then rotated in the j2000 frame and added to the j2000 state of the
-     * solar barycenter to get the target position on the sun relative to
-     * observer in j2000 coordinates */
-    subpnt_c ("Near point: ellipsoid", "SUN", et, "HCI", ABCORR, station,
-	      subpoint, &trgepc, srfvec);
-    reclat_c (subpoint, &subrad, &sublon, &sublat);
+    SpiceDouble xform[3][3]; 
+    pxform_c ("J2000", "OBSCRTN", et, xform);
+    mxv_c (xform, obsbd, obsbd);
 
+    SpiceDouble xdist = tan(x) * sundist;
+    SpiceDouble ydist = tan(y) * sundist;
+    SpiceDouble vpnt[3] = {-sundist, xdist, ydist};
 
-    /* TODO: also support polar coordinates in phi, mu */
+    surfpt_c (obsbd, vpnt, RSUN, RSUN, RSUN, vsurf, onbody);
+    pxform_c ("OBSCRTN", "HEEQ", et, xform);
+    mxv_c (xform, vsurf, vsurf);
 
-    /* now that we know the heliographic sub-observer coordinates, we can
-     * easily compute the helio-projective cartesian coordinates (x,y) from
-     * the given position in (lon,lat) and vice versa */
-    if (position.type == lola)
-    {
-	lonrd = position.x * rpd_c();
-	latrd = position.y * rpd_c();
-	/* FIXME: respect sub-observer hg longitude */
-	lola2xy (lonrd, latrd, 0.0, sublat, eph->dist_sun, &eph->x, &eph->y);
-    }
-    else if (position.type == xy)
-    {
-	SpiceDouble xp = position.x / 3600.0 * rpd_c();
-	SpiceDouble yp = position.y / 3600.0 * rpd_c();
-	eph->x = position.x;
-	eph->y = position.y;
-	xy2lola (xp, yp, eph->dist_sun * 1000, sublat, &lonrd, &latrd);
-    }
-    else if (position.type == muphi)
-    {
-	/* FIXME: this is approximate, do the real math */
-	SpiceDouble phi = position.y * rpd_c();
-	SpiceDouble theta = acos (position.x);
-	SpiceDouble rads = tan (RSUN / eph->dist_sun / 1000.0);
-	SpiceDouble xp = sin(phi) * sin (theta) * rads;
-	SpiceDouble yp = cos(phi) * sin (theta) * rads;
-	xy2lola (xp, yp, eph->dist_sun * 1000, sublat, &lonrd, &latrd);
-	eph->x = xp * aspr();
-	eph->y = yp * aspr();
-    }
-    
-    eph->lon = lonrd * dpr_c();
-    eph->lat = latrd * dpr_c();
-    
-
-    /* we want the relative state vector between the target and solar
-     * center. therefore, from the heliographic target coordinates, we
-     * compute the corresponding rectangular, body-centered coordinates on a
-     * sphere with solar radius.  */
-    SpiceDouble tlon = lonrd + sublon;
-    SpiceDouble tlat = latrd;
-    latrec_c (RSUN / 1000.0, tlon, tlat, state_stt_fixed);
-
-    /* we compute the state velocities from the requested rotation
-     * model. velocity is omega cross radius */
-    SpiceDouble omegas = omega_sun (latrd, rotmodel);
-    SpiceDouble omega[] = {0.0, 0.0, omegas};
-    SpiceDouble radius[] = {state_stt_fixed[0], state_stt_fixed[1], 0.0};
-    vcrss_c (omega, radius, &state_stt_fixed[3]);
-    eph->omega = omegas * 1E6; /* we follow the convention to store omega in murad/s */
-    eph->rotmodel = rotmodel;
-    strncpy (eph->modelname, RotModels[rotmodel].name, MAXKEY);
-    strncpy (eph->modeldescr, RotModels[rotmodel].descr, MAXKEY);
-
-    /* now, we transform the relative sun-target state to the J2000 frame
-       and are done */
-    sxform_c ("HCI", "j2000", et, xform);
-    mxvg_c (xform, state_stt_fixed, 6, 6, state_stt);
-
-    return SUCCESS;
+    SpiceDouble radius;
+    reclat_c (vsurf, &radius, lon, lat);
 }
+
 
 void reset_soleph (soleph_t *eph)
 {
@@ -643,7 +602,7 @@ void reset_soleph (soleph_t *eph)
     eph->dist_sun = 0.0;
     eph->vlos_sun = 0.0;
     eph->rsun_ref = 0.0;
-    eph->rsun_as = 0.0;
+    eph->rsun_obs = 0.0;
     eph->rotmodel = 0;
     strcpy (eph->modelname, "na");
     strcpy (eph->modeldescr, "na");
@@ -661,9 +620,9 @@ void reset_soleph (soleph_t *eph)
     for (int i = 0; i < 6; ++i) {
 	eph->state_obs[i] = 0.0;
 	eph->state_sun[i] = 0.0;
+	eph->state_rel[i] = 0.0;
     }
 }
-
 
 SpiceDouble omega_sun (SpiceDouble lat, int model)
 {
@@ -687,7 +646,7 @@ SpiceDouble omega_sun (SpiceDouble lat, int model)
 void timestr_now (char *buf)
 {
     time_t t = time (NULL);
-    char *v = asctime_r (gmtime (&t), buf);
+    asctime_r (gmtime (&t), buf);
     buf[strlen (buf) - 1] = '\0'; // who had the idea with the trailing \n?
 }
 
@@ -702,7 +661,7 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	     "#  Ephemeris data created on %s UTC by solaRV v%s\n"
 	     "#  SPICE version     : %s\n"
 	     "#  Reference Epoch   : J2000.0\n"
-	     "#  Reference Frame   : ICRF/J2000.0, "
+	     "#  Reference Frame   : ICRF/J2000, "
 	     "Mean Equator and Equinox of Epoch\n"
 	     "#  Abbr. correction  : %s\n"
 	     , now, _version, tkvrsn_c ("toolkit"), ABCORR);
@@ -727,7 +686,11 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	cnmfrm_c ("EARTH", MAXKEY, &frcode, frname, &found);
     else
 	cnmfrm_c (observer, MAXKEY, &frcode, frname, &found);
+<<<<<<< HEAD
 	
+=======
+    
+>>>>>>> 494433e... killed waring by ignoring the found flag
     fprintf (stream,
 	     "#*****************************************************"
 	     "*************************\n"
@@ -744,19 +707,21 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
     fprintf (stream,
 	     "#  Solar radius      : %.0f km\n"
 	     "#  Solar rot. Model  : %s (%s)\n",
-	     RSUN/1000.0, RotModels[rotmodel].name,
+	     RSUN, RotModels[rotmodel].name,
 	     RotModels[rotmodel].descr);
     
     fprintf (stream,
 	     "#*****************************************************"
 	     "*************************\n"
-	     "#  Data units        : km, arcsec, deg\n"
-	     "# %21s %16s %10s %13s  %7s  %7s  %7s  %7s %10s %13s "
-	     "\n"
-	     ,
-	     "UTC", "JD", "vlos", "dist", "B0", "L0", "P", "R_sun",
-	     "vlos_sun", "dist_sun"
+	     "#  Data units        : km, km/s, rad\n"
+	     "#  Data fields       : "
+	     "1(date), 2(jd), 3(mjd), 4(P0), 5(L0), 6(B0),\n"
+	     "#    7(rsun_obs), 8(x), "
+	     "9(y), 10(lon), 11(lat), 12(rho), 13(mu), 14(dist),\n"
+	     "#    15(vlos), 16(dist_sun), 17(vlos_sun)\n"
+	     "#\n"
 	);
+	     
 }
 
 void print_ephtable_row (FILE *stream, soleph_t *eph)
@@ -764,44 +729,47 @@ void print_ephtable_row (FILE *stream, soleph_t *eph)
     SpiceChar utcstr[48];
     timout_c (eph->et, "YYYY-MM-DDTHR:MN:SC.### ::UTC", 48, utcstr);
     fprintf (stream,
-    	     "%s % 16.7f % 10.6f % 13.0f  % 7.3f  %7.3f  % 7.3f  "
-    	     "%7.3f % 10.4f %13.0f\n"
+    	     "%s % 16.7f % 10.6f "
     	     ,
-    	     utcstr, eph->jday, eph->vlos * 1000,
-    	     eph->dist, eph->B0, eph->L0cr, eph->P0,
-    	     eph->rsun_as, eph->vlos_sun, eph->dist_sun
+    	     utcstr, eph->jday, eph->mjd);
+    fprintf (stream, "% 14.12E % 14.12E % 14.12E % 14.12E % 14.12E % 14.12E "
+	     "% 14.12E % 14.12E % 14.12E % 14.12E % 14.12E % 14.12E "
+	     "% 14.12E %14.12E\n"
+	     ,
+	     eph->P0, eph->L0cr, eph->B0, eph->rsun_obs, eph->x, eph->y,
+	     eph->lon, eph->lat, eph->rho, eph->mu, eph->dist, eph->vlos,
+	     eph->dist_sun, eph->vlos_sun
     	);
 }
 
 void fancy_print_eph (FILE *stream, soleph_t *eph)
 {
     double lon, lat, alt;
-    station_geopos (eph->observer, eph->et, &lon, &lat, &alt);
 
+    station_geopos (eph->observer, eph->et, &lon, &lat, &alt);
     printf ("Solar ephemeris for %s\n"
-	    "  Observer location............  %s (%3.5f N, %3.5f E, %.0f m)\n"
-	    "  TDB ephemeris time...........  %.3f\n"
-	    "  UTC julian day...............  %f\n"
-	    "  Modified julian day..........  %f\n"
-	    "  Abberation correction........  %s\n"
-	    "  Sun Reference Radius......... % .0f m\n"
-	    "  Apparent Disk radius......... % .4f arcsec\n"
-	    "  Solar Position angle P....... % -.4f deg\n"
-	    "  Sub-obsrv. Latitude (B0)..... % -.4f deg\n"
-	    "  Sub-obsrv. Stonyhurst lon.... %  .4f deg\n"
-	    "  Sub-obsrv. Carrington lon.... % -.4f deg\n"
-	    "  Solar Barycenter distance....  %.1f m\n"
-	    "  Solar Barycenter v_los....... % -.3f m/s\n"
-	    "  Target Disk coordinates...... % -.3f, %.3f arcsec\n"
-	    "  Target Lola coordinates...... % -.3f, %.3f deg\n"
-	    "  Target Impact parameter......  %.1f m\n"
-	    "  Target mu....................  %.6f\n"
-	    "  Target distance..............  %.1f m\n"
-	    "  Target v_los................. % -.3f m/s\n"
-	    "  Solar Rotation Model ........  %s (%s)\n"
-	    "  Siderial rotation rate.......  %.5f murad/s\n"
+	    "  Observer location..........  %s (%3.5f N, %3.5f E, %.0f m)\n"
+	    "  TDB ephemeris time.........  %.3f\n"
+	    "  UTC julian day.............  %f\n"
+	    "  Modified julian day........  %f\n"
+	    "  Abberation correction......  %s\n"
+	    "  Sun Reference Radius....... % .0f m\n"
+	    "  Angular Disk radius........ % .4f arcsec\n"
+	    "  Solar Position angle P..... % -.4f deg\n"
+	    "  Sub-obsrv. Latitude (B0)... % -.4f deg\n"
+	    "  Sub-obsrv. Stonyhurst lon.. %  .9f deg\n"
+	    "  Sub-obsrv. Carrington lon.. % -.4f deg\n"
+	    "  Solar Barycenter distance..  %.0f m\n"
+	    "  Solar Barycenter v_los..... % -.3f m/s\n"
+	    "  Target Disk coordinates.... % -.5f, %.5f arcsec\n"
+	    "  Target Lola coordinates.... % -.5f, %.5f deg\n"
+	    "  Target Impact parameter....  %.0f m\n"
+	    "  Target mu..................  %.6f\n"
+	    "  Target distance............  %.0f m\n"
+	    "  Target v_los............... % -.3f m/s\n"
+	    "  Solar Rotation Model ......  %s (%s)\n"
+	    "  Siderial rotation rate.....  %.5f murad/s\n"
 	    ,
-	    
 	    eph->utcdate,
 	    eph->observer,
 	    lat * dpr_c(), lon * dpr_c(), alt * 1000.0,
@@ -809,16 +777,16 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	    eph->jday,
 	    eph->mjd,
 	    ABCORR,
-	    eph->rsun_ref,
-	    eph->rsun_as, /* adopt this to displayed number of digits */
-	    eph->P0,
-	    eph->B0,
-	    eph->L0hg,
-	    eph->L0cr,
+	    eph->rsun_ref * 1000,
+	    eph->rsun_obs * aspr(), /* adopt this to displayed number of digits */
+	    eph->P0 * dpr_c(),
+	    eph->B0 * dpr_c(),
+	    eph->L0hg * dpr_c(),
+	    eph->L0cr * dpr_c(),
 	    eph->dist_sun * 1000,
 	    eph->vlos_sun * 1000,
-	    eph->x, eph->y,
-	    eph->lon, eph->lat,
+	    eph->x * aspr(), eph->y * aspr(),
+	    eph->lon * dpr_c(), eph->lat * dpr_c(),
 	    eph->rho * 1000,
 	    eph->mu,
 	    eph->dist * 1000,
@@ -856,14 +824,14 @@ int handle_request (
     SpiceDouble stepsize = 60.0;
 
     if (argc < 4 || argc > 6) {
-	errmesg ("insufficent input data in request\n");
+	errmesg ("Insufficent input data in request\n");
 	return FAILURE;
     }
     
     str2et_c (argv[0], &et);
     
     if (FAILURE == parse_sunpos (argv[1], argv[2], argv[3], &position)) {
-	errmesg ("invalid coordinate specification\n");
+	errmesg ("Could not parse target coordinates\n");
 	return FAILURE;
     }
     if (argc == 6) {
@@ -874,7 +842,7 @@ int handle_request (
     for (int i = 0; i < nsteps; ++i) {
 	soleph_t eph;
 	if (SUCCESS != soleph (observer, et, position, &eph, rotmodel)) {
-	    errmesg ("could not compute ephemeris data\n");
+	    errmesg ("Could not compute ephemeris data\n");
 	    return FAILURE;
 	}
 	if (fancy) {
@@ -917,7 +885,7 @@ int mode_batch (
 	int argc = 0;
 	while ( (tp = wordsep (tp, argv[argc++])) != 0) {
 	    if (argc > 5) {
-		errmesg ("invalid request in input line %zu\n", lineno);
+		errmesg ("Invalid request in input line %zu\n", lineno);
 		return FAILURE;
 	    }
 	}
@@ -925,7 +893,7 @@ int mode_batch (
 	
 	if (SUCCESS != handle_request (observer, argc, argv,
 				       rotmodel, fancy, ostream)) {
-	    errmesg ("invalid request in input line %zu\n", lineno);
+	    errmesg ("Invalid request in input line %zu\n", lineno);
 	    return FAILURE;
 	}
 	lineno++;
@@ -936,161 +904,6 @@ int mode_batch (
     
     return SUCCESS;
 }
-
-int mode_fits (
-    SpiceChar *observer,
-    char *infile,
-    char *outdir,
-    sunpos_t position,
-    int rotmodel)
-{
-    char fitsfile2[MAXPATH+1];
-    char fitsfile3[MAXPATH+1];
-    char outfile[MAXPATH+1];
-    char *basenam = '\0', *basedir = '\0';
-    fitsfile *fptr, *fptrout;
-    int status = 0;
-    long naxes[3];
-    int nfound;
-    long nframes = 0;
-
-    /* write the ephemeris table in the same directory and basename as the
-     * input file but append '_ephem.fits' */
-    strncpy (fitsfile2, infile, MAXPATH); 
-    strncpy (fitsfile3, infile, MAXPATH); 
-    basenam = basename (fitsfile2);
-    char *lastp = rindex (basenam, '.'); /* remove file extension */
-    if (lastp) *lastp = '\0';
-
-    if (strcmp (outdir, "") == 0)
-	basedir = dirname (fitsfile3);
-    else
-	basedir = outdir;
-    if (strcmp (basedir, ".") == 0)
-	snprintf (outfile, MAXPATH, "%s_ephem.fits", basenam);
-    else
-	snprintf (outfile, MAXPATH, "%s/%s_ephem.fits", basedir, basenam);
-
-    printf ("reading  %s: ", infile);
-
-    fits_open_file (&fptr, infile, READONLY, &status);
-
-    /* check file compatibility */
-    /* read the NAXIS1, NAXIS2 and NAXIS2 keyword to get image size */
-    fits_read_keys_lng (fptr, "NAXIS", 1, 3, naxes, &nfound, &status);
-    if (status)
-    {
-        errmesg ("error reading fits header from %s: %s\n", infile);
-	fits_report_error (stderr, status);
-        fits_close_file (fptr, &status);
-        return FAILURE;
-    }
-    if (nfound == 3) {
-	printf ("%li frames\n", naxes[2]);
-	nframes = naxes[2];
-    }
-    else if (nfound == 2) {
-	printf ("1 frame\n");
-	nframes = 1;
-    }
-    else {
-	errmesg ("dimension=%i unsupported\n", nfound);
-	return FAILURE;
-    }
-
-    /* check if there should be a BCD header in the file; read DATE-OBS
-     * keyword as a backup */
-    bool haveBCDdate = false;
-    bool haveExptime = false;
-    char h_tsmode[81] = "na";
-    fits_read_key (fptr, TSTRING, "TSMODE", h_tsmode, 0, &status);
-    if (status == 202) status = 0; /* ignore unavailable keyword */
-    if (strstr (h_tsmode, "Binary")) haveBCDdate = true;
-    double h_exptime = -1;
-    fits_read_key (fptr, TDOUBLE, "EXPTIME", &h_exptime, 0, &status);
-    if (h_exptime != -1) haveExptime = true;
-    if (status == 202) status = 0; /* ignore unavailable keyword */
-
-    char h_dateobs[81] = "na";
-    double h_deltime;
-    if (! haveBCDdate)
-    {
-	fits_read_key (fptr, TSTRING, "DATE-OBS", h_dateobs, 0, &status);
-	fits_read_key (fptr, TDOUBLE, "DELTIME", &h_deltime, 0, &status);
-	if (status) {
-	    errmesg ("no time of exposure information found in "
-		     "fits file, aborting\n");
-	    fits_report_error (stderr, status);
-	    return FAILURE;
-	}
-	printf ("Warning: no binary timestamps found, using EXPTIME"
-		" + DELTIME (unreliable)\n");
-    }
-    
-    fits_create_file (&fptrout, outfile, &status);
-    fits_create_img (fptrout, BYTE_IMG, 0, 0, &status);
-    fits_write_date (fptrout,  &status);
-    write_fits_ephtable_header (fptrout, naxes[2], &status);
-    if (status)  {
-        errmesg ("couldn't write fitstable header", status);
-	fits_report_error (stderr, status);
-        fits_close_file (fptrout, &status);
-        return FAILURE;
-    }
-    
-    /* in case the file does not provide the BCD timestamps, we have to
-      extrapolate the time of exosure via T = DATE-OBS + i * (EXPTIME + DELTIME) */
-    SpiceDouble et;
-    if (! haveBCDdate) {
-	str2et_c (h_dateobs, &et); 
-	/* add half the exposure time here and increase by EXPTIME + DELTIME
-	 * in the frame loop below */
-	et += 0.5 * h_exptime / 1000.0;
-    }
-    
-    for (long i = 0; i < nframes; ++i)
-    {
-	soleph_t eph;
-	
-	if (haveBCDdate) {
-	    char utcstr[64];
-	    fitsframe_bcddate (fptr, i+1, naxes[1], utcstr, &status);
-	    if (status) break;
-	    str2et_c (utcstr, &et);
-	    /* add half the exposure time to get a mean time of exposure
-	     * assuming constant photon flux */
-	    et += 0.5 * h_exptime / 1000.0;
-	} else {
-	    et += (h_exptime + h_deltime) / 1000.0;
-	}
-
-	if (SUCCESS != soleph (observer, et, position, &eph, rotmodel)) {
-	    errmesg ("could not compute ephemeris data\n");
-	    fits_close_file (fptr, &status);
-	    fits_close_file (fptrout, &status);
-	    unlink (outfile);
-	    return FAILURE;
-	}
-
-	printf ("   frame %ld: %s  exptime: %.2fs  vlos: %.2f m/s\n",
-		i, eph.utcdate, h_exptime / 1000.0, eph.vlos * 1000); 
-	
-	write_fits_ephtable_row (fptrout, i+1, &eph, &status);
-	if (status) break;
-    }
-
-    printf ("writing %s\n", outfile);
-    fits_close_file (fptr, &status);
-    fits_close_file (fptrout, &status);
-    if (status) {
-        errmesg ("couldn't write fitstable.");
-	fits_report_error (stderr, status);
-        return FAILURE;
-    }
-
-    return SUCCESS;
-}
-
 
 int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 {
@@ -1168,7 +981,7 @@ int write_fits_ephtable_row (
     EPHTABLE_ADDCELL (TDOUBLE, &eph->P0);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->dist_sun);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos_sun);
-    EPHTABLE_ADDCELL (TDOUBLE, &eph->rsun_as);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->rsun_obs);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->rsun_ref);
     EPHTABLE_ADDCELL (TBYTE, eph->modelname);
     EPHTABLE_ADDCELL (TBYTE, eph->modeldescr);
@@ -1204,7 +1017,7 @@ int parse_sunpos (
     else if (strcasecmp (type, "muphi") == 0)
 	pos->type = muphi;
     else {
-	errmesg ("bad coordinate type: %s\n", type);
+	errmesg ("Unknown coordinate system: %s\n", type);
 	return FAILURE;
     }
 
@@ -1297,6 +1110,17 @@ int fitsframe_bcddate (
 SpiceDouble aspr(void)
 {
     return dpr_c() * 3600.0;
+}
+
+/* arcseconds per radian */
+SpiceDouble rpas(void)
+{
+    return 1.0 / 3600.0 * rpd_c();
+}
+
+SpiceDouble dpas(void)
+{
+    return 1.0 / 3600.0;
 }
 
 /* helper to dump a full state vector */

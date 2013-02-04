@@ -60,7 +60,7 @@ static const char _copyright[] = "2012, 2013 Hans-Peter Doerr";
 #endif
 
 /* solar photospheric radius from Brown and Dalsgaard (1998), APJ */
-SpiceDouble RSUN = 6.95508E8;
+SpiceDouble RSUN = 6.95508E5;
 SpiceChar ABCORR[8] = "None";
 
 typedef struct
@@ -76,8 +76,8 @@ typedef struct
 static const rotmodel_t RotModels[] =
 {
     {0.000,    0.000,  0.000, "fixed", "no rotation, fixed to J2000 frame"},
-    {2.851,    0.000,  0.000, "rigid", "rigid body rotation with 2.851 murad/s"},
-    {2.86532,  0.000,  0.000, "carrington", "rigid body rotation with Carrington rate"},
+    {2.851,    0.000,  0.000, "rigid", "rigid body rotation, 2.851 murad/s"},
+    {2.86532,  0.000,  0.000, "crgt", "rigid body rotation, Carrington rate"},
     {2.851,   -0.343, -0.474, "su90s", "Snodgrass & Ulrich (1990), spectroscopic"}, 
     {2.972,   -0.484, -0.361, "su90g", "Snodgrass & Ulrich (1990), supergranulation"},
     {2.879,   -0.339, -0.485, "su90m", "Snodgrass & Ulrich (1990), magnetic"},
@@ -86,7 +86,7 @@ static const rotmodel_t RotModels[] =
 };
 enum RotModel {fixed = 0,
 	       rigid,
-	       carrington,
+	       crgt,
 	       su90s,
 	       su90g,
 	       su90m,
@@ -106,48 +106,45 @@ enum PosType {lola = 0, xy = 1, muphi, loy = 2, xlat = 3};
 
 
 /* 
-   data structure to store epehemeris data of the target position on the
-   solar surface (t_) and the sun barycenter (s_) with respect to the
-   observer's position.
-
-   angles in degree, distances in kilometers, velocity in km/seconds
+   ephemeris data structure. angles in radian, distances in km, velocities
+   in km/s
 */
 typedef struct
 {
     /* common data; sun global parameters */
-    SpiceDouble et;             /* SPICE ephemeris time */
-    SpiceDouble jday;           /* julian day of the event                    */
-    SpiceDouble mjd;            /* modified julian day                        */
-    SpiceChar utcdate[MAXKEY];  /* ascii date in UTC                          */
-    SpiceChar observer[MAXKEY]; /* NAIF station name                          */
-    SpiceDouble B0;             /* lat of sub-observer point, lt corrected    */
-    SpiceDouble L0cr;           /* lon of sub-observer point, lt corrected    */
-    SpiceDouble L0hg;           /* lon of sub-observer point, lt corrected    */
-    SpiceDouble P0;             /* polar angle, lt corrected                  */
-    SpiceDouble dist_sun;       /* distance obs. to solar center              */
-    SpiceDouble vlos_sun;       /* radial velocity of obs to solar center     */
-    SpiceDouble rsun_ref;       /* reference radius of the sun in meter       */
-    SpiceDouble rsun_as;        /* apparent radius of the sun in arcsecs      */
-    int rotmodel;               /* solar rotation model used                  */
-    char modelname[MAXKEY];     /* name of the rotation model                 */
-    char modeldescr[MAXKEY];    /* description of the rotation model          */
+    SpiceDouble et;               /* SPICE ephemeris time                    */
+    SpiceDouble jday;             /* julian day of the event                 */
+    SpiceDouble mjd;              /* modified julian day                     */
+    SpiceChar utcdate[MAXKEY+1];  /* ascii date in UTC                       */
+    SpiceChar observer[MAXKEY+1]; /* NAIF station name                       */
+    SpiceDouble B0;               /* lat of sub-observer point               */
+    SpiceDouble L0cr;             /* carrington lon of sub-observer point    */
+    SpiceDouble L0hg;             /* stonyhurst lon of sub-observer point    */
+    SpiceDouble P0;               /* Position angle of solar north           */
+    SpiceDouble dist_sun;         /* distance obs. to solar center           */
+    SpiceDouble vlos_sun;         /* radial velocity of obs to solar center  */
+    SpiceDouble rsun_ref;         /* reference radius of the sun             */
+    SpiceDouble rsun_obs;         /* apparent angular radius of the disk     */
+    int rotmodel;                 /* solar rotation model used               */
+    char modelname[MAXKEY+1];     /* name of the rotation model              */
+    char modeldescr[MAXKEY+1];    /* description of the rotation model       */
     								         
     /* target position parameters */				         
-    SpiceDouble lon;            /* stonyhurst target longitude (deg)          */
-    SpiceDouble lat;            /* stonyhurst target latitude  (deg)          */
-    SpiceDouble x;              /* target x coordinate in as from disk center */
-    SpiceDouble y;              /* target y coordinate in as from disk center */
-    SpiceDouble mu;             /* heliocentric parameter of the target       */
-    SpiceDouble dist;           /* distance to target                         */
-    SpiceDouble vlos;           /* radial velocity of target                  */
-    SpiceDouble rho;            /* heliocentric impact parameter              */
-    SpiceDouble omega;          /* actually used omega value (murad/s)        */
+    SpiceDouble lon;              /* stonyhurst target longitude (deg)       */
+    SpiceDouble lat;              /* stonyhurst target latitude  (deg)       */
+    SpiceDouble x;                /* helio-projective x coordinate           */
+    SpiceDouble y;                /* helio-projective y coordinate           */
+    SpiceDouble mu;               /* heliocentric parameter of the target    */
+    SpiceDouble dist;             /* distance to target                      */
+    SpiceDouble vlos;             /* radial velocity of target               */
+    SpiceDouble rho;              /* heliocentric impact parameter           */
+    SpiceDouble omega;            /* angular velocity at target latitude     */
 
     /* observer, target state vectors */
     SpiceDouble state_obs[6];
     SpiceDouble state_sun[6];
+    SpiceDouble state_rel[6];
 } soleph_t;
-
 
 void usage (FILE *stream);
 
@@ -157,20 +154,6 @@ int soleph (
     sunpos_t position, 
     soleph_t *eph,
     int rotModel);
-
-int relstate_observer_sun (
-    SpiceChar *station,
-    SpiceDouble et,
-    soleph_t *eph,
-    SpiceDouble *state);
-
-int relstate_sun_target (
-    SpiceChar *station,
-    SpiceDouble et,
-    sunpos_t position,
-    int rotmodel,
-    soleph_t *eph,
-    SpiceDouble *state_stt);
 
 int mode_plain (
     SpiceChar *observer, /* NAIF body name/code of the observer     */ 
@@ -206,14 +189,11 @@ int write_fits_ephtable_row (
     long row,
     soleph_t *eph,
     int *status);
-int fitsframe_bcddate (
-    fitsfile *fptr,
-    long frameidx,
-    long ny,
-    char *utcstr,
-    int *status);
 
 SpiceDouble aspr(void);
+SpiceDouble dpas(void);
+SpiceDouble rpas(void);
+
 void printstate (SpiceDouble *s);
 void printvec (SpiceDouble *s);
 char* wordsep (char *str, char *token);
@@ -231,6 +211,54 @@ int handle_request (
     bool fancy,
     FILE *ostream);
 
+void getstate_body (
+    SpiceChar *body,
+    SpiceDouble et,
+    SpiceDouble *state);
+
+int getstate_observer (
+    SpiceChar *body,
+    SpiceDouble et,
+    SpiceDouble lon,
+    SpiceDouble lat,
+    SpiceDouble alt,
+    SpiceDouble *state,
+    SpiceDouble *bodystate
+    );
+
+int getstate_solar_target (
+    SpiceDouble et,
+    SpiceDouble lon,
+    SpiceDouble lat,
+    SpiceDouble omegas,
+    SpiceDouble *tstate,
+    SpiceDouble *cstate);
+
+void get_pointing (
+    SpiceDouble et,
+    SpiceDouble *relstate_sun,
+    SpiceDouble *relstate_tgt,
+    SpiceDouble *x,
+    SpiceDouble *y);
+
+int getstate_pointing (
+    SpiceChar *body,        /* target body name */
+    SpiceDouble et,
+    SpiceDouble x,           /* pointing angle from disk center */
+    SpiceDouble y,           /* pointing angle from disk center */
+    SpiceDouble *state_obs,  /* observer inertial state */
+    SpiceDouble *state_tgt,
+    SpiceBoolean *onbody);
+
+void pointing2lola (
+    SpiceDouble *state_sun,
+    SpiceDouble et,
+    SpiceDouble x,           /* pointing angle from disk center */
+    SpiceDouble y,           /* pointing angle from disk center */
+    SpiceDouble *state_obs,  /* observer inertial state */
+    SpiceDouble *lon,
+    SpiceDouble *lat,
+    SpiceBoolean *onbody);
 
 
 #endif /* _SOLARV_H_ */
