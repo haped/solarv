@@ -36,6 +36,7 @@ all: solarv solarv.tm
 install: solarv solarv.tm
 	install -D -m 0644 solarv.tm $(KERNEL_PATH)/solarv.tm
 	install -D -m 0644 stations.bsp $(KERNEL_PATH)/stations.bsp
+	install -D -m 0644 stations.tf $(KERNEL_PATH)/stations.tf
 	install -D -m 0644 earth_itrf.tf $(KERNEL_PATH)/earth_itrf.tf
 	install -D -m 0644 earth_fixed.tf $(KERNEL_PATH)/earth_fixed.tf
 	install -D solarv $(BINARY_PATH)/solarv
