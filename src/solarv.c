@@ -185,14 +185,25 @@ int getstate_solar_target (
     SpiceDouble omegav[] = {0.0, 0.0, omegas};
     vcrss_c (omegav, radius, &diffrot[3]);
 
+    /* transform relative state and the differential rotation component to
+     * the inertial state. this procedure is a bit nasty, since HEEQ is not
+     * an inertial state such that velocity is not preserved in the
+     * transform. since the velocity of the target must be the same as that
+     * of the sun center in the interital system (without rotation), we just
+     * set it to zero. the velocity of the diffrot vector is preserved, as
+     * it's spatial coordinates are zero.
+    */
     SpiceDouble xform[6][6];
     sxform_c ("HEEQ", "J2000", et, xform);
     mxvg_c (xform, relstate, 6, 6, relstatei);
     mxvg_c (xform, diffrot, 6, 6, diffroti);
 
+    /* make sure the velocity of the inertial relstate is zero */
+    relstatei[3] = relstatei[4] = relstatei[5] = 0.0;
+
     /* get inertial state, add contribution from diff. rotation */
     vaddg_c (sunstate, relstatei, 6, tgtstate);
-    vadd_c (tgtstate+3, diffroti+3, tgtstate+3);
+    vaddg_c (tgtstate, diffroti, 6, tgtstate);
 
     return SUCCESS;
 }
@@ -804,6 +815,9 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		 alt * 1000.0, frname);
     else
 	fprintf (stream, "  Observer location..........  %s\n", eph->observer);
+    
+    SpiceDouble dist_au;
+    convrt_c(eph->dist_sun, "KM", "AU", &dist_au);
     fprintf (stream, 
 	     "  UTC julian day.............  %f\n"
 	     "  Modified julian day........  %f\n"
@@ -815,7 +829,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     "  Sub-obsrv. Stonyhurst lat.. % -.4f deg\n"
 	     "  Sub-obsrv. Stonyhurst lon.. %  .4f deg\n"
 	     "  Sub-obsrv. Carrington lon.. % -.4f deg\n"
-	     "  Solar center distance......  %.0f m\n"
+	     "  Solar center distance......  %.0f m (%.9f AE)\n"
 	     "  Solar center v_los......... % -.2f m/s\n"
 	     "  Target HPC x, y............ % -.4f, %.5f arcsec\n"
 	     "  Target Stonyh. HG lon, lat. % -.4f, %.5f deg\n"
@@ -835,6 +849,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     eph->L0hg * dpr_c(),
 	     eph->L0cr * dpr_c(),
 	     eph->dist_sun * 1000,
+	     dist_au,
 	     eph->vlos_sun * 1000,
 	     eph->x * aspr(), eph->y * aspr(),
 	     eph->lon * dpr_c(), eph->lat * dpr_c(),
@@ -1172,16 +1187,18 @@ SpiceDouble dpas(void)
 /* helper to dump a full state vector */
 void printstate (SpiceDouble *s)
 {
-    printf ("x=(%g, %g, %g), v=(%g, %g, %g), |x|=%g\n",
+    printf ("[% .6E, % .6E, % .6E, % .6E, % .6E, % .6E], absr=%.6E, absv=%.6E\n",
 	    s[0], s[1], s[2],
 	    s[3], s[4], s[5],
-	    sqrt (s[0]*s[0] + s[1]*s[1] + s[2]*s[2]));
+	    sqrt (s[0]*s[0] + s[1]*s[1] + s[2]*s[2]),
+	    sqrt (s[3]*s[3] + s[4]*s[4] + s[5]*s[5]));
+    
 }
 
 /* helper to dump a vector */
 void printvec (SpiceDouble *s)
 {
-    printf ("x=[%.9g, %.9g, %.9g]\n", s[0], s[1], s[2]);
+    printf ("[% .6E, % .6E, % .6E]\n", s[0], s[1], s[2]);
 }
 
 /* word tokenizer to separate words at whitespace boundaries. substrings
