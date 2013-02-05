@@ -40,58 +40,66 @@
 
 void usage (FILE *stream)
 {
-    printf ("%s v%s (%s) -- Compute precise Sun-Observer radial velocity\n"
-	    "\n"
-	    "Usage:\n"
-	    "  solarv [options] [request | file]\n"
-	    "\n"
-            "Request specification:\n"
-            "  <timespec> <xy|lola|muphi> <cord1> <cord2> [<nsteps> <tstep>]\n"
-            "\n"
-            "The request is either read from the commandline, from 'file' "
-	    "or from STDIN if no arguments are given. The position can be "
-	    "specified in helio-projective cartesian coordinates as "
-	    "arcseconds from disk center (xy), Stonyhurst heliographic "
-	    "coordinates in degree longitude and latitude (lola) or in a "
-	    "polar coordinate system with the heliocentric parameter mu "
-	    "and a position angle phi, counter-clockwise from solar north "
-	    "(muphi). The 'timespec' parameter understands the common time "
-	    "strings like '2010-01-01 12:00:00 EST'. If no time zone is "
-	    "given, UTC is assumed. I highly recommend to use the ISO 8601 "
-	    "standard, e.g. '2012-01-01T00:00:00'. The optional 'nsteps' "
-	    "and 'tstep' (in minutes) arguments can be used to compute a "
-	    "set of values in a given time interval."
-	    "\n\n"
-	    "Options:\n"
-	    "  -h            show this help\n"
-	    "  -m model      set solar rotation model 'model' [fixed]\n"
-	    "                use 'list' to list available models\n"
-	    "  -t            use the ITRF93 precision earth rotation kernel\n"
-	    "                Note: this kernel has a limited time coverage and needs\n"
-	    "                to be updated regularily\n"
-	    "  -O observer   set observer position. Can be any NAIF body code.\n"
-	    "                pre-defined sites: 'VTT', 'SCHAUINSLAND', 'SST',\n"
-	    "                'DST', 'MCMATH'\n"
-	    "  -p            pretty-print ephemeris data\n"
-	    "  -v            print program version\n"
-	    "  -k kernel     load additional SPICE kernel 'kernel'\n"
-	    "                this kernel will be loaded last in kernel pool\n"
-	    "  -K kernel     load 'kernel' instead of the default meta kernel\n"
-	    "  -R radius     specifiy a different solar radius in meters\n"
-	    "\n"
-	    "Examples:\n"
-	    "\n"
-	    "Compute radial velocity at disk center, assuming a "
-	    "carrington rotation model, pretty-print output:\n"
-	    "  solarv -m carrington -p 2012-01-01T12:00:00 xy 0 0"
-	    "\n\n"
-	    "Compute radial velocity at the western limb using Snodgrass "
-	    "& Ulrich (1990) spectroscopy rotation model for one year "
-	    "with one sample per day:\n"
-	    "  solarv -m su90s 2012-01-01T12:00:00.0 muphi 0.0 90 365 1440\n"
-	    "\n"
-	    ,
-	    _name, _version, _versiondate
+    fprintf (stream, 
+	     "%s v%s (%s) -- Compute precise Sun-Observer radial velocity\n"
+	     "\n"
+	     "Usage:\n"
+	     "  solarv [options] [request | file]\n"
+	     "\n"
+	     "Request specification:\n"
+	     "  <timespec> <shg|hpc|hcr> <cord1> <cord2> [<nsteps> <tstep>]\n"
+	     "\n"
+	     "The request is either read from the commandline, from 'file' "
+	     "or from STDIN if no\n"
+	     "arguments are given. The position can be specified in "
+	     "helio-projective cartesian\n"
+	     "(hpc) coordinates in arcseconds from disk center, Stonyhurst "
+	     "heliographic (shg) \n"
+	     "coordinates in degree longitude and latitude or in helio-centric "
+	     "radial (hcr)\n"
+	     "coordinates given in cos(theta) from disk center and an angle "
+	     "phi counter-\n"
+	     "clockwise from heliographic north. The 'timespec' parameter "
+	     "understands common\n"
+	     "time strings like '2010-01-01 12:00:00 EST'. If no time zone is "
+	     "given, UTC is\n"
+	     "assumed. I highly recommend to use the ISO 8601 standard, "
+	     "e.g.\n"
+	     "'2012-01-01T00:00:00'. The optional 'nsteps' "
+	     "and 'tstep' (in minutes) arguments\n"
+	     "can be used to compute a set of values in a given time interval."
+	     "\n\n"
+	     "Options:\n"
+	     "  -h            show this help\n"
+	     "  -m model      set solar rotation model 'model' [fixed]\n"
+	     "                use 'list' to list available models\n"
+	     "  -t            use the ITRF93 precision earth rotation kernel\n"
+	     "                Note: this kernel has a limited time coverage and needs\n"
+	     "                to be updated regularily\n"
+	     "  -O observer   set observer position. Can be any NAIF body code.\n"
+	     "                pre-defined sites: 'VTT', 'SCHAUINSLAND', 'SST',\n"
+	     "                'DST', 'MCMATH'\n"
+	     "  -p            pretty-print ephemeris data\n"
+	     "  -v            print program version\n"
+	     "  -k kernel     load additional SPICE kernel 'kernel'\n"
+	     "                this kernel will be loaded last in kernel pool\n"
+	     "  -K kernel     load 'kernel' instead of the default meta kernel\n"
+	     "  -R radius     specifiy a different solar radius in meters\n"
+	     "\n"
+	     "Examples:\n"
+	     "\n"
+	     "Compute radial velocity at disk center, with no solar rotation. "
+	     "Use the the high\n"
+	     "precision ITRF93 earth rotation model, pretty-print output:\n"
+	     "  solarv -t -p 2012-06-21T12:00:00 hpc 0 0"
+	     "\n\n"
+	     "Compute radial velocity at the eastern limb using Snodgrass "
+	     "& Ulrich (1990) spectroscopy rotation model for one year "
+	     "with one sample per day:\n"
+	     "  solarv -m su90s 2012-01-01T00:00:00.0 hcr 0.0 90 365 1440\n"
+	     "\n"
+	     ,
+	     _name, _version, _versiondate
 	);
 }
 
@@ -165,22 +173,26 @@ int getstate_solar_target (
     SpiceDouble *sunstate,  /* in: inertial state of sun barycenter */
     SpiceDouble *tgtstate)  /* out: intertial state of target */
 {
-    SpiceDouble relstate[6], relstatei[6];
-    
-    /* state of target relative to solar center in j2000; sublon is the
-     * stonyhurst longitude. by usng the HEEQ frame, we do not need the
-     * sub-observer latitude, because HEEQ has is x-axis in the sub-
-     * observer point*/
+    SpiceDouble	relstate[6] = {0};
+    SpiceDouble relstatei[6] = {0};
+    SpiceDouble diffrot[6] = {0};
+    SpiceDouble diffroti[6] = {0};
+
     latrec_c (RSUN, lon, lat, relstate);
-    SpiceDouble xform[6][6];
-    sxform_c ("HEEQ", "J2000", et, xform);
-    mxvg_c (xform, relstate, 6, 6, relstatei);
     
     /* compute state velocity from given omega */
     SpiceDouble radius[] = {relstate[0], relstate[1], 0.0};
     SpiceDouble omegav[] = {0.0, 0.0, omegas};
-    vcrss_c (omegav, radius, &relstatei[3]);
+    vcrss_c (omegav, radius, &diffrot[3]);
+
+    SpiceDouble xform[6][6];
+    sxform_c ("HEEQ", "J2000", et, xform);
+    mxvg_c (xform, relstate, 6, 6, relstatei);
+    mxvg_c (xform, diffrot, 6, 6, diffroti);
+
+    /* get inertial state, add contribution from diff. rotation */
     vaddg_c (sunstate, relstatei, 6, tgtstate);
+    vadd_c (tgtstate+3, diffroti+3, tgtstate+3);
 
     return SUCCESS;
 }
@@ -234,8 +246,6 @@ int getstate_observer (
 
     return SUCCESS;
 }
-
-
 
 /* get J2000 inertial state of a body */
 void getstate_body (
@@ -370,10 +380,16 @@ int main (int argc, char **argv)
 				    rotmodel, fancy, stdout);
     }
     
-    unload_c (KERNEL_PATH "/" METAKERNEL);
+    unload_c (metakernel);
     if (strcmp (addkernel, "na") != 0)
 	unload_c (addkernel);
-	
+    if (earth_itrf93) {
+	unload_c (KERNEL_PATH "/earth_assoc_itrf93.tf");
+	unload_c (KERNEL_PATH "/earth_itrf.tf");
+    } else {
+	unload_c (KERNEL_PATH "/earth_fixed.tf");
+    }
+    
     if (FAILURE == errorcode) {
 	fprintf (stderr, "Aborting, please check input!\n");
 	return EXIT_FAILURE;
@@ -390,12 +406,12 @@ int anypos2lola (
     SpiceDouble *lon,
     SpiceDouble *lat)
 {
-    if (pos.type == lola)
+    if (pos.type == cord_shg)
     {
 	*lon = pos.x * rpd_c();
 	*lat = pos.y * rpd_c();
     }
-    else if (pos.type == xy)
+    else if (pos.type == cord_hpc)
     {
 	SpiceDouble xp = pos.x * rpas();
 	SpiceDouble yp = pos.y * rpas();
@@ -407,7 +423,7 @@ int anypos2lola (
 	    return FAILURE;
 	}
     }
-    else if (pos.type == muphi)
+    else if (pos.type == cord_hcr)
     {
 	if (pos.x < 0.0  || pos.x > 1.0) {
 	    errmesg ("Value of mu not in range [0,1]\n");
@@ -513,8 +529,8 @@ int soleph (
     strncpy (eph->modeldescr, RotModels[rotmodel].descr, MAXKEY);
 
     /* TODO: handle light-time correction */
-    getstate_solar_target (et, eph->lon, eph->lat,
-			   omegas, state_sun, state_tgt);
+    getstate_solar_target
+	(et, eph->lon, eph->lat, omegas, state_sun, state_tgt);
     relstate (state_obs, state_tgt, relstate_tgt,
 	      los_tgt, &eph->dist, &eph->vlos, &lt_tgt);
     get_pointing (et, relstate_sun, relstate_tgt, &eph->x, &eph->y);
@@ -542,8 +558,6 @@ int soleph (
     pxform_c ("EARTH_FIXED", "OBSCRTN", et, xform);
     mxv_c (xform, e, sol);
     eph->P0 = atan2 (sol[1], sol[2]);
-
-    
 
     return SUCCESS;
 }
@@ -693,7 +707,9 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	0 != strcasecmp (observer, "SST") &&
 	0 != strcasecmp (observer, "SCHAUINSLAND") &&
 	0 != strcasecmp (observer, "DST") &&
-	0 != strcasecmp (observer, "MCMATH")) {
+	0 != strcasecmp (observer, "MCMATH") &&
+	0 != strcasecmp (observer, "BIGBEAR")
+	) {
 	onEarth = false;
     }
 
@@ -759,54 +775,73 @@ void print_ephtable_row (FILE *stream, soleph_t *eph)
 void fancy_print_eph (FILE *stream, soleph_t *eph)
 {
     double lon, lat, alt;
-
     station_geopos (eph->observer, eph->et, &lon, &lat, &alt);
-    printf ("Solar ephemeris for %s\n"
-	    "  Observer location..........  %s (%3.5f N, %3.5f E, %.0f m)\n"
-	    "  TDB ephemeris time.........  %.3f\n"
-	    "  UTC julian day.............  %f\n"
-	    "  Modified julian day........  %f\n"
-	    "  Abberation correction......  %s\n"
-	    "  Sun Reference Radius....... % .0f m\n"
-	    "  Angular Disk radius........ % .4f arcsec\n"
-	    "  Solar Position angle P..... % -.4f deg\n"
-	    "  Sub-obsrv. Latitude (B0)... % -.4f deg\n"
-	    "  Sub-obsrv. Stonyhurst lon.. %  .9f deg\n"
-	    "  Sub-obsrv. Carrington lon.. % -.4f deg\n"
-	    "  Solar Barycenter distance..  %.0f m\n"
-	    "  Solar Barycenter v_los..... % -.3f m/s\n"
-	    "  Target Disk coordinates.... % -.5f, %.5f arcsec\n"
-	    "  Target Lola coordinates.... % -.5f, %.5f deg\n"
-	    "  Target Impact parameter....  %.0f m\n"
-	    "  Target mu..................  %.6f\n"
-	    "  Target distance............  %.0f m\n"
-	    "  Target v_los............... % -.3f m/s\n"
-	    "  Solar Rotation Model ......  %s (%s)\n"
-	    "  Siderial rotation rate.....  %.5f murad/s\n"
-	    ,
-	    eph->utcdate,
-	    eph->observer,
-	    lat * dpr_c(), lon * dpr_c(), alt * 1000.0,
-	    eph->et,
-	    eph->jday,
-	    eph->mjd,
-	    ABCORR,
-	    eph->rsun_ref * 1000,
-	    eph->rsun_obs * aspr(), /* adopt this to displayed number of digits */
-	    eph->P0 * dpr_c(),
-	    eph->B0 * dpr_c(),
-	    eph->L0hg * dpr_c(),
-	    eph->L0cr * dpr_c(),
-	    eph->dist_sun * 1000,
-	    eph->vlos_sun * 1000,
-	    eph->x * aspr(), eph->y * aspr(),
-	    eph->lon * dpr_c(), eph->lat * dpr_c(),
-	    eph->rho * 1000,
-	    eph->mu,
-	    eph->dist * 1000,
-	    eph->vlos * 1000,
-	    eph->modelname, eph->modeldescr,
-	    eph->omega
+    bool onEarth = true;
+    if (0 != strcasecmp (eph->observer, "VTT") &&
+	0 != strcasecmp (eph->observer, "SST") &&
+	0 != strcasecmp (eph->observer, "SCHAUINSLAND") &&
+	0 != strcasecmp (eph->observer, "DST") &&
+	0 != strcasecmp (eph->observer, "MCMATH") &&
+	0 != strcasecmp (eph->observer, "BIGBEAR")
+	) {
+	onEarth = false;
+    }
+    SpiceInt frcode;
+    SpiceBoolean found;
+    SpiceChar frname[MAXKEY+1];
+    if (onEarth)
+	cnmfrm_c ("EARTH", MAXKEY, &frcode, frname, &found);
+    else
+	cnmfrm_c (eph->observer, MAXKEY, &frcode, frname, &found);
+
+    printf ("Solar ephemeris for %s\n", eph->utcdate);
+    if (onEarth)
+	fprintf (stream,
+		 "  Observer location..........  %s "
+		 "(%3.5f N, %3.5f E, %.0f m)\n"
+		 "  Terrestr. Reference Frame..  %s\n",
+		 eph->observer, lat * dpr_c(), lon * dpr_c(),
+		 alt * 1000.0, frname);
+    else
+	fprintf (stream, "  Observer location..........  %s\n", eph->observer);
+    fprintf (stream, 
+	     "  UTC julian day.............  %f\n"
+	     "  Modified julian day........  %f\n"
+	     "  Sun Reference Radius....... % .0f m\n"
+	     "  Apparent angular radius.... % .4f arcsec\n"
+	     "  Rotation Model ............  %s (%s)\n"
+	     "  Siderial rotation rate.....  %.4f murad/s\n"
+	     "  Position angle P........... % -.4f deg\n"
+	     "  Sub-obsrv. Stonyhurst lat.. % -.4f deg\n"
+	     "  Sub-obsrv. Stonyhurst lon.. %  .4f deg\n"
+	     "  Sub-obsrv. Carrington lon.. % -.4f deg\n"
+	     "  Solar center distance......  %.0f m\n"
+	     "  Solar center v_los......... % -.2f m/s\n"
+	     "  Target HPC x, y............ % -.4f, %.5f arcsec\n"
+	     "  Target Stonyh. HG lon, lat. % -.4f, %.5f deg\n"
+	     "  Target impact parameter....  %.0f m\n"
+	     "  Target mu.................. % .4f\n"
+	     "  Target distance............  %.0f m\n"
+	     "  Target v_los............... % -.2f m/s\n"
+	     ,
+	     eph->jday,
+	     eph->mjd,
+	     eph->rsun_ref * 1000,
+	     eph->rsun_obs * aspr(),
+	     eph->modelname, eph->modeldescr,
+	     eph->omega,
+	     eph->P0 * dpr_c(),
+	     eph->B0 * dpr_c(),
+	     eph->L0hg * dpr_c(),
+	     eph->L0cr * dpr_c(),
+	     eph->dist_sun * 1000,
+	     eph->vlos_sun * 1000,
+	     eph->x * aspr(), eph->y * aspr(),
+	     eph->lon * dpr_c(), eph->lat * dpr_c(),
+	     eph->rho * 1000,
+	     eph->mu,
+	     eph->dist * 1000,
+	     eph->vlos * 1000
 	);
 }
 
@@ -815,7 +850,7 @@ void list_rotation_models (FILE *stream)
 {
     fprintf (stream, "name        A       B       C       description\n");
     fprintf (stream, "--------------------------------"
-	    "--------------------------------\n");
+	    "------------------------------------------------\n");
     for (int i = 0; i < RotModel_END; ++i) {
 	fprintf (stream, "%-10s % 6.4f % 6.4f % 6.4f  %s\n",
 		 RotModels[i].name,
@@ -1024,12 +1059,9 @@ int parse_sunpos (
     const char *posy,
     sunpos_t *pos)
 {
-    if (strcasecmp (type, "lola") == 0)
-	pos->type = lola;
-    else if (strcasecmp (type, "xy") == 0)
-	pos->type = xy;
-    else if (strcasecmp (type, "muphi") == 0)
-	pos->type = muphi;
+    if (strcasecmp (type, "shg") == 0)      pos->type = cord_shg;
+    else if (strcasecmp (type, "hpc") == 0) pos->type = cord_hpc;
+    else if (strcasecmp (type, "hcr") == 0) pos->type = cord_hcr;
     else {
 	errmesg ("Unknown coordinate system: %s\n", type);
 	return FAILURE;

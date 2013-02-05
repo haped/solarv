@@ -79,9 +79,9 @@ static const rotmodel_t RotModels[] =
     {2.851,    0.000,  0.000, "rigid", "rigid body rotation, 2.851 murad/s"},
     {2.86532,  0.000,  0.000, "crgt", "rigid body rotation, Carrington rate"},
     {2.851,   -0.343, -0.474, "su90s", "Snodgrass & Ulrich (1990), spectroscopic"}, 
-    {2.972,   -0.484, -0.361, "su90g", "Snodgrass & Ulrich (1990), supergranulation"},
+    {2.972,   -0.484, -0.361, "su90g", "Snodgrass & Ulrich (1990), supergranul."},
     {2.879,   -0.339, -0.485, "su90m", "Snodgrass & Ulrich (1990), magnetic"},
-    {2.836,   -0.344, -0.504, "s84s", "Snodgrass (1984), spectroscopic MWO data"},
+    {2.836,   -0.344, -0.504, "s84s", "Snodgrass (1984), spectrosc. MWO data"},
     {0.000,    0.000,  0.000, "custom", "custom selected A, B, C coefficients"}
 };
 enum RotModel {fixed = 0,
@@ -102,7 +102,12 @@ typedef struct
     SpiceDouble y;
     int type;
 } sunpos_t;
-enum PosType {lola = 0, xy = 1, muphi, loy = 2, xlat = 3};
+
+enum PosType {
+    cord_shg = 0,  /* Stonyhurst heliographic     */
+    cord_hpc,      /* helio-projective cartesian  */
+    cord_hcr       /* helio-centric radial        */
+};
 
 
 /* 
