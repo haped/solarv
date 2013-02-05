@@ -14,6 +14,7 @@ KPL/MK
 	PATH_SYMBOLS = ('SYSKERN')
 
 	KERNELS_TO_LOAD = (
+                        '$SYSKERN/earth_720101_070527.bpc',
                         '$SYSKERN/earth_latest_high_prec.bpc', 
 			'$SYSKERN/pck00010.tpc',
 			'$SYSKERN/naif0010.tls',

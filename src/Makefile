@@ -37,7 +37,7 @@ install: solarv solarv.tm
 	install -D -m 0644 solarv.tm $(KERNEL_PATH)/solarv.tm
 	install -D -m 0644 stations.bsp $(KERNEL_PATH)/stations.bsp
 	install -D -m 0644 stations.tf $(KERNEL_PATH)/stations.tf
-	install -D -m 0644 earth_itrf.tf $(KERNEL_PATH)/earth_itrf.tf
+	install -D -m 0644 earth_fixed_itrf93.tf $(KERNEL_PATH)/earth_fixed_itrf93.tf
 	install -D -m 0644 earth_fixed.tf $(KERNEL_PATH)/earth_fixed.tf
 	install -D -m 0644 heliospheric.tf $(KERNEL_PATH)/heliospheric.tf
 	install -D solarv $(BINARY_PATH)/solarv
@@ -68,6 +68,7 @@ solarv.tm: solarv.tm.in Makefile
 
 
 stations.bsp: stations.defs
+	rm -f stations.bsp
 	$(PINPOINT) -def stations.defs \
 	-pck $(KERNEL_PATH)/pck00010.tpc \
 	-spk stations.bsp
