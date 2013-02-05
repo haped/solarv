@@ -24,10 +24,10 @@
 #ifndef _SOLARV_H_
 #define _SOLARV_H_
 
-static const char _name[] = "SolaRV";
+static const char _name[] = "Solarv";
 static const char _author[] = "Hans-Peter Doerr";
 static const char _version[] = "0.3.0a";
-static const char _versiondate[] = "Jan 2013";
+static const char _versiondate[] = "Feb 2013";
 static const char _copyright[] = "2012, 2013 Hans-Peter Doerr";
 
 #include "SpiceUsr.h"
@@ -59,7 +59,7 @@ static const char _copyright[] = "2012, 2013 Hans-Peter Doerr";
 #define FAILURE (0)
 #endif
 
-/* solar photospheric radius from Brown and Dalsgaard (1998), APJ */
+/* solar photospheric radius in km from Brown and Dalsgaard (1998), APJ */
 SpiceDouble RSUN = 6.95508E5;
 SpiceChar ABCORR[8] = "None";
 
@@ -94,7 +94,6 @@ enum RotModel {fixed = 0,
 	       RotModel_END,
 	       custom /* this one can not be selcted */
 };
-
 
 typedef struct
 {
@@ -135,10 +134,10 @@ typedef struct
     char modeldescr[MAXKEY+1];    /* description of the rotation model       */
     								         
     /* target position parameters */				         
-    SpiceDouble lon;              /* stonyhurst target longitude (deg)       */
-    SpiceDouble lat;              /* stonyhurst target latitude  (deg)       */
-    SpiceDouble x;                /* helio-projective x coordinate           */
-    SpiceDouble y;                /* helio-projective y coordinate           */
+    SpiceDouble lon;              /* stonyhurst target longitude             */
+    SpiceDouble lat;              /* stonyhurst target latitude              */
+    SpiceDouble x;                /* helio-projective cartesian x            */
+    SpiceDouble y;                /* helio-projective cartesian y            */
     SpiceDouble mu;               /* heliocentric parameter of the target    */
     SpiceDouble dist;             /* distance to target                      */
     SpiceDouble vlos;             /* radial velocity of target               */

@@ -185,7 +185,8 @@ int getstate_solar_target (
     SpiceDouble omegav[] = {0.0, 0.0, omegas};
     vcrss_c (omegav, radius, &diffrot[3]);
 
-    /* transform relative state and the differential rotation component to
+    /* 
+     * transform relative state and the differential rotation component to
      * the inertial state. this procedure is a bit nasty, since HEEQ is not
      * an inertial state such that velocity is not preserved in the
      * transform. since the velocity of the target must be the same as that
@@ -289,9 +290,9 @@ int main (int argc, char **argv)
 {   
     FILE *batchstream = stdin;
     bool batchmode = false;
-    char addkernel[MAXPATH + 1] = "na";
-    char metakernel[MAXPATH + 1] = "na";
-    char observer[MAXKEY + 1] = "VTT";
+    char addkernel[MAXPATH+1] = "na";
+    char metakernel[MAXPATH+1] = "na";
+    char observer[MAXKEY+1] = "VTT";
     bool fancy = false;
     int rotmodel = fixed;
     bool earth_itrf93 = false;
@@ -365,7 +366,7 @@ int main (int argc, char **argv)
 	/* we only handle the -t flag, if we load the default meta kernel */
 	if (earth_itrf93) {
 	    furnsh_c (KERNEL_PATH "/earth_assoc_itrf93.tf");
-	    furnsh_c (KERNEL_PATH "/earth_itrf.tf");
+	    furnsh_c (KERNEL_PATH "/earth_fixed_itrf93.tf");
 	} else {
 	    furnsh_c (KERNEL_PATH "/earth_fixed.tf");
 	}
@@ -488,7 +489,7 @@ int soleph (
     strncpy (eph->observer, observer, MAXKEY);
     /* we make heavy use of the observer-centric radial tangential normal
      * frame which is referenced to the observer station */
-    pcpool_c ( "FRAME_1803430_PRI_TARGET", 1, strlen (observer)-1,  observer);
+    pcpool_c ("FRAME_1803430_PRI_TARGET", 1, strlen (observer)-1,  observer);
 
     /* remember julian date and ascii utc string of the event */
     SpiceDouble deltaT;
@@ -511,6 +512,16 @@ int soleph (
     	      ABCORR, observer, subpoint, &trgepc, srfvec);
     reclat_c (subpoint, &subrad, &sublon, &sublat);
     eph->L0cr = (sublon < 0 ? 2 * pi_c() + sublon : sublon);
+
+    /* this is for debugging */
+    {
+	SpiceDouble ss[6], lts, losv[3], dist;
+	spkezr_c ("SUN", et, "J2000", "NONE", observer, ss, &lts);
+	unorm_c (ss, losv, &dist);
+	SpiceDouble rr = vdot_c (losv, &ss[3]);
+	//printf ("%.0f m, v=%.4f/s\n", dist * 1000, rr*1000);
+    }
+
 
     /*
      * first, we compute the relative state between observer and sun
@@ -745,11 +756,14 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	fprintf (stream, "\n");
 	/* fprintf (stream, "#  Obs. Ref. Frame   : %s\n", frname); */
     }
+    SpiceDouble one_au;
+    convrt_c(1.0, "AU", "KM", &one_au);
     fprintf (stream,
 	     "#  Solar radius      : %.0f km\n"
-	     "#  Solar rot. Model  : %s (%s)\n",
+	     "#  Solar rot. Model  : %s (%s)\n"
+	     "#  One AU            : %.3f km\n",
 	     RSUN, RotModels[rotmodel].name,
-	     RotModels[rotmodel].descr);
+	     RotModels[rotmodel].descr, one_au);
     
     fprintf (stream,
 	     "#*****************************************************"
@@ -762,7 +776,6 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	     "#    15(vlos), 16(dist_sun), 17(vlos_sun)\n"
 	     "#\n"
 	);
-	     
 }
 
 void print_ephtable_row (FILE *stream, soleph_t *eph)
@@ -793,6 +806,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	0 != strcasecmp (eph->observer, "SCHAUINSLAND") &&
 	0 != strcasecmp (eph->observer, "DST") &&
 	0 != strcasecmp (eph->observer, "MCMATH") &&
+	0 != strcasecmp (eph->observer, "TEIDE") &&
 	0 != strcasecmp (eph->observer, "BIGBEAR")
 	) {
 	onEarth = false;
@@ -808,35 +822,35 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
     printf ("Solar ephemeris for %s\n", eph->utcdate);
     if (onEarth)
 	fprintf (stream,
-		 "  Observer location..........  %s "
+		 "  Observer location...........  %s "
 		 "(%3.5f N, %3.5f E, %.0f m)\n"
-		 "  Terrestr. Reference Frame..  %s\n",
+		 "  Terrestr. Reference Frame...  %s\n",
 		 eph->observer, lat * dpr_c(), lon * dpr_c(),
 		 alt * 1000.0, frname);
     else
-	fprintf (stream, "  Observer location..........  %s\n", eph->observer);
+	fprintf (stream, "  Observer location...........  %s\n", eph->observer);
     
     SpiceDouble dist_au;
     convrt_c(eph->dist_sun, "KM", "AU", &dist_au);
     fprintf (stream, 
-	     "  UTC julian day.............  %f\n"
-	     "  Modified julian day........  %f\n"
-	     "  Sun Reference Radius....... % .0f m\n"
-	     "  Apparent angular radius.... % .4f arcsec\n"
-	     "  Rotation Model ............  %s (%s)\n"
-	     "  Siderial rotation rate.....  %.4f murad/s\n"
-	     "  Position angle P........... % -.4f deg\n"
-	     "  Sub-obsrv. Stonyhurst lat.. % -.4f deg\n"
-	     "  Sub-obsrv. Stonyhurst lon.. %  .4f deg\n"
-	     "  Sub-obsrv. Carrington lon.. % -.4f deg\n"
-	     "  Solar center distance......  %.0f m (%.9f AE)\n"
-	     "  Solar center v_los......... % -.2f m/s\n"
-	     "  Target HPC x, y............ % -.4f, %.5f arcsec\n"
-	     "  Target Stonyh. HG lon, lat. % -.4f, %.5f deg\n"
-	     "  Target impact parameter....  %.0f m\n"
-	     "  Target mu.................. % .4f\n"
-	     "  Target distance............  %.0f m\n"
-	     "  Target v_los............... % -.2f m/s\n"
+	     "  UTC Julian Day..............  %f\n"
+	     "  Modified Julian Day.........  %f\n"
+	     "  Sun Reference Radius........ % .0f m\n"
+	     "  Apparent Angular Radius..... % .4f arcsec\n"
+	     "  Rotation Model .............  %s (%s)\n"
+	     "  Siderial Rotation Rate......  %.4f murad/s\n"
+	     "  Position Angle P............ % -.4f deg\n"
+	     "  Sub-Obsrv. Stonyhurst lat... % -.4f deg\n"
+	     "  Sub-Obsrv. Stonyhurst lon... %  .4f deg\n"
+	     "  Sub-Obsrv. Carrington lon... % -.4f deg\n"
+	     "  Solar Center Distance.......  %.0f m (%.9f AE)\n"
+	     "  Solar Center v_los.......... % -.3f m/s\n"
+	     "  Helio-Projective Cartesian.. % -.4f, %.5f arcsec\n"
+	     "  Stonyhurst Heliographic..... % -.4f, %.5f deg\n"
+	     "  Impact parameter............  %.0f m\n"
+	     "  Cos(theta) = mu............. % .4f\n"
+	     "  Distance....................  %.0f m\n"
+	     "  Line of Sight Velocity...... % -.3f m/s\n"
 	     ,
 	     eph->jday,
 	     eph->mjd,
