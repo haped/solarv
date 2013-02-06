@@ -26,7 +26,7 @@
 
 static const char _name[] = "Solarv";
 static const char _author[] = "Hans-Peter Doerr";
-static const char _version[] = "0.3.0a";
+static const char _version[] = "0.3.0";
 static const char _versiondate[] = "Feb 2013";
 static const char _copyright[] = "2012, 2013 Hans-Peter Doerr";
 
