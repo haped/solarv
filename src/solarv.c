@@ -372,6 +372,7 @@ int main (int argc, char **argv)
 	}
     }
     furnsh_c (metakernel);
+
     if (strcmp (addkernel, "na") != 0) {
 	printf ("Loading user-supplied additional kernel %s\n", addkernel);
 	furnsh_c (addkernel);
@@ -397,7 +398,7 @@ int main (int argc, char **argv)
 	unload_c (addkernel);
     if (earth_itrf93) {
 	unload_c (KERNEL_PATH "/earth_assoc_itrf93.tf");
-	unload_c (KERNEL_PATH "/earth_itrf.tf");
+	unload_c (KERNEL_PATH "/earth_fixed_itrf93.tf");
     } else {
 	unload_c (KERNEL_PATH "/earth_fixed.tf");
     }
@@ -770,7 +771,7 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	     "*************************\n"
 	     "#  Data units        : km, km/s, rad\n"
 	     "#  Data fields       : "
-	     "1(date), 2(jd), 3(mjd), 4(P0), 5(L0), 6(B0),\n"
+	     "1(utc string), 2(utc jd), 3(mjd), 4(P0), 5(L0), 6(B0),\n"
 	     "#    7(rsun_obs), 8(x), "
 	     "9(y), 10(lon), 11(lat), 12(rho), 13(mu), 14(dist),\n"
 	     "#    15(vlos), 16(dist_sun), 17(vlos_sun)\n"
