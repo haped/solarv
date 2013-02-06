@@ -13,7 +13,6 @@ endif
 ifdef CSPICE_PATH
 	SPICE_I = -I$(CSPICE_PATH)/include
 	SPICE_L = $(CSPICE_PATH)/lib/cspice.a
-	PINPOINT = $(CSPICE_PATH)/exe/pinpoint
 else
 	SPICE_MISSING = 1
 endif
@@ -31,26 +30,16 @@ LD = $(CC)
 LDFLAGS += $(SPICE_L) $(FITSIO_L) -lm 
 
 
-all: solarv solarv.tm
+all: solarv kernels/solarv.tm
 
-install: solarv solarv.tm
-	install -D -m 0644 solarv.tm $(KERNEL_PATH)/solarv.tm
-	install -D -m 0644 stations.bsp $(KERNEL_PATH)/stations.bsp
-	install -D -m 0644 stations.tf $(KERNEL_PATH)/stations.tf
-	install -D -m 0644 earth_fixed_itrf93.tf $(KERNEL_PATH)/earth_fixed_itrf93.tf
-	install -D -m 0644 earth_fixed.tf $(KERNEL_PATH)/earth_fixed.tf
-	install -D -m 0644 heliospheric.tf $(KERNEL_PATH)/heliospheric.tf
+install: solarv kernels/solarv.tm
+	install -D -m 0644 kernels/* $(KERNEL_PATH)
 	install -D solarv $(BINARY_PATH)/solarv
 
 update-kernels:
+	mkdir tmp_
 	./getkernels.sh || exit
-	install -D -m 0644 _tmp_/de421.bsp $(KERNEL_PATH)/de421.bsp
-	install -D -m 0644 _tmp_/earth_latest_high_prec.bpc \
-		$(KERNEL_PATH)/earth_latest_high_prec.bpc
-	install -D -m 0644 _tmp_/naif0010.tls $(KERNEL_PATH)/naif0010.tls
-	install -D -m 0644 _tmp_/pck00010.tpc $(KERNEL_PATH)/pck00010.tpc
-	install -D -m 0644 _tmp_/earth_assoc_itrf93.tf $(KERNEL_PATH)/earth_assoc_itrf93.tf
-	rm -rf _tmp_
+	install -D -m 0644 tmp_/* -t $(KERNEL_PATH)
 
 .PHONY: clean check
 
@@ -63,12 +52,12 @@ solarv: solarv.o solarv.h
 	$(LD) $< -o solarv $(LDFLAGS)
 
 
-solarv.tm: solarv.tm.in Makefile
-	@sed 's#KERNEL_SYSPATH#$(KERNEL_PATH)#g' solarv.tm.in > solarv.tm
+kernels/solarv.tm: solarv.tm.in Makefile
+	@sed 's#KERNEL_SYSPATH#$(KERNEL_PATH)#g' solarv.tm.in > kernels/solarv.tm
 
 
-stations.bsp: stations.defs
-	rm -f stations.bsp
+kernels/stations.bsp: stations.defs
+	rm -f kernels/stations.bsp
 	$(PINPOINT) -def stations.defs \
 	-pck $(KERNEL_PATH)/pck00010.tpc \
-	-spk stations.bsp
+	-spk kernels/stations.bsp
