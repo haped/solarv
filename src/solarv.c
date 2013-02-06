@@ -78,9 +78,10 @@ void usage (FILE *stream)
 	     "                to be updated regularily\n"
 	     "  -O observer   set observer position. Can be any NAIF body code.\n"
 	     "                pre-defined sites: 'VTT', 'SCHAUINSLAND', 'SST',\n"
-	     "                'DST', 'MCMATH'\n"
+	     "                'DST', 'MCMATH', 'BIGBEAR'\n"
 	     "  -p            pretty-print ephemeris data\n"
 	     "  -v            print program version\n"
+	     "  -i            Show information about loaded SPICE kernels\n"
 	     "  -k kernel     load additional SPICE kernel 'kernel'\n"
 	     "                this kernel will be loaded last in kernel pool\n"
 	     "  -K kernel     load 'kernel' instead of the default meta kernel\n"
@@ -95,8 +96,8 @@ void usage (FILE *stream)
 	     "\n\n"
 	     "Compute radial velocity at the eastern limb using Snodgrass "
 	     "& Ulrich (1990) spectroscopy rotation model for one year "
-	     "with one sample per day:\n"
-	     "  solarv -m su90s 2012-01-01T00:00:00.0 hcr 0.0 90 365 1440\n"
+	     "with one sample per day as seens from the SST on LaPalma\n"
+	     "  solarv -O SST -m su90s 2012-01-01T00:00:00.0 hcr 0.0 90 365 1440\n"
 	     "\n"
 	     ,
 	     _name, _version, _versiondate
@@ -514,16 +515,6 @@ int soleph (
     reclat_c (subpoint, &subrad, &sublon, &sublat);
     eph->L0cr = (sublon < 0 ? 2 * pi_c() + sublon : sublon);
 
-    /* this is for debugging */
-    {
-	SpiceDouble ss[6], lts, losv[3], dist;
-	spkezr_c ("SUN", et, "J2000", "NONE", observer, ss, &lts);
-	unorm_c (ss, losv, &dist);
-	SpiceDouble rr = vdot_c (losv, &ss[3]);
-	//printf ("%.0f m, v=%.4f/s\n", dist * 1000, rr*1000);
-    }
-
-
     /*
      * first, we compute the relative state between observer and sun
      * barycenter. we need this now to be able to translate between pointing
@@ -724,6 +715,7 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
     double lon, lat, alt;
     station_geopos (observer, 1.0, &lon, &lat, &alt);
     
+
     /* FIXME: really check if we are on earth or not */
     bool onEarth = true;
     if (0 != strcasecmp (observer, "VTT") &&
@@ -736,8 +728,8 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	onEarth = false;
     }
 
+    SpiceBoolean found = 0;
     SpiceInt frcode;
-    SpiceBoolean found;
     SpiceChar frname[MAXKEY+1];
     if (onEarth)
 	cnmfrm_c ("EARTH", MAXKEY, &frcode, frname, &found);
@@ -747,7 +739,7 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
     fprintf (stream,
 	     "#*****************************************************"
 	     "*************************\n"
-	     "#  Observer location : %s", observer);
+	     "#  Observer Location : %s", observer);
     if (onEarth) {
 	fprintf (stream,
 		 " (%.5f N, %.5f E, %.0f m)\n"
@@ -760,17 +752,22 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
     SpiceDouble one_au;
     convrt_c(1.0, "AU", "KM", &one_au);
     fprintf (stream,
-	     "#  Solar radius      : %.0f km\n"
-	     "#  Solar rot. Model  : %s (%s)\n"
+	     "#  Solar Radius      : %.0f km\n"
+	     "#  Solar Rot. Model  : %s (%s)\n"
+	     "#                      A, B, C = (%.4f, %.4f, %.4f) murad/s\n"
 	     "#  One AU            : %.3f km\n",
 	     RSUN, RotModels[rotmodel].name,
-	     RotModels[rotmodel].descr, one_au);
+	     RotModels[rotmodel].descr,
+	     RotModels[rotmodel].A,
+	     RotModels[rotmodel].B,
+	     RotModels[rotmodel].C,
+	     one_au);
     
     fprintf (stream,
 	     "#*****************************************************"
 	     "*************************\n"
-	     "#  Data units        : km, km/s, rad\n"
-	     "#  Data fields       : "
+	     "#  Data Units        : km, km/s, rad\n"
+	     "#  Data Fields       : "
 	     "1(utc string), 2(utc jd), 3(mjd), 4(P0), 5(L0), 6(B0),\n"
 	     "#    7(rsun_obs), 8(x), "
 	     "9(y), 10(lon), 11(lat), 12(rho), 13(mu), 14(dist),\n"
@@ -820,22 +817,23 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
     else
 	cnmfrm_c (eph->observer, MAXKEY, &frcode, frname, &found);
 
-    printf ("Solar ephemeris for %s\n", eph->utcdate);
     if (onEarth)
 	fprintf (stream,
-		 "  Observer location...........  %s "
+		 "  UTC Date ...................  %s (JD %.6f)\n"
+		 "  Observer Location...........  %s "
 		 "(%3.5f N, %3.5f E, %.0f m)\n"
-		 "  Terrestr. Reference Frame...  %s\n",
+		 "  Terrestr. Reference Frame...  %s\n"
+		 ,
+		 eph->utcdate, eph->jday,
 		 eph->observer, lat * dpr_c(), lon * dpr_c(),
-		 alt * 1000.0, frname);
+		 alt * 1000.0, 
+		 frname);
     else
 	fprintf (stream, "  Observer location...........  %s\n", eph->observer);
     
     SpiceDouble dist_au;
     convrt_c(eph->dist_sun, "KM", "AU", &dist_au);
     fprintf (stream, 
-	     "  UTC Julian Day..............  %f\n"
-	     "  Modified Julian Day.........  %f\n"
 	     "  Sun Reference Radius........ % .0f m\n"
 	     "  Apparent Angular Radius..... % .4f arcsec\n"
 	     "  Rotation Model .............  %s (%s)\n"
@@ -846,17 +844,15 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     "  Sub-Obsrv. Carrington lon... % -.4f deg\n"
 	     "  Solar Center Distance.......  %.0f m (%.9f AE)\n"
 	     "  Solar Center v_los.......... % -.3f m/s\n"
-	     "  Helio-Projective Cartesian.. % -.4f, %.5f arcsec\n"
-	     "  Stonyhurst Heliographic..... % -.4f, %.5f deg\n"
+	     "  Helio-Projct. Cartsn x,y.... % -.4f, %.5f arcsec\n"
+	     "  Stonyhrst Heliogr. lon,lat.. % -.4f, %.5f deg\n"
 	     "  Impact parameter............  %.0f m\n"
 	     "  Cos(theta) = mu............. % .4f\n"
 	     "  Distance....................  %.0f m\n"
 	     "  Line of Sight Velocity...... % -.3f m/s\n"
 	     ,
-	     eph->jday,
-	     eph->mjd,
 	     eph->rsun_ref * 1000,
-	     eph->rsun_obs * aspr(),
+	     eph->rsun_obs * aspr() - 5E-5, /* round down to 4 digits */
 	     eph->modelname, eph->modeldescr,
 	     eph->omega,
 	     eph->P0 * dpr_c(),
