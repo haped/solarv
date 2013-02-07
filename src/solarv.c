@@ -71,21 +71,21 @@ void usage (FILE *stream)
 	     "\n\n"
 	     "Options:\n"
 	     "  -h            show this help\n"
+	     "  -v            print program version\n"
+	     "  -p            pretty-print output\n"
 	     "  -m model      set solar rotation model 'model' [fixed]\n"
 	     "                use 'list' to list available models\n"
 	     "  -t            use the ITRF93 precision earth rotation kernel\n"
 	     "                Note: this kernel has a limited time coverage and needs\n"
 	     "                to be updated regularily\n"
+	     "  -R radius     specifiy a different solar radius in meters\n"
 	     "  -O observer   set observer position. Can be any NAIF body code.\n"
 	     "                pre-defined sites: 'VTT', 'SCHAUINSLAND', 'SST',\n"
 	     "                'DST', 'MCMATH', 'BIGBEAR'\n"
-	     "  -p            pretty-print ephemeris data\n"
-	     "  -v            print program version\n"
-	     "  -i            Show information about loaded SPICE kernels\n"
 	     "  -k kernel     load additional SPICE kernel 'kernel'\n"
 	     "                this kernel will be loaded last in kernel pool\n"
 	     "  -K kernel     load 'kernel' instead of the default meta kernel\n"
-	     "  -R radius     specifiy a different solar radius in meters\n"
+	     "  -i            Show information about loaded SPICE kernels\n"
 	     "\n"
 	     "Examples:\n"
 	     "\n"
@@ -94,10 +94,10 @@ void usage (FILE *stream)
 	     "precision ITRF93 earth rotation model, pretty-print output:\n"
 	     "  solarv -t -p 2012-06-21T12:00:00 hpc 0 0"
 	     "\n\n"
-	     "Compute radial velocity at the eastern limb using Snodgrass "
-	     "& Ulrich (1990) spectroscopy rotation model for one year "
-	     "with one sample per day as seens from the SST on LaPalma\n"
-	     "  solarv -O SST -m su90s 2012-01-01T00:00:00.0 hcr 0.0 90 365 1440\n"
+	     "Create a ephemeris table for the SST for one year, close to the "
+	     "eastern limb\n"
+	     "using the Snodgrass 1984 rotation model:\n"
+	     "  solarv -t -O SST -m su90s 2012-01-01T12:00:00.0 hcr 0.003 90 365 1440\n"
 	     "\n"
 	     ,
 	     _name, _version, _versiondate
@@ -524,6 +524,9 @@ int soleph (
     //getstate_observer ("earth", et, 0, 0, 0, state_obs, NULL);
     getstate_body (observer, et, state_obs);
     getstate_body ("SUN", et, state_sun);
+    memcpy (eph->state_sun, state_sun, 6 * sizeof(SpiceDouble));
+    memcpy (eph->state_obs, state_obs, 6 * sizeof(SpiceDouble));
+
     relstate (state_obs, state_sun, relstate_sun,
 	      los_sun, &eph->dist_sun, &eph->vlos_sun, &lt_sun);
     
@@ -537,7 +540,7 @@ int soleph (
     /* angular velocity from rotation model is needed to compute the full
      * target state */
     SpiceDouble omegas = omega_sun (eph->lat, rotmodel);
-    eph->omega = omegas * 1E6;
+    eph->omega = omegas;
     eph->rotmodel = rotmodel;
     strncpy (eph->modelname, RotModels[rotmodel].name, MAXKEY);
     strncpy (eph->modeldescr, RotModels[rotmodel].descr, MAXKEY);
@@ -548,6 +551,7 @@ int soleph (
     relstate (state_obs, state_tgt, relstate_tgt,
 	      los_tgt, &eph->dist, &eph->vlos, &lt_tgt);
     get_pointing (et, relstate_sun, relstate_tgt, &eph->x, &eph->y);
+
 
     /************************************************************************
      compute further ephemeris data from the parameters we gathered so far
@@ -603,6 +607,7 @@ void get_pointing (
     if (tgt_y[2] < sun_y[2]) *y = -*y;
 }
 
+
 /* pointing (angle from disk center) coordinatates to planetographic */
 void pointing2lola (
     SpiceDouble *state_sun,
@@ -644,7 +649,7 @@ void reset_soleph (soleph_t *eph)
     eph->B0 = 0.0;
     eph->L0cr = 0.0;
     eph->L0hg = 0.0;
-    eph->P0 = -999999; /* we don't compute p0 yet */
+    eph->P0 = 0.0;
     eph->dist_sun = 0.0;
     eph->vlos_sun = 0.0;
     eph->rsun_ref = 0.0;
@@ -704,12 +709,12 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
     fprintf (stream,
 	     "#*****************************************************"
 	     "*************************\n"
-	     "#  Ephemeris data created on %s UTC by solaRV v%s\n"
-	     "#  SPICE version     : %s\n"
+	     "#  Ephemeris Data created on %s UTC by solaRV v%s\n"
+	     "#  SPICE Version     : %s\n"
 	     "#  Reference Epoch   : J2000.0\n"
 	     "#  Reference Frame   : ICRF/J2000, "
 	     "Mean Equator and Equinox of Epoch\n"
-	     "#  Abbr. correction  : %s\n"
+	     "#  Abbr. Correction  : %s\n"
 	     , now, _version, tkvrsn_c ("toolkit"), ABCORR);
     
     double lon, lat, alt;
@@ -772,6 +777,8 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	     "#    7(rsun_obs), 8(x), "
 	     "9(y), 10(lon), 11(lat), 12(rho), 13(mu), 14(dist),\n"
 	     "#    15(vlos), 16(dist_sun), 17(vlos_sun)\n"
+	     "#    18-23(sun inertial state), "
+	     "24-29(observer intertial state)\n"
 	     "#\n"
 	);
 }
@@ -784,13 +791,21 @@ void print_ephtable_row (FILE *stream, soleph_t *eph)
     	     "%s % 16.7f % 10.6f "
     	     ,
     	     utcstr, eph->jday, eph->mjd);
-    fprintf (stream, "% 14.12E % 14.12E % 14.12E % 14.12E % 14.12E % 14.12E "
+    fprintf (stream,
+	     "% 14.12E % 14.12E % 14.12E % 14.12E % 14.12E % 14.12E "
+	     "% 14.12E % 14.12E % 14.12E % 14.12E % 14.12E % 14.12E "
+	     "% 14.12E % 14.12E % 14.12E % 14.12E % 14.12E % 14.12E "
 	     "% 14.12E % 14.12E % 14.12E % 14.12E % 14.12E % 14.12E "
 	     "% 14.12E %14.12E\n"
 	     ,
 	     eph->P0, eph->L0cr, eph->B0, eph->rsun_obs, eph->x, eph->y,
-	     eph->lon, eph->lat, eph->rho, eph->mu, eph->dist, eph->vlos,
-	     eph->dist_sun, eph->vlos_sun
+	     eph->lon, eph->lat, eph->rho, eph->mu,
+	     eph->dist, eph->vlos,
+	     eph->dist_sun, eph->vlos_sun,
+	     eph->state_sun[0], eph->state_sun[1], eph->state_sun[2],
+	     eph->state_sun[3], eph->state_sun[4], eph->state_sun[5],
+	     eph->state_obs[0], eph->state_obs[1], eph->state_obs[2],
+	     eph->state_obs[3], eph->state_obs[4], eph->state_obs[5]
     	);
 }
 
@@ -819,7 +834,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 
     if (onEarth)
 	fprintf (stream,
-		 "  UTC Date ...................  %s (JD %.6f)\n"
+		 "  UTC Date of Observation.....  %s (JD %.6f)\n"
 		 "  Observer Location...........  %s "
 		 "(%3.5f N, %3.5f E, %.0f m)\n"
 		 "  Terrestr. Reference Frame...  %s\n"
@@ -854,7 +869,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     eph->rsun_ref * 1000,
 	     eph->rsun_obs * aspr() - 5E-5, /* round down to 4 digits */
 	     eph->modelname, eph->modeldescr,
-	     eph->omega,
+	     eph->omega * 1E6,
 	     eph->P0 * dpr_c(),
 	     eph->B0 * dpr_c(),
 	     eph->L0hg * dpr_c(),
@@ -897,6 +912,9 @@ int handle_request (
     SpiceDouble et;
     size_t nsteps = 1;
     SpiceDouble stepsize = 60.0;
+    bool fits = false;
+    fitsfile *fptr;
+    int fstatus = 0;
 
     if (argc < 4 || argc > 6) {
 	errmesg ("Insufficent input data in request\n");
@@ -914,9 +932,17 @@ int handle_request (
 	stepsize = atof (argv[5]);
     }
 
+    if (fits) {
+	char outfile[MAXPATH+1];
+	timout_c (et, "solarv_YYYY-MM-DD_HR-MN-SC_UTC.fits", MAXPATH, outfile);
+	fits_create_file (&fptr, outfile, &fstatus);
+	write_fits_ephtable_header (fptr, nsteps, &fstatus);
+    }
+
     for (int i = 0; i < nsteps; ++i) {
 	soleph_t eph;
-	if (SUCCESS != soleph (observer, et, position, &eph, rotmodel)) {
+	SpiceDouble ete = et + i * stepsize * 60.0;
+	if (SUCCESS != soleph (observer, ete, position, &eph, rotmodel)) {
 	    errmesg ("Could not compute ephemeris data\n");
 	    return FAILURE;
 	}
@@ -926,7 +952,14 @@ int handle_request (
 	}
 	else
 	    print_ephtable_row (ostream, &eph);
-	et += stepsize * 60.0;
+
+	if (fits) {
+	    write_fits_ephtable_row (fptr, i+1, &eph, &fstatus);
+	}
+    }
+
+    if (fits) {
+	fits_close_file (fptr, &fstatus);
     }
 
     return SUCCESS;
@@ -986,30 +1019,38 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 	return FAILURE;
     
     /* define table structure */
-    int tfields = 23;
+    int tfields = 28;
     char tname[] = "ephemeris table";
-    char *ttype[] = { "jd", "mjd",
-		      "utc", "observer",
-		      "B0", "L0hg", "L0cr", "P0",
-		      "dist_sun", "vlos_sun", "rsun_as", "rsun_ref",
-		      "modelname", "modeldescr",
-		      "lon", "lat", "x", "y", "mu", "dist", "vlos",
-		      "rho", "omega" };
-    char *tform[] = { "D", "D",
-		      "32A", "32A",
+    char *ttype[] = { "utc", "jd", "mjd",
+		      "observer", "obs_lon", "obs_lat", "obs_alt",
+		      "solar_b0", "hgln_obs", "crln_obs", "solar_p0",
+		      "rsun_obs", "rsun_ref",
+		      "rotmodel", "modeldescr", "rotrate",
+		      "state_sun", "dist_sun", "vlos_sun", 
+		      "hg_lon", "hg_lat", "hpc_x", "hpc_y",
+		      "mu", "impactparam", 
+		      "state_obs", "dist_obs", "vlos_obs"
+    };
+    char *tform[] = { "32A", "D", "D",
+		      "32A", "D", "D", "D",
 		      "D", "D", "D", "D",
-		      "D", "D", "D", "D",
-		      "32A", "32A",
-		      "D", "D", "D", "D", "D", "D", "D",
-		      "D", "D" };
-    char *tunit[] = { "sec", "sec",
-		      "\0", "\0",
-		      "deg", "deg", "deg", "deg", "deg",
-		      "km", "km/s", "arcsec", "km",
-		      '\0', '\0',
-		      "deg", "deg", "arcsec", "arcsec", '\0', "km", "km/s",
-		      "km", "murad/s"};
-
+		      "D", "D",
+		      "32A", "64A", "D",
+		      "6D", "D", "D",
+		      "D", "D", "D", "D", 
+		      "D", "D",
+		      "6D", "D", "D"
+    };
+    char *tunit[] = { "\0", "days", "days",
+		      "\0", "rad", "rad", "rad",
+		      "rad", "rad", "rad", "rad",
+		      "rad", "km",
+		      "\0", "\0", "rad/s"
+		      "km, km/s", "km", "km/s",
+		      "rad", "rad", "rad", "rad",
+		      "\0", "km",
+		      "km, km/s", "km", "km/s"
+    };
     fits_create_tbl (fptr,
                      BINARY_TBL,       /* type              */
                      nrows,            /* nrows             */
@@ -1020,7 +1061,7 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
                      tname,            /* name of extension */
                      status);
     if (*status) {
-        errmesg ("error creating fitstable: %i\n", *status);
+        errmesg ("Error creating fitstable: %i\n", *status);
 	fits_report_error (stderr, *status);
         return FAILURE;
     }
@@ -1038,37 +1079,54 @@ int write_fits_ephtable_row (
     long firstrow = row;
     long col = 1;
 
+    SpiceDouble lon = 0, lat = 0, alt = 0; /* observer coordinates */
+
+
 #define EPHTABLE_ADDCELL(type, ptr)					\
     fits_write_col (fptr, type, col++,					\
 		    firstrow, 1, 1,					\
-		    (void*)ptr, status)
+		    ptr, status)
     
-
-    //printf ("strlen (%s)=%zi\n", eph->observer, strlen (eph->observer));
-
+    char *utcstr[] = {eph->utcdate};
+    EPHTABLE_ADDCELL (TSTRING, utcstr);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->jday);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->mjd);
-    EPHTABLE_ADDCELL (TBYTE, eph->utcdate);
-    EPHTABLE_ADDCELL (TSBYTE, eph->observer);
+
+    char *observer[] = {eph->observer};
+    EPHTABLE_ADDCELL (TSTRING, observer);
+    EPHTABLE_ADDCELL (TDOUBLE, &lon);
+    EPHTABLE_ADDCELL (TDOUBLE, &lat);
+    EPHTABLE_ADDCELL (TDOUBLE, &alt);
+
     EPHTABLE_ADDCELL (TDOUBLE, &eph->B0);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->L0hg);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->L0cr);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->P0);
-    EPHTABLE_ADDCELL (TDOUBLE, &eph->dist_sun);
-    EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos_sun);
+
     EPHTABLE_ADDCELL (TDOUBLE, &eph->rsun_obs);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->rsun_ref);
-    EPHTABLE_ADDCELL (TBYTE, eph->modelname);
-    EPHTABLE_ADDCELL (TBYTE, eph->modeldescr);
+
+    char *modelname[] = {eph->modelname};
+    EPHTABLE_ADDCELL (TSTRING, modelname);
+    char *modeldescr[] = {eph->modeldescr};
+    EPHTABLE_ADDCELL (TSTRING, modeldescr);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->omega);
+    
+    fits_write_col (fptr, TDOUBLE, col++, row, 1, 6, eph->state_sun, status);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->dist_sun);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos_sun);
+
     EPHTABLE_ADDCELL (TDOUBLE, &eph->lon);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->lat);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->x);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->y);
+
     EPHTABLE_ADDCELL (TDOUBLE, &eph->mu);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->rho);
+    
+    fits_write_col (fptr, TDOUBLE, col++, row, 1, 6, eph->state_obs, status);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->dist);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos);
-    EPHTABLE_ADDCELL (TDOUBLE, &eph->rho);
-    EPHTABLE_ADDCELL (TDOUBLE, &eph->omega);
     
     if (*status) {
 	errmesg ("couldn't add row to fitstable.");
@@ -1099,84 +1157,6 @@ int parse_sunpos (
     return SUCCESS;
 }
 
-
-void errmesg (const char *mesg, ...)
-{
-    va_list ap;
-    
-    fprintf (stderr, "ERROR: ");
-    va_start(ap, mesg);
-    vfprintf (stderr, mesg, ap);
-    va_end(ap);
-}
-
-int fitsframe_bcddate (
-    fitsfile *fptr,
-    long frameidx,
-    long sy,
-    char *utcstr,
-    int *status)
-{
-    /* we assume 16 bit fits files here */
-    const long bufsize = 32;
-    unsigned short buf[bufsize];
-    void *nulval = NULL;
-    int anynul;
-    long fpixel[] = {1, sy, frameidx};
-    
-    if (*status) return FAILURE;
-    
-    fits_read_pix (fptr, TSHORT, fpixel, bufsize/2,
-		   nulval, (void*) buf, &anynul, status);
-    if (*status) return FAILURE;
-    
-    /* bcd decoder borrowed from Kolja Klogowski */
-    /*
-      Format:
-      buf[ 4] -> bcd[0]  ==  year * 100
-      buf[ 5] -> bcd[1]  ==  year
-      buf[ 6] -> bcd[2]  ==  month
-      buf[ 7] -> bcd[3]  ==  day
-      buf[ 8] -> bcd[4]  ==  hour
-      buf[ 9] -> bcd[5]  ==  minute
-      buf[10] -> bcd[6]  ==  second
-      buf[11] -> bcd[7]  ==  mus * 10000
-      buf[12] -> bcd[8]  ==  mus * 100
-      buf[13] -> bcd[9]  ==  mus
-    */
-    unsigned char bcd[10];
-    for (int i = 0; i < 10; ++i)
-        bcd[i] = (unsigned char) (buf[4 + i] & 0xff);
-
-    unsigned char val[10];
-    for (int i = 0; i < 10; ++i)
-        val[i] = (bcd[i] >> 4) * 10 + (bcd[i] & 0x0f);
-
-    int year = 100 * (int)val[0] + (int)val[1];
-    int mon = val[2];
-    int day = val[3];
-    int hour = val[4];
-    int min = val[5];
-    int sec = val[6];
-    int msec = (int) (bcd[7]);
-
-    /* some rather relaxed consistency checks. the used kernel probably
-     * won't allow for larger time spans anyway */
-    if (! ((1950 < year && 2100 > year) &&
-	   (mon > 0 && mon <= 12)       &&
-	   (day > 0 && day <= 31)       &&
-	   (hour >= 0 && hour <= 24)    &&
-	   (min >= 0 && min <= 59)      &&
-	   (sec >= 0 && sec <= 59))) {
-	errmesg ("timestamp of frame %li is invalid\n", frameidx);
-	return FAILURE;
-    }
-	
-    snprintf (utcstr, 63, "%4i-%02i-%02iT%02i:%02i:%02i.%i",
-	      year, mon, day, hour, min, sec, msec);
-
-    return SUCCESS;
-}
 
 /* arcseconds per radian */
 SpiceDouble aspr(void)
@@ -1276,3 +1256,15 @@ char* wordsep (char *str, char *token)
 
     return NULL;
 }
+
+void errmesg (const char *mesg, ...)
+{
+    va_list ap;
+    
+    fprintf (stderr, "ERROR: ");
+    va_start(ap, mesg);
+    vfprintf (stderr, mesg, ap);
+    va_end(ap);
+}
+
+
