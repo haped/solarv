@@ -499,8 +499,8 @@ int soleph (
     eph->et = et;
     /* we use the utc julain date here, so substract the delta */
     eph->jday = unitim_c (et, "ET", "JDTDB") - deltaT / spd_c();
-    eph->mjd = eph->jday - 2400000.5; 
-    et2utc_c (et, "C", 2, MAXKEY, eph->utcdate);
+    eph->mjd = eph->jday - 2400000.5;
+    timout_c (et, "YYYY Mon DD HR:MN:SC.## UTC", 64, eph->utcdate);
 
     /* stonyhurst heliographic sub-observer coordinates */
     subpnt_c ("Near point: ellipsoid", "SUN", et, "HEEQ",
@@ -771,11 +771,11 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
     fprintf (stream,
 	     "#*****************************************************"
 	     "*************************\n"
-	     "#  Data Units        : km, km/s, rad\n"
+	     "#  Data Units        : km, km/s, rad, rad/s\n"
 	     "#  Data Fields       : "
 	     "1(utc string), 2(utc jd), 3(mjd), 4(P0), 5(L0), 6(B0),\n"
 	     "#    7(rsun_obs), 8(x), "
-	     "9(y), 10(lon), 11(lat), 12(omega), 13(rho), 14(mu), 15(dist),\n"
+	     "9(y), 10(lon), 11(lat), 12(rotrate), 13(rho), 14(mu), 15(dist),\n"
 	     "#    16(vlos), 17(dist_sun), 18(vlos_sun)\n"
 	     "#    19-24(sun inertial state), "
 	     "25-30(observer intertial state)\n"
@@ -912,7 +912,7 @@ int handle_request (
     SpiceDouble et;
     size_t nsteps = 1;
     SpiceDouble stepsize = 60.0;
-    bool fits = false;
+    bool fits = true;
     fitsfile *fptr;
     int fstatus = 0;
 
@@ -934,7 +934,9 @@ int handle_request (
 
     if (fits) {
 	char outfile[MAXPATH+1];
-	timout_c (et, "solarv_YYYY-MM-DD_HR-MN-SC_UTC.fits", MAXPATH, outfile);
+	char datestr[64+1];
+	timout_c (et, "YYYY-MM-DD_HR-MN-SC_UTC", 64, datestr);
+	snprintf (outfile, MAXPATH, "solarv_%s-sun_%s.fits", observer, datestr);
 	fits_create_file (&fptr, outfile, &fstatus);
 	write_fits_ephtable_header (fptr, nsteps, &fstatus);
     }
@@ -1021,7 +1023,7 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
     /* define table structure */
     int tfields = 28;
     char tname[] = "ephemeris table";
-    char *ttype[] = { "utc", "jd", "mjd",
+    char *ttype[] = { "date_obs", "jd_obs", "mjd_obs",
 		      "observer", "obs_lon", "obs_lat", "obs_alt",
 		      "solar_b0", "hgln_obs", "crln_obs", "solar_p0",
 		      "rsun_obs", "rsun_ref",
