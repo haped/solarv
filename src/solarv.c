@@ -775,10 +775,10 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	     "#  Data Fields       : "
 	     "1(utc string), 2(utc jd), 3(mjd), 4(P0), 5(L0), 6(B0),\n"
 	     "#    7(rsun_obs), 8(x), "
-	     "9(y), 10(lon), 11(lat), 12(rho), 13(mu), 14(dist),\n"
-	     "#    15(vlos), 16(dist_sun), 17(vlos_sun)\n"
-	     "#    18-23(sun inertial state), "
-	     "24-29(observer intertial state)\n"
+	     "9(y), 10(lon), 11(lat), 12(omega), 13(rho), 14(mu), 15(dist),\n"
+	     "#    16(vlos), 17(dist_sun), 18(vlos_sun)\n"
+	     "#    19-24(sun inertial state), "
+	     "25-30(observer intertial state)\n"
 	     "#\n"
 	);
 }
@@ -796,10 +796,10 @@ void print_ephtable_row (FILE *stream, soleph_t *eph)
 	     "% 14.12E % 14.12E % 14.12E % 14.12E % 14.12E % 14.12E "
 	     "% 14.12E % 14.12E % 14.12E % 14.12E % 14.12E % 14.12E "
 	     "% 14.12E % 14.12E % 14.12E % 14.12E % 14.12E % 14.12E "
-	     "% 14.12E %14.12E\n"
+	     "% 14.12E % 14.12E % 14.12E\n"
 	     ,
 	     eph->P0, eph->L0cr, eph->B0, eph->rsun_obs, eph->x, eph->y,
-	     eph->lon, eph->lat, eph->rho, eph->mu,
+	     eph->lon, eph->lat, eph->omega, eph->rho, eph->mu,
 	     eph->dist, eph->vlos,
 	     eph->dist_sun, eph->vlos_sun,
 	     eph->state_sun[0], eph->state_sun[1], eph->state_sun[2],
