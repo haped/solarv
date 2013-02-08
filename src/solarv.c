@@ -97,7 +97,7 @@ void usage (FILE *stream)
 	     "Create a ephemeris table for the SST for one year, close to the "
 	     "eastern limb\n"
 	     "using the Snodgrass 1984 rotation model:\n"
-	     "  solarv -t -O SST -m su90s 2012-01-01T12:00:00.0 hcr 0.003 90 365 1440\n"
+	     "  solarv -t -O SST -m s84s 2012-01-01T12:00:00.0 hcr 0.003 90 365 1440\n"
 	     "\n"
 	     ,
 	     _name, _version, _versiondate
@@ -776,8 +776,8 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	     "#  Data Fields       : "
 	     "1(utc string), 2(utc jd), 3(mjd), 4(P0), 5(L0), 6(B0),\n"
 	     "#    7(rsun_obs), 8(x), "
-	     "9(y), 10(lon), 11(lat), 12(rotrate), 13(rho), 14(mu), 15(dist),\n"
-	     "#    16(vlos), 17(dist_sun), 18(vlos_sun)\n"
+	     "9(y), 10(lon), 11(lat), 12(rotrate), 13(rho), 14(mu),\n"
+	     "#    15(dist), 16(vlos), 17(dist_sun), 18(vlos_sun)\n"
 	     "#    19-24(sun inertial state), "
 	     "25-30(observer intertial state)\n"
 	     "#\n"
