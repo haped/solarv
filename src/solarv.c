@@ -310,7 +310,6 @@ int main (int argc, char **argv)
         case 'h': usage (stdout); return EXIT_SUCCESS;
         case 'm':
 	    if (strcasecmp (optarg, "list") == 0) {
-		printf ("available rotation models:\n");
 		list_rotation_models (stdout);
 		return EXIT_SUCCESS;
 	    }
@@ -322,8 +321,7 @@ int main (int argc, char **argv)
 	    else if (strcasecmp (optarg, "su90m") == 0)	rotmodel = su90m;
 	    else if (strcasecmp (optarg, "s84s") == 0)	rotmodel = s84s;
 	    else {
-		fprintf (stderr, "unknown rotation model: %s\n", optarg);
-		list_rotation_models (stderr);
+		errmesg ("Unknown Rotation Model: %s\n", optarg);
 		return EXIT_FAILURE;
 	    }					
 	    break;
@@ -347,7 +345,7 @@ int main (int argc, char **argv)
 	batchmode = true;
 	FILE *b = fopen (argv[optind], "r");
 	if (NULL == b) {
-	    errmesg ("Can not open input file %s\n", argv[optind+posargs]);
+	    errmesg ("Can not open input file %s\n", argv[optind]);
 	    return EXIT_FAILURE;
 	}
 	batchstream = b;
@@ -892,7 +890,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 
 void list_rotation_models (FILE *stream)
 {
-    fprintf (stream, "name        A       B       C       description\n");
+    fprintf (stream, "Name        A       B       C       Description\n");
     fprintf (stream, "--------------------------------"
 	    "------------------------------------------------\n");
     for (int i = 0; i < RotModel_END; ++i) {
