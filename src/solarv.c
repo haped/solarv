@@ -293,6 +293,7 @@ int main (int argc, char **argv)
     bool batchmode = false;
     char addkernel[MAXPATH+1] = "na";
     char metakernel[MAXPATH+1] = "na";
+    char earthkernel[MAXPATH+1] = "na";
     char observer[MAXKEY+1] = "VTT";
     char fitsfile[MAXPATH+1] = "na";
     bool fancy = false;
@@ -345,7 +346,7 @@ int main (int argc, char **argv)
 	batchmode = true;
 	FILE *b = fopen (argv[optind], "r");
 	if (NULL == b) {
-	    errmesg ("Can not open input file %s\n", argv[optind]);
+	    errmesg ("Can't read input file '%s'\n", argv[optind]);
 	    return EXIT_FAILURE;
 	}
 	batchstream = b;
@@ -359,29 +360,27 @@ int main (int argc, char **argv)
 	version_info (stdout);
 	fprintf (stdout, "CSPICE toolkit version: %s\n", tkvrsn_c ("toolkit"));
     }
-    
-    /* required kernels are coded in solarv.tm  meta kernel */
-    if (strcmp (metakernel, "na") == 0) {
+
+    if (earth_itrf93)
+	snprintf (earthkernel, MAXPATH, "%s/earth_fixed_itrf93.tf", KERNEL_PATH);
+    else
+	snprintf (earthkernel, MAXPATH, "%s/earth_fixed.tf", KERNEL_PATH);
+
+
+    /* load requested kernels */
+    if (strcmp (metakernel, "na") == 0)
 	strncpy (metakernel , KERNEL_PATH "/" METAKERNEL, MAXPATH);
-	/* we only handle the -t flag, if we load the default meta kernel */
-	if (earth_itrf93) {
-	    furnsh_c (KERNEL_PATH "/earth_assoc_itrf93.tf");
-	    furnsh_c (KERNEL_PATH "/earth_fixed_itrf93.tf");
-	} else {
-	    furnsh_c (KERNEL_PATH "/earth_fixed.tf");
-	}
-    }
     furnsh_c (metakernel);
+    furnsh_c (earthkernel);
 
     if (strcmp (addkernel, "na") != 0) {
 	printf ("Loading user-supplied additional kernel %s\n", addkernel);
 	furnsh_c (addkernel);
     }
 
-    if (dumpinfo) {
+    if (dumpinfo)
 	dump_kernel_info (stdout);
-    }
-
+    
     /* the real work is done here */
     if (batchmode) {
 	errorcode = mode_batch (observer, rotmodel,
@@ -393,18 +392,13 @@ int main (int argc, char **argv)
 				    rotmodel, fancy, false, stdout);
     }
     
+    unload_c (earthkernel);
     unload_c (metakernel);
     if (strcmp (addkernel, "na") != 0)
 	unload_c (addkernel);
-    if (earth_itrf93) {
-	unload_c (KERNEL_PATH "/earth_assoc_itrf93.tf");
-	unload_c (KERNEL_PATH "/earth_fixed_itrf93.tf");
-    } else {
-	unload_c (KERNEL_PATH "/earth_fixed.tf");
-    }
     
     if (FAILURE == errorcode) {
-	fprintf (stderr, "Aborting, please check input!\n");
+	fprintf (stderr, "There were Errors. Please Check!\n");
 	return EXIT_FAILURE;
     }
     
@@ -832,14 +826,14 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	cnmfrm_c (eph->observer, MAXKEY, &frcode, frname, &found);
 
     fprintf (stream, 
-	     "  UTC Date of Observation.....  %s (JD %.6f)\n",
+	     "Date of Observation...........  %s (JD %.6f)\n",
 	     eph->utcdate, eph->jday);
 
     if (onEarth)
 	fprintf (stream,
-		 "  Observer Location...........  %s "
+		 "Observer Location.............  %s "
 		 "(%3.5f N, %3.5f E, %.0f m)\n"
-		 "  Terrestr. Reference Frame...  %s\n"
+		 "Terrestr. Reference Frame.....  %s\n"
 		 ,
 		 eph->observer, lat * dpr_c(), lon * dpr_c(),
 		 alt * 1000.0, 
@@ -850,22 +844,22 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
     SpiceDouble dist_au;
     convrt_c(eph->dist_sun, "KM", "AU", &dist_au);
     fprintf (stream, 
-	     "  Sun Reference Radius........ % .0f m\n"
-	     "  Apparent Angular Radius..... % .4f arcsec\n"
-	     "  Rotation Model .............  %s (%s)\n"
-	     "  Siderial Rotation Rate......  %.4f murad/s\n"
-	     "  Position Angle P............ % -.4f deg\n"
-	     "  Sub-Obsrv. Stonyhurst lat... % -.4f deg\n"
-	     "  Sub-Obsrv. Stonyhurst lon... %  .4f deg\n"
-	     "  Sub-Obsrv. Carrington lon... % -.4f deg\n"
-	     "  Solar Center Distance.......  %.0f m (%.9f AE)\n"
-	     "  Solar Center v_los.......... % -.3f m/s\n"
-	     "  Helio-Projct. Cartsn x,y.... % -.4f, %.5f arcsec\n"
-	     "  Stonyhrst Heliogr. lon,lat.. % -.4f, %.5f deg\n"
-	     "  Impact parameter............  %.0f m\n"
-	     "  Cos(theta) = mu............. % .4f\n"
-	     "  Distance....................  %.0f m\n"
-	     "  Line of Sight Velocity...... % -.3f m/s\n"
+	     "Sun Reference Radius.......... % .0f m\n"
+	     "Apparent Angular Radius....... % .4f arcsec\n"
+	     "Rotation Model ...............  %s (%s)\n"
+	     "Siderial Rotation Rate........  %.4f murad/s\n"
+	     "Position Angle P.............. % -.4f deg\n"
+	     "Sub-Obsrv. Stonyhurst lat..... % -.4f deg\n"
+	     "Sub-Obsrv. Stonyhurst lon..... %  .4f deg\n"
+	     "Sub-Obsrv. Carrington lon..... % -.4f deg\n"
+	     "Solar Center Distance.........  %.0f m (%.9f AE)\n"
+	     "Solar Center v_los............ % -.3f m/s\n"
+	     "Helio-Projct. Cartesian x, y.. % -.4f, %.5f arcsec\n"
+	     "Stonyhurst Heliogr. lon, lat.. % -.4f, %.5f deg\n"
+	     "Impact parameter..............  %.0f m\n"
+	     "Cos(theta) = mu............... % .4f\n"
+	     "Distance......................  %.0f m\n"
+	     "Line of Sight Velocity........ % -.3f m/s\n"
 	     ,
 	     eph->rsun_ref * 1000,
 	     eph->rsun_obs * aspr() - 5E-5, /* round down to 4 digits */
