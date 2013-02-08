@@ -26,8 +26,8 @@
 
 static const char _name[] = "Solarv";
 static const char _author[] = "Hans-Peter Doerr";
-static const char _version[] = "0.3.0";
-static const char _versiondate[] = "Feb 2013";
+static const char _version[] = "0.3.1";
+static const char _versiondate[] = "8 Feb 2013";
 static const char _copyright[] = "2012, 2013 Hans-Peter Doerr";
 
 #include "SpiceUsr.h"
@@ -205,6 +205,7 @@ int mode_batch (
     SpiceChar *observer,
     int rotmodel,
     bool fancy,
+    char *fitsname,
     FILE *istream,
     FILE *ostream);
 int handle_request (
@@ -213,6 +214,7 @@ int handle_request (
     char **argv,
     int rotmodel,
     bool fancy,
+    bool dofits,
     FILE *ostream);
 
 void getstate_body (

@@ -294,6 +294,7 @@ int main (int argc, char **argv)
     char addkernel[MAXPATH+1] = "na";
     char metakernel[MAXPATH+1] = "na";
     char observer[MAXKEY+1] = "VTT";
+    char fitsfile[MAXPATH+1] = "na";
     bool fancy = false;
     int rotmodel = fixed;
     bool earth_itrf93 = false;
@@ -386,12 +387,12 @@ int main (int argc, char **argv)
     /* the real work is done here */
     if (batchmode) {
 	errorcode = mode_batch (observer, rotmodel,
-				fancy,  batchstream, stdout);
+				fancy,  fitsfile, batchstream, stdout);
     } else {
 	if (! fancy)
 	    print_ephtable_head (stdout, observer, rotmodel);
 	errorcode = handle_request (observer, posargs, &argv[optind],
-				    rotmodel, fancy, stdout);
+				    rotmodel, fancy, false, stdout);
     }
     
     unload_c (metakernel);
@@ -500,7 +501,7 @@ int soleph (
     /* we use the utc julain date here, so substract the delta */
     eph->jday = unitim_c (et, "ET", "JDTDB") - deltaT / spd_c();
     eph->mjd = eph->jday - 2400000.5;
-    timout_c (et, "YYYY Mon DD HR:MN:SC.## UTC", 64, eph->utcdate);
+    timout_c (et, "DD Mon YYYY HR:MN:SC.## UTC", 64, eph->utcdate);
 
     /* stonyhurst heliographic sub-observer coordinates */
     subpnt_c ("Near point: ellipsoid", "SUN", et, "HEEQ",
@@ -571,8 +572,8 @@ int soleph (
     eph->mu = cos (obsangle + sunangle);
 
     /* P angle */
-    SpiceDouble xform[3][3];
     SpiceDouble e[3] = {0, 0, 1}, sol[3];
+    SpiceDouble xform[3][3];
     pxform_c ("EARTH_FIXED", "OBSCRTN", et, xform);
     mxv_c (xform, e, sol);
     eph->P0 = atan2 (sol[1], sol[2]);
@@ -832,14 +833,16 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
     else
 	cnmfrm_c (eph->observer, MAXKEY, &frcode, frname, &found);
 
+    fprintf (stream, 
+	     "  UTC Date of Observation.....  %s (JD %.6f)\n",
+	     eph->utcdate, eph->jday);
+
     if (onEarth)
 	fprintf (stream,
-		 "  UTC Date of Observation.....  %s (JD %.6f)\n"
 		 "  Observer Location...........  %s "
 		 "(%3.5f N, %3.5f E, %.0f m)\n"
 		 "  Terrestr. Reference Frame...  %s\n"
 		 ,
-		 eph->utcdate, eph->jday,
 		 eph->observer, lat * dpr_c(), lon * dpr_c(),
 		 alt * 1000.0, 
 		 frname);
@@ -906,13 +909,13 @@ int handle_request (
     char **argv,
     int rotmodel,
     bool fancy,
+    bool dofits,
     FILE *ostream)
 {
     sunpos_t position;
     SpiceDouble et;
     size_t nsteps = 1;
     SpiceDouble stepsize = 60.0;
-    bool fits = true;
     fitsfile *fptr;
     int fstatus = 0;
 
@@ -932,15 +935,6 @@ int handle_request (
 	stepsize = atof (argv[5]);
     }
 
-    if (fits) {
-	char outfile[MAXPATH+1];
-	char datestr[64+1];
-	timout_c (et, "YYYY-MM-DD_HR-MN-SC_UTC", 64, datestr);
-	snprintf (outfile, MAXPATH, "solarv_%s-sun_%s.fits", observer, datestr);
-	fits_create_file (&fptr, outfile, &fstatus);
-	write_fits_ephtable_header (fptr, nsteps, &fstatus);
-    }
-
     for (int i = 0; i < nsteps; ++i) {
 	soleph_t eph;
 	SpiceDouble ete = et + i * stepsize * 60.0;
@@ -955,13 +949,9 @@ int handle_request (
 	else
 	    print_ephtable_row (ostream, &eph);
 
-	if (fits) {
+	if (dofits) {
 	    write_fits_ephtable_row (fptr, i+1, &eph, &fstatus);
 	}
-    }
-
-    if (fits) {
-	fits_close_file (fptr, &fstatus);
     }
 
     return SUCCESS;
@@ -972,9 +962,12 @@ int mode_batch (
     SpiceChar *observer,
     int rotmodel,
     bool fancy,
+    char *fitsname,
     FILE *istream,
     FILE *ostream)
 {
+    char fitsfile[MAXPATH+1];
+
     /* we need a faked argv array to make handle_request happy */
     char **argv = malloc (6 * sizeof (char*));
     for (int i = 0; i < 6; ++i) {
@@ -983,6 +976,22 @@ int mode_batch (
 
     if (! fancy)
 	print_ephtable_head (ostream, observer, rotmodel);
+
+    /* bool dofits = false; */
+    /* if (fitsname) { */
+    /* 	dofits = true; */
+    /* 	if (strcmp(fitsname, "auto") == 0) { */
+    /* 	    char datestr[64+1]; */
+    /* 	    timout_c (et, "YYYYMMDDTHRMNSC_UTC", 64, datestr); */
+    /* 	    snprintf (fitsfile, MAXPATH, "solarv_%s_%s.fits", observer, datestr); */
+    /* 	} else { */
+    /* 	    strncpy (fitsfile, fitsname, MAXPATH); */
+    /* 	} */
+    /* } */
+    /* if (dofits) { */
+    /* 	fits_create_file (&fptr, fitsfile, &fstatus); */
+    /* 	write_fits_ephtable_header (fptr, 1, &fstatus); */
+    /* } */
 
     /* handle input stream line by line */
     ssize_t nread;
@@ -1002,7 +1011,7 @@ int mode_batch (
 	argc--;
 	
 	if (SUCCESS != handle_request (observer, argc, argv,
-				       rotmodel, fancy, ostream)) {
+				       rotmodel, fancy, false, ostream)) {
 	    errmesg ("Invalid request in input line %zu\n", lineno);
 	    return FAILURE;
 	}
@@ -1012,6 +1021,10 @@ int mode_batch (
     for (int i = 0; i < 6; ++i) free (argv[i]);
     free (argv);
     
+    /* if (dofits) { */
+    /* 	fits_close_file (fptr, &fstatus); */
+    /* } */
+
     return SUCCESS;
 }
 
@@ -1047,7 +1060,7 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 		      "\0", "rad", "rad", "rad",
 		      "rad", "rad", "rad", "rad",
 		      "rad", "km",
-		      "\0", "\0", "rad/s"
+		      "\0", "\0", "rad/s",
 		      "km, km/s", "km", "km/s",
 		      "rad", "rad", "rad", "rad",
 		      "\0", "km",
