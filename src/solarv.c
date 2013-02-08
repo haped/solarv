@@ -78,7 +78,7 @@ void usage (FILE *stream)
 	     "  -t            use the ITRF93 precision earth rotation kernel\n"
 	     "                Note: this kernel has a limited time coverage and needs\n"
 	     "                to be updated regularily\n"
-	     "  -R radius     specifiy a different solar radius in meters\n"
+	     "  -R radius     specifiy a different solar radius in km\n"
 	     "  -O observer   set observer position. Can be any NAIF body code.\n"
 	     "                pre-defined sites: 'VTT', 'SCHAUINSLAND', 'SST',\n"
 	     "                'DST', 'MCMATH', 'BIGBEAR'\n"
