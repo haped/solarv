@@ -119,174 +119,6 @@ void version_info (FILE *stream)
 	     _name, _version, _versiondate);
 }
 
-void dump_kernel_info (FILE *stream)
-{
-    const SpiceInt TYPLEN = 32;
-    const SpiceInt SRCLEN = 128;
-    SpiceInt  handle;
-    SpiceInt nkernels;
-    SpiceBoolean found;
-    
-    fprintf (stream, "Loaded SPICE kernels:\n");
-    ktotal_c ("all", &nkernels);
-    for (int i = 0; i < nkernels; ++i)
-    {
-	SpiceChar file[MAXPATH+1];
-	SpiceChar filetype[TYPLEN+1];
-	SpiceChar source[SRCLEN+1];
-	
-	kdata_c (i, "all", MAXPATH, TYPLEN, SRCLEN,
-		 file, filetype, source, &handle, &found);
-	kinfo_c (file, TYPLEN, SRCLEN, filetype, source, &handle, &found);
-	fprintf (stream, "   %-5s: %s\n", filetype, file);
-    }
-}
-
-
-/* get the body centered, body fixed coordinates of a location on earth */
-void station_geopos (
-    SpiceChar * station,
-    SpiceDouble et,
-    SpiceDouble *lon,
-    SpiceDouble *lat,
-    SpiceDouble *alt)
-{
-    SpiceDouble state_station[6];
-    SpiceDouble lt;
-    SpiceDouble abc[3], f, r_eq, r_pl;
-    SpiceInt dim;
-
-    spkezr_c (station, et, "EARTH_FIXED", "NONE", "EARTH", state_station, &lt);
-    bodvrd_c( "EARTH", "RADII", 3, &dim, abc);
-    r_eq = abc[0];
-    r_pl = abc[2]; 
-    f = (r_eq - r_pl) / r_eq;
-    recgeo_c (state_station, r_eq, f, lon, lat, alt);
-}
-
-/* get inertial state of a target on the sun, given it's heliographic
- * coordinates an the inertial state of the solar barycenter */
-int getstate_solar_target (
-    SpiceDouble et,
-    SpiceDouble lon,
-    SpiceDouble lat,
-    SpiceDouble omegas,
-    SpiceDouble *sunstate,  /* in: inertial state of sun barycenter */
-    SpiceDouble *tgtstate)  /* out: intertial state of target */
-{
-    SpiceDouble	relstate[6] = {0};
-    SpiceDouble relstatei[6] = {0};
-    SpiceDouble diffrot[6] = {0};
-    SpiceDouble diffroti[6] = {0};
-
-    latrec_c (RSUN, lon, lat, relstate);
-    
-    /* compute state velocity from given omega */
-    SpiceDouble radius[] = {relstate[0], relstate[1], 0.0};
-    SpiceDouble omegav[] = {0.0, 0.0, omegas};
-    vcrss_c (omegav, radius, &diffrot[3]);
-
-    /* 
-     * transform relative state and the differential rotation component to
-     * the inertial state. this procedure is a bit nasty, since HEEQ is not
-     * an inertial state such that velocity is not preserved in the
-     * transform. since the velocity of the target must be the same as that
-     * of the sun center in the interital system (without rotation), we just
-     * set it to zero. the velocity of the diffrot vector is preserved, as
-     * it's spatial coordinates are zero.
-    */
-    SpiceDouble xform[6][6];
-    sxform_c ("HEEQ", "J2000", et, xform);
-    mxvg_c (xform, relstate, 6, 6, relstatei);
-    mxvg_c (xform, diffrot, 6, 6, diffroti);
-
-    /* make sure the velocity of the inertial relstate is zero */
-    relstatei[3] = relstatei[4] = relstatei[5] = 0.0;
-
-    /* get inertial state, add contribution from diff. rotation */
-    vaddg_c (sunstate, relstatei, 6, tgtstate);
-    vaddg_c (tgtstate, diffroti, 6, tgtstate);
-
-    return SUCCESS;
-}
-
-/* get inertial state of an observer on any body */
-int getstate_observer (
-    SpiceChar *body,
-    SpiceDouble et,
-    SpiceDouble lon,  /* -pi .. pi     */
-    SpiceDouble lat,  /* -pi/2 .. pi/2 */
-    SpiceDouble alt,  /* kilometer     */
-    SpiceDouble *state,
-    SpiceDouble *bstate
-    )
-{
-    SpiceDouble bodstate[6];   /* body inertial state             */
-    SpiceDouble relstate[6];   /* observer state relative to body */
-    SpiceDouble relstatei[6];  /* observer relative to inertial   */ 
-
-    SpiceInt dim, frcode;
-    SpiceDouble radi[3], equatr, polar, f;
-    SpiceBoolean found;
-
-    /* positon vector relative to body center */
-    bodvrd_c (body, "RADII", 3, &dim, radi);
-    equatr = radi[0];
-    polar = radi[2];
-    f = (equatr - polar) / equatr;
-    georec_c (lon, lat, alt, equatr, f, relstate);
-
-    /* find native reference frame of 'body' and use it to translate the
-     * position vector to a inertial state */
-    SpiceChar frname[MAXKEY + 1];
-    cnmfrm_c (body, MAXKEY, &frcode, frname, &found);
-    if (! found) {
-	errmesg ("Could not find coordinate system for body %s\n", body);
-	return FAILURE;
-    }
-    SpiceDouble xform[6][6];
-    sxform_c (frname, "J2000", et, xform);
-    mxvg_c (xform, relstate, 6, 6, relstatei);
-
-    /* add observer state to body center inertial state */
-    getstate_body (body, et, bodstate);
-    vaddg_c (bodstate, relstatei, 6, state);
-
-    /* let caller know the body barycenter state if he wants so */
-    if (bstate) {
-	memcpy (bstate, bodstate, 6 * sizeof(SpiceDouble));
-    }
-
-    return SUCCESS;
-}
-
-/* get J2000 inertial state of a body */
-void getstate_body (
-    SpiceChar *body,
-    SpiceDouble et,
-    SpiceDouble *state)
-{
-    SpiceDouble ltt;
-    spkezr_c (body, et, "J2000", "NONE", "SSB",  state, &ltt);
-}
-
-/* get the relative state vector between two state vectors */
-void relstate (
-    SpiceDouble *sobs,
-    SpiceDouble *stgt,
-    SpiceDouble *srel,
-    SpiceDouble *losv,  /* line of sight vector */
-    SpiceDouble *dist,
-    SpiceDouble *vrad,  /* radial velocity */
-    SpiceDouble *lt)
-{
-    vsubg_c (stgt, sobs, 6, srel);
-    unorm_c (srel, losv, dist);
-    *vrad = vdot_c (losv, &srel[3]);
-    *lt = *dist / clight_c();
-}
-
-
 int main (int argc, char **argv)
 {   
     FILE *batchstream = stdin;
@@ -632,6 +464,172 @@ void pointing2lola (
     reclat_c (vsurf, &radius, lon, lat);
 }
 
+void dump_kernel_info (FILE *stream)
+{
+    const SpiceInt TYPLEN = 32;
+    const SpiceInt SRCLEN = 128;
+    SpiceInt  handle;
+    SpiceInt nkernels;
+    SpiceBoolean found;
+    
+    fprintf (stream, "Loaded SPICE kernels:\n");
+    ktotal_c ("all", &nkernels);
+    for (int i = 0; i < nkernels; ++i)
+    {
+	SpiceChar file[MAXPATH+1];
+	SpiceChar filetype[TYPLEN+1];
+	SpiceChar source[SRCLEN+1];
+	
+	kdata_c (i, "all", MAXPATH, TYPLEN, SRCLEN,
+		 file, filetype, source, &handle, &found);
+	kinfo_c (file, TYPLEN, SRCLEN, filetype, source, &handle, &found);
+	fprintf (stream, "   %-5s: %s\n", filetype, file);
+    }
+}
+
+
+/* get the body centered, body fixed coordinates of a location on earth */
+void station_geopos (
+    SpiceChar * station,
+    SpiceDouble et,
+    SpiceDouble *lon,
+    SpiceDouble *lat,
+    SpiceDouble *alt)
+{
+    SpiceDouble state_station[6];
+    SpiceDouble lt;
+    SpiceDouble abc[3], f, r_eq, r_pl;
+    SpiceInt dim;
+
+    spkezr_c (station, et, "EARTH_FIXED", "NONE", "EARTH", state_station, &lt);
+    bodvrd_c( "EARTH", "RADII", 3, &dim, abc);
+    r_eq = abc[0];
+    r_pl = abc[2]; 
+    f = (r_eq - r_pl) / r_eq;
+    recgeo_c (state_station, r_eq, f, lon, lat, alt);
+}
+
+/* get inertial state of a target on the sun, given it's heliographic
+ * coordinates an the inertial state of the solar barycenter */
+int getstate_solar_target (
+    SpiceDouble et,
+    SpiceDouble lon,
+    SpiceDouble lat,
+    SpiceDouble omegas,
+    SpiceDouble *sunstate,  /* in: inertial state of sun barycenter */
+    SpiceDouble *tgtstate)  /* out: intertial state of target */
+{
+    SpiceDouble	relstate[6] = {0};
+    SpiceDouble relstatei[6] = {0};
+    SpiceDouble diffrot[6] = {0};
+    SpiceDouble diffroti[6] = {0};
+
+    latrec_c (RSUN, lon, lat, relstate);
+    
+    /* compute state velocity from given omega */
+    SpiceDouble radius[] = {relstate[0], relstate[1], 0.0};
+    SpiceDouble omegav[] = {0.0, 0.0, omegas};
+    vcrss_c (omegav, radius, &diffrot[3]);
+
+    /* 
+     * transform relative state and the differential rotation component to
+     * the inertial state. this procedure is a bit nasty, since HEEQ is not
+     * an inertial state such that velocity is not preserved in the
+     * transform. since the velocity of the target must be the same as that
+     * of the sun center in the interital system (without rotation), we just
+     * set it to zero. the velocity of the diffrot vector is preserved, as
+     * it's spatial coordinates are zero.
+    */
+    SpiceDouble xform[6][6];
+    sxform_c ("HEEQ", "J2000", et, xform);
+    mxvg_c (xform, relstate, 6, 6, relstatei);
+    mxvg_c (xform, diffrot, 6, 6, diffroti);
+
+    /* make sure the velocity of the inertial relstate is zero */
+    relstatei[3] = relstatei[4] = relstatei[5] = 0.0;
+
+    /* get inertial state, add contribution from diff. rotation */
+    vaddg_c (sunstate, relstatei, 6, tgtstate);
+    vaddg_c (tgtstate, diffroti, 6, tgtstate);
+
+    return SUCCESS;
+}
+
+/* get inertial state of an observer on any body */
+int getstate_observer (
+    SpiceChar *body,
+    SpiceDouble et,
+    SpiceDouble lon,  /* -pi .. pi     */
+    SpiceDouble lat,  /* -pi/2 .. pi/2 */
+    SpiceDouble alt,  /* kilometer     */
+    SpiceDouble *state,
+    SpiceDouble *bstate
+    )
+{
+    SpiceDouble bodstate[6];   /* body inertial state             */
+    SpiceDouble relstate[6];   /* observer state relative to body */
+    SpiceDouble relstatei[6];  /* observer relative to inertial   */ 
+
+    SpiceInt dim, frcode;
+    SpiceDouble radi[3], equatr, polar, f;
+    SpiceBoolean found;
+
+    /* positon vector relative to body center */
+    bodvrd_c (body, "RADII", 3, &dim, radi);
+    equatr = radi[0];
+    polar = radi[2];
+    f = (equatr - polar) / equatr;
+    georec_c (lon, lat, alt, equatr, f, relstate);
+
+    /* find native reference frame of 'body' and use it to translate the
+     * position vector to a inertial state */
+    SpiceChar frname[MAXKEY + 1];
+    cnmfrm_c (body, MAXKEY, &frcode, frname, &found);
+    if (! found) {
+	errmesg ("Could not find coordinate system for body %s\n", body);
+	return FAILURE;
+    }
+    SpiceDouble xform[6][6];
+    sxform_c (frname, "J2000", et, xform);
+    mxvg_c (xform, relstate, 6, 6, relstatei);
+
+    /* add observer state to body center inertial state */
+    getstate_body (body, et, bodstate);
+    vaddg_c (bodstate, relstatei, 6, state);
+
+    /* let caller know the body barycenter state if he wants so */
+    if (bstate) {
+	memcpy (bstate, bodstate, 6 * sizeof(SpiceDouble));
+    }
+
+    return SUCCESS;
+}
+
+/* get J2000 inertial state of a body */
+void getstate_body (
+    SpiceChar *body,
+    SpiceDouble et,
+    SpiceDouble *state)
+{
+    SpiceDouble ltt;
+    spkezr_c (body, et, "J2000", "NONE", "SSB",  state, &ltt);
+}
+
+/* get the relative state vector between two state vectors */
+void relstate (
+    SpiceDouble *sobs,
+    SpiceDouble *stgt,
+    SpiceDouble *srel,
+    SpiceDouble *losv,  /* line of sight vector */
+    SpiceDouble *dist,
+    SpiceDouble *vrad,  /* radial velocity */
+    SpiceDouble *lt)
+{
+    vsubg_c (stgt, sobs, 6, srel);
+    unorm_c (srel, losv, dist);
+    *vrad = vdot_c (losv, &srel[3]);
+    *lt = *dist / clight_c();
+}
 
 void reset_soleph (soleph_t *eph)
 {
@@ -908,8 +906,8 @@ int handle_request (
     SpiceDouble et;
     size_t nsteps = 1;
     SpiceDouble stepsize = 60.0;
-    fitsfile *fptr;
-    int fstatus = 0;
+    /* fitsfile *fptr; */
+    /* int fstatus = 0; */
 
     if (argc < 4 || argc > 6) {
 	errmesg ("Insufficent input data in request\n");
@@ -941,9 +939,9 @@ int handle_request (
 	else
 	    print_ephtable_row (ostream, &eph);
 
-	if (dofits) {
-	    write_fits_ephtable_row (fptr, i+1, &eph, &fstatus);
-	}
+	/* if (dofits) { */
+	/*     write_fits_ephtable_row (fptr, i+1, &eph, &fstatus); */
+	/* } */
     }
 
     return SUCCESS;
@@ -958,7 +956,7 @@ int mode_batch (
     FILE *istream,
     FILE *ostream)
 {
-    char fitsfile[MAXPATH+1];
+    /* char fitsfile[MAXPATH+1]; */
 
     /* we need a faked argv array to make handle_request happy */
     char **argv = malloc (6 * sizeof (char*));

@@ -151,55 +151,11 @@ typedef struct
 } soleph_t;
 
 void usage (FILE *stream);
-
-int soleph (
-    SpiceChar *station, /* NAIF body name/code of the observer     */ 
-    SpiceDouble et,     /* Spice ephemeris time of the observation */
-    sunpos_t position, 
-    soleph_t *eph,
-    int rotModel);
-
-int mode_plain (
-    SpiceChar *observer, /* NAIF body name/code of the observer     */ 
-    char *time_utc,     /* Spice ephemeris time of the observation */
-    sunpos_t position, 
-    SpiceDouble stepsize,
-    int nsteps,
-    bool fancy,
-    FILE * stream,
-    int rotmodel);
-
-int mode_fits (
-    SpiceChar *observer,
-    char *infile,
-    char *outdir,
-    sunpos_t position,
-    int rotmodel);
-
-
-
-SpiceDouble omega_sun (SpiceDouble lat, int model);
-
-void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel);
-void print_ephtable_row (FILE *stream, soleph_t *eph);
-void fancy_print_eph (FILE *stream, soleph_t *eph);
-void list_rotation_models (FILE *stream);
-void reset_soleph (soleph_t *eph);
-int parse_sunpos (const char *type, const char *posx, const char *posy, sunpos_t *pos);
 void errmesg (const char *mesg, ...);
-int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status);
-int write_fits_ephtable_row (
-    fitsfile *fptr,
-    long row,
-    soleph_t *eph,
-    int *status);
 
-SpiceDouble aspr(void);
-SpiceDouble dpas(void);
-SpiceDouble rpas(void);
+void dump_kernel_info (FILE *stream);
+void list_rotation_models (FILE *stream);
 
-void printstate (SpiceDouble *s);
-void printvec (SpiceDouble *s);
 char* wordsep (char *str, char *token);
 int mode_batch (
     SpiceChar *observer,
@@ -208,6 +164,24 @@ int mode_batch (
     char *fitsname,
     FILE *istream,
     FILE *ostream);
+
+int parse_sunpos (
+    const char *type,
+    const char *posx,
+    const char *posy,
+    sunpos_t *pos);
+
+void reset_soleph (soleph_t *eph);
+
+int soleph (
+    SpiceChar *station, /* NAIF body name/code of the observer     */ 
+    SpiceDouble et,     /* Spice ephemeris time of the observation */
+    sunpos_t position, 
+    soleph_t *eph,
+    int rotModel);
+
+SpiceDouble omega_sun (SpiceDouble lat, int model);
+
 int handle_request (
     SpiceChar *observer,
     int argc,
@@ -240,6 +214,15 @@ int getstate_solar_target (
     SpiceDouble *tstate,
     SpiceDouble *cstate);
 
+void relstate (
+    SpiceDouble *sobs,
+    SpiceDouble *stgt,
+    SpiceDouble *srel,
+    SpiceDouble *losv,  /* line of sight vector */
+    SpiceDouble *dist,
+    SpiceDouble *vrad,  /* radial velocity */
+    SpiceDouble *lt);
+
 void get_pointing (
     SpiceDouble et,
     SpiceDouble *relstate_sun,
@@ -266,5 +249,23 @@ void pointing2lola (
     SpiceDouble *lat,
     SpiceBoolean *onbody);
 
+void print_ephtable_head (
+    FILE *stream,
+    SpiceChar *observer,
+    SpiceInt rotmodel);
+void print_ephtable_row (FILE *stream, soleph_t *eph);
+void fancy_print_eph (FILE *stream, soleph_t *eph);
+int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status);
+int write_fits_ephtable_row (
+    fitsfile *fptr,
+    long row,
+    soleph_t *eph,
+    int *status);
+void printstate (SpiceDouble *s);
+void printvec (SpiceDouble *s);
+
+SpiceDouble aspr(void);
+SpiceDouble dpas(void);
+SpiceDouble rpas(void);
 
 #endif /* _SOLARV_H_ */
