@@ -710,12 +710,12 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
     fprintf (stream,
 	     "#*****************************************************"
 	     "*************************\n"
-	     "#  Ephemeris Data created on %s UTC by solaRV v%s\n"
-	     "#  SPICE Version     : %s\n"
-	     "#  Reference Epoch   : J2000.0\n"
-	     "#  Reference Frame   : ICRF/J2000, "
+	     "#  Ephemeris Data created on %s UTC by solarv v%s\n"
+	     "#  SPICE Version      : %s\n"
+	     "#  Reference Epoch    : J2000.0\n"
+	     "#  Inert. Refr. Frame : ICRF/J2000, "
 	     "Mean Equator and Equinox of Epoch\n"
-	     "#  Abbr. Correction  : %s\n"
+	     "#  Abbr. Correction   : %s\n"
 	     , now, _version, tkvrsn_c ("toolkit"), ABCORR);
     
     double lon, lat, alt;
@@ -745,11 +745,11 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
     fprintf (stream,
 	     "#*****************************************************"
 	     "*************************\n"
-	     "#  Observer Location : %s", observer);
+	     "#  Observer Location  : %s", observer);
     if (onEarth) {
 	fprintf (stream,
 		 " (%.5f N, %.5f E, %.0f m)\n"
-		 "#  Terr. Ref. Frame  : %s\n",
+		 "#  Terr. Ref. Frame   : %s\n",
 		 lat * dpr_c(), lon * dpr_c(), alt * 1000, frname);
     } else {
 	fprintf (stream, "\n");
@@ -758,10 +758,10 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
     SpiceDouble one_au;
     convrt_c(1.0, "AU", "KM", &one_au);
     fprintf (stream,
-	     "#  Solar Radius      : %.0f km\n"
-	     "#  Solar Rot. Model  : %s (%s)\n"
-	     "#                      A, B, C = (%.4f, %.4f, %.4f) murad/s\n"
-	     "#  One AU            : %.3f km\n",
+	     "#  Solar Radius       : %.0f km\n"
+	     "#  Solar Rot. Model   : %s (%s)\n"
+	     "#                       A, B, C = (%.4f, %.4f, %.4f) murad/s\n"
+	     "#  One AU             : %.3f km\n",
 	     RSUN, RotModels[rotmodel].name,
 	     RotModels[rotmodel].descr,
 	     RotModels[rotmodel].A,

@@ -75,14 +75,14 @@ typedef struct
 /* TODO: add carringtion model  2.86532908457173 urad/s */
 static const rotmodel_t RotModels[] =
 {
-    {0.000,    0.000,  0.000, "fixed", "no rotation, fixed to J2000 frame"},
-    {2.851,    0.000,  0.000, "rigid", "rigid body rotation, 2.851 murad/s"},
-    {2.86532,  0.000,  0.000, "crgt", "rigid body rotation, Carrington rate"},
+    {0.000,    0.000,  0.000, "fixed", "No Rotation, fixed to Inertial Frame"},
+    {2.851,    0.000,  0.000, "rigid", "Rigid Body Rotation, 2.851 murad/s"},
+    {2.86532,  0.000,  0.000, "crgt", "Rigid Body Rotation, Carrington rate"},
     {2.851,   -0.343, -0.474, "su90s", "Snodgrass & Ulrich (1990), spectroscopic"}, 
     {2.972,   -0.484, -0.361, "su90g", "Snodgrass & Ulrich (1990), supergranul."},
     {2.879,   -0.339, -0.485, "su90m", "Snodgrass & Ulrich (1990), magnetic"},
     {2.836,   -0.344, -0.504, "s84s", "Snodgrass (1984), spectrosc. MWO data"},
-    {0.000,    0.000,  0.000, "custom", "custom selected A, B, C coefficients"}
+    {0.000,    0.000,  0.000, "custom", "Custom selected A, B, C coefficients"}
 };
 enum RotModel {fixed = 0,
 	       rigid,
