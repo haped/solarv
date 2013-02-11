@@ -567,7 +567,8 @@ int soleph (
 
     /* heliocentric angle is the angle between the los and the surface
      * normal at the target */
-    eph->mu = cos (obsangle + sunangle);
+    eph->theta = obsangle + sunangle;
+    eph->mu = cos (eph->theta);
 
     /* P angle */
     SpiceDouble e[3] = {0, 0, 1}, sol[3];
@@ -661,6 +662,7 @@ void reset_soleph (soleph_t *eph)
     eph->lat = 0.0;
     eph->x = 0.0;
     eph->y = 0.0;
+    eph->theta = 0.0;
     eph->mu = 0.0;
     eph->dist = 0.0;
     eph->vlos = 0.0;
@@ -863,6 +865,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     "  Helio-Projct. Cartsn x,y.... % -.4f, %.5f arcsec\n"
 	     "  Stonyhrst Heliogr. lon,lat.. % -.4f, %.5f deg\n"
 	     "  Impact parameter............  %.0f m\n"
+	     "  Heliocentric Angle theta....  %.4f deg\n"
 	     "  Cos(theta) = mu............. % .4f\n"
 	     "  Distance....................  %.0f m\n"
 	     "  Line of Sight Velocity...... % -.3f m/s\n"
@@ -881,6 +884,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     eph->x * aspr(), eph->y * aspr(),
 	     eph->lon * dpr_c(), eph->lat * dpr_c(),
 	     eph->rho * 1000,
+	     eph->theta * dpr_c(),
 	     eph->mu,
 	     eph->dist * 1000,
 	     eph->vlos * 1000
@@ -1032,7 +1036,7 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 	return FAILURE;
     
     /* define table structure */
-    int tfields = 28;
+    int tfields = 29;
     char tname[] = "ephemeris table";
     char *ttype[] = { "date_obs", "jd_obs", "mjd_obs",
 		      "observer", "obs_lon", "obs_lat", "obs_alt",
@@ -1041,7 +1045,7 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 		      "rotmodel", "modeldescr", "rotrate",
 		      "state_sun", "dist_sun", "vlos_sun", 
 		      "hg_lon", "hg_lat", "hpc_x", "hpc_y",
-		      "mu", "impactparam", 
+		      "theta", "mu", "impactparam", 
 		      "state_obs", "dist_obs", "vlos_obs"
     };
     char *tform[] = { "32A", "D", "D",
@@ -1051,7 +1055,7 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 		      "32A", "64A", "D",
 		      "6D", "D", "D",
 		      "D", "D", "D", "D", 
-		      "D", "D",
+		      "D", "D", "D",
 		      "6D", "D", "D"
     };
     char *tunit[] = { "\0", "days", "days",
@@ -1061,7 +1065,7 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 		      "\0", "\0", "rad/s",
 		      "km, km/s", "km", "km/s",
 		      "rad", "rad", "rad", "rad",
-		      "\0", "km",
+		      "rad", "\0", "km",
 		      "km, km/s", "km", "km/s"
     };
     fits_create_tbl (fptr,
@@ -1134,6 +1138,7 @@ int write_fits_ephtable_row (
     EPHTABLE_ADDCELL (TDOUBLE, &eph->x);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->y);
 
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->theta);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->mu);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->rho);
     
