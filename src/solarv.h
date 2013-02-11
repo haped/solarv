@@ -138,6 +138,7 @@ typedef struct
     SpiceDouble lat;              /* stonyhurst target latitude              */
     SpiceDouble x;                /* helio-projective cartesian x            */
     SpiceDouble y;                /* helio-projective cartesian y            */
+    SpiceDouble theta;            /* heliocentric angle                      */
     SpiceDouble mu;               /* heliocentric parameter of the target    */
     SpiceDouble dist;             /* distance to target                      */
     SpiceDouble vlos;             /* radial velocity of target               */
