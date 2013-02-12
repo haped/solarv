@@ -834,7 +834,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		 " Observer Location............  %s "
 		 "(%3.5f N, %3.5f E, %.0f m)\n"
 		 " Inertial Reference Frame.....  %s\n"
-		 " Terrestr. Reference Frame....  %s\n"
+		 " Terrestric Reference Frame...  %s\n"
 		 ,
 		 eph->observer, lat * dpr_c(), lon * dpr_c(),
 		 alt * 1000.0,
@@ -854,7 +854,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     " Sub-Obsrv. Stonyhurst lat.... % -.4f deg\n"
 	     " Sub-Obsrv. Stonyhurst lon.... %  .4f deg\n"
 	     " Sub-Obsrv. Carrington lon.... % -.4f deg\n"
-	     " Solar Center Distance........  %.0f m (%.9f AE)\n"
+	     " Solar Center Distance........  %.0f m (%.9f AU)\n"
 	     " Solar Center v_los........... % -.3f m/s\n"
 	     " Helio-Projct. Cartesian x,y.. % -.4f, %.5f arcsec\n"
 	     " Stonyhurst Heliogr. lon,lat.. % -.4f, %.5f deg\n"
