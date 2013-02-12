@@ -826,41 +826,43 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	cnmfrm_c (eph->observer, MAXKEY, &frcode, frname, &found);
 
     fprintf (stream, 
-	     "Date of Observation...........  %s (JD %.6f)\n",
+	     " Date of Observation..........  %s (JD %.6f)\n",
 	     eph->utcdate, eph->jday);
 
     if (onEarth)
 	fprintf (stream,
-		 "Observer Location.............  %s "
+		 " Observer Location............  %s "
 		 "(%3.5f N, %3.5f E, %.0f m)\n"
-		 "Terrestr. Reference Frame.....  %s\n"
+		 " Inertial Reference Frame.....  %s\n"
+		 " Terrestr. Reference Frame....  %s\n"
 		 ,
 		 eph->observer, lat * dpr_c(), lon * dpr_c(),
-		 alt * 1000.0, 
+		 alt * 1000.0,
+		 "ICRF/J2000, Mean Equator & Equinox of J2000",
 		 frname);
     else
-	fprintf (stream, "  Observer location...........  %s\n", eph->observer);
+	fprintf (stream, " Observer location...........  %s\n", eph->observer);
     
     SpiceDouble dist_au;
     convrt_c(eph->dist_sun, "KM", "AU", &dist_au);
     fprintf (stream, 
-	     "Sun Reference Radius.......... % .0f m\n"
-	     "Apparent Angular Radius....... % .4f arcsec\n"
-	     "Rotation Model ...............  %s (%s)\n"
-	     "Siderial Rotation Rate........  %.4f murad/s\n"
-	     "Position Angle P.............. % -.4f deg\n"
-	     "Sub-Obsrv. Stonyhurst lat..... % -.4f deg\n"
-	     "Sub-Obsrv. Stonyhurst lon..... %  .4f deg\n"
-	     "Sub-Obsrv. Carrington lon..... % -.4f deg\n"
-	     "Solar Center Distance.........  %.0f m (%.9f AE)\n"
-	     "Solar Center v_los............ % -.3f m/s\n"
-	     "Helio-Projct. Cartesian x, y.. % -.4f, %.5f arcsec\n"
-	     "Stonyhurst Heliogr. lon, lat.. % -.4f, %.5f deg\n"
-	     "Impact parameter..............  %.0f m\n"
-	     "Heliocentric Angle theta......  %.4f deg\n"
-	     "Cos(theta) = mu............... % .4f\n"
-	     "Distance......................  %.0f m\n"
-	     "Line of Sight Velocity........ % -.3f m/s\n"
+	     " Sun Reference Radius......... % .0f m\n"
+	     " Apparent Angular Radius...... % .4f arcsec\n"
+	     " Rotation Model ..............  %s (%s)\n"
+	     " Siderial Rotation Rate.......  %.4f murad/s\n"
+	     " Position Angle P............. % -.4f deg\n"
+	     " Sub-Obsrv. Stonyhurst lat.... % -.4f deg\n"
+	     " Sub-Obsrv. Stonyhurst lon.... %  .4f deg\n"
+	     " Sub-Obsrv. Carrington lon.... % -.4f deg\n"
+	     " Solar Center Distance........  %.0f m (%.9f AE)\n"
+	     " Solar Center v_los........... % -.3f m/s\n"
+	     " Helio-Projct. Cartesian x,y.. % -.4f, %.5f arcsec\n"
+	     " Stonyhurst Heliogr. lon,lat.. % -.4f, %.5f deg\n"
+	     " Impact parameter.............  %.0f m\n"
+	     " Heliocentric Angle theta.....  %.4f deg\n"
+	     " Cos(theta) = mu.............. % .4f\n"
+	     " Distance.....................  %.0f m\n"
+	     " Line of Sight Velocity....... % -.3f m/s\n"
 	     ,
 	     eph->rsun_ref * 1000,
 	     eph->rsun_obs * aspr() - 5E-5, /* round down to 4 digits */
