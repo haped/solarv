@@ -849,7 +849,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     " Sun Reference Radius......... % .0f m\n"
 	     " Apparent Angular Radius...... % .4f arcsec\n"
 	     " Rotation Model ..............  %s (%s)\n"
-	     " Siderial Rotation Rate.......  %.4f murad/s\n"
+	     " Sidereal Rotation Rate.......  %.4f murad/s\n"
 	     " Position Angle P............. % -.4f deg\n"
 	     " Sub-Obsrv. Stonyhurst lat.... % -.4f deg\n"
 	     " Sub-Obsrv. Stonyhurst lon.... %  .4f deg\n"
