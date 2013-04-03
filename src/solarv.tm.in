@@ -20,6 +20,7 @@ KPL/MK
 			'$SYSKERN/naif0010.tls',
 			'$SYSKERN/de421.bsp',
 			'$SYSKERN/heliospheric.tf',
+			'$SYSKERN/obscrtn.tf',
 			'$SYSKERN/stations.bsp',
 			'$SYSKERN/stations.tf'
 			)		
