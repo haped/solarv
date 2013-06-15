@@ -841,7 +841,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		 "ICRF/J2000, Mean Equator & Equinox of J2000",
 		 frname);
     else
-	fprintf (stream, " Observer location...........  %s\n", eph->observer);
+	fprintf (stream, " Observer location............  %s\n", eph->observer);
     
     SpiceDouble dist_au;
     convrt_c(eph->dist_sun, "KM", "AU", &dist_au);
