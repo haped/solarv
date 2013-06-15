@@ -858,7 +858,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     " Solar Center v_los........... % -.3f m/s\n"
 	     " Helio-Projct. Cartesian x,y.. % -.4f, %.5f arcsec\n"
 	     " Stonyhurst Heliogr. lon,lat.. % -.4f, %.5f deg\n"
-	     " Impact parameter.............  %.0f m\n"
+	     " Impact parameter.............  %.0f m, %.2f arcsec\n"
 	     " Heliocentric Angle theta.....  %.4f deg\n"
 	     " Cos(theta) = mu.............. % .4f\n"
 	     " Distance.....................  %.0f m\n"
@@ -877,7 +877,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     eph->vlos_sun * 1000,
 	     eph->x * aspr(), eph->y * aspr(),
 	     eph->lon * dpr_c(), eph->lat * dpr_c(),
-	     eph->rho * 1000,
+	     eph->rho * 1000, sqrt(eph->x * eph->x + eph->y * eph->y) * aspr(),
 	     eph->theta * dpr_c(),
 	     eph->mu,
 	     eph->dist * 1000,
