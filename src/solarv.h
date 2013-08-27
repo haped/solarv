@@ -26,8 +26,8 @@
 
 static const char _name[] = "Solarv";
 static const char _author[] = "Hans-Peter Doerr";
-static const char _version[] = "0.3.1a";
-static const char _versiondate[] = "13 Feb 2013";
+static const char _version[] = "0.3.2";
+static const char _versiondate[] = "27 Aug 2013";
 static const char _copyright[] = "2012, 2013 Hans-Peter Doerr";
 
 #include "SpiceUsr.h"
@@ -72,7 +72,6 @@ typedef struct
     char descr[129];
 } rotmodel_t;
 
-/* TODO: add carringtion model  2.86532908457173 urad/s */
 static const rotmodel_t RotModels[] =
 {
     {0.000,    0.000,  0.000, "fixed", "No Rotation, fixed to Inertial Frame"},

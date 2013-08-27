@@ -812,7 +812,6 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	0 != strcasecmp (eph->observer, "SCHAUINSLAND") &&
 	0 != strcasecmp (eph->observer, "DST") &&
 	0 != strcasecmp (eph->observer, "MCMATH") &&
-	0 != strcasecmp (eph->observer, "TEIDE") &&
 	0 != strcasecmp (eph->observer, "BIGBEAR")
 	) {
 	onEarth = false;
