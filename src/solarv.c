@@ -606,7 +606,7 @@ int getstate_observer (
     return SUCCESS;
 }
 
-/* get J2000 inertial state of a body */
+/* get the j2000 state of a body relative to solar system barycenter */
 void getstate_body (
     SpiceChar *body,
     SpiceDouble et,
@@ -705,8 +705,8 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	     "#  Ephemeris Data created on %s UTC by solarv v%s\n"
 	     "#  SPICE Version      : %s\n"
 	     "#  Reference Epoch    : J2000.0\n"
-	     "#  Inert. Refr. Frame : ICRF/J2000, "
-	     "Mean Equator and Equinox of Epoch\n"
+	     "#  Inert. Refr. Frame : J2000, "
+	     "Earth Mean Equator and Equinox of Epoch\n"
 	     "#  Abbr. Correction   : %s\n"
 	     , now, _version, tkvrsn_c ("toolkit"), ABCORR);
     
@@ -837,7 +837,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 		 ,
 		 eph->observer, lat * dpr_c(), lon * dpr_c(),
 		 alt * 1000.0,
-		 "ICRF/J2000, Mean Equator & Equinox of J2000",
+		 "J2000, Earth Mean Equator & Equinox of J2000.0",
 		 frname);
     else
 	fprintf (stream, " Observer location............  %s\n", eph->observer);
