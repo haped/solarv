@@ -709,10 +709,8 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	     "Earth Mean Equator and Equinox of Epoch\n"
 	     "#  Abbr. Correction   : %s\n"
 	     , now, _version, tkvrsn_c ("toolkit"), ABCORR);
-    
+
     double lon, lat, alt;
-    station_geopos (observer, 1.0, &lon, &lat, &alt);
-    
 
     /* FIXME: really check if we are on earth or not */
     bool onEarth = true;
@@ -725,6 +723,9 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	) {
 	onEarth = false;
     }
+
+    if (onEarth) 
+	station_geopos (observer, 1.0, &lon, &lat, &alt);
 
     SpiceBoolean found = 0;
     SpiceInt frcode;
@@ -772,6 +773,7 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	     "#    15(dist), 16(vlos), 17(dist_sun), 18(vlos_sun)\n"
 	     "#    19-24(sun inertial state), "
 	     "25-30(observer intertial state)\n"
+	     "#  Inertial states are computed relative to the SSB\n"
 	     "#\n"
 	);
 }
@@ -812,6 +814,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	0 != strcasecmp (eph->observer, "SCHAUINSLAND") &&
 	0 != strcasecmp (eph->observer, "DST") &&
 	0 != strcasecmp (eph->observer, "MCMATH") &&
+	0 != strcasecmp (eph->observer, "SUNRISE2") &&
 	0 != strcasecmp (eph->observer, "BIGBEAR")
 	) {
 	onEarth = false;
@@ -920,7 +923,7 @@ int handle_request (
     }
     
     str2et_c (argv[0], &et);
-    
+
     if (FAILURE == parse_sunpos (argv[1], argv[2], argv[3], &position)) {
 	errmesg ("Could not parse target coordinates\n");
 	return FAILURE;
