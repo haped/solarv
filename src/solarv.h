@@ -128,6 +128,7 @@ typedef struct
     SpiceDouble vlos_sun;         /* radial velocity of obs to solar center  */
     SpiceDouble rsun_ref;         /* reference radius of the sun             */
     SpiceDouble rsun_obs;         /* apparent angular radius of the disk     */
+    SpiceDouble grav_redshift;    /* fractional grav. redshift for observer  */
     int rotmodel;                 /* solar rotation model used               */
     char modelname[MAXKEY+1];     /* name of the rotation model              */
     char modeldescr[MAXKEY+1];    /* description of the rotation model       */
@@ -248,6 +249,8 @@ void pointing2lola (
     SpiceDouble *lon,
     SpiceDouble *lat,
     SpiceBoolean *onbody);
+
+SpiceDouble grav_redshift (SpiceDouble GM, SpiceDouble r_emit, SpiceDouble r_obs);
 
 void print_ephtable_head (
     FILE *stream,

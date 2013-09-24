@@ -403,7 +403,25 @@ int soleph (
     mxv_c (xform, e, sol);
     eph->P0 = atan2 (sol[1], sol[2]);
 
+    /* grav redshift */
+    SpiceDouble GM_sun = 1.32712440018e20; // TODO: check, from wikipedia
+    SpiceDouble GM_earth = 3.986004418e14; // TODO: ditto
+    SpiceDouble gr_sun = grav_redshift (GM_sun, RSUN * 1000, eph->dist * 1000);
+    SpiceDouble gr_earth = grav_redshift (GM_earth, 6000*1000, eph->dist * 1000);
+    /* TODO: include blue shift from earth (or other central body) properly */
+    eph->grav_redshift = gr_sun; //- gr_earth;
+
     return SUCCESS;
+}
+
+SpiceDouble grav_redshift (SpiceDouble GM, SpiceDouble r_emit, SpiceDouble r_obs)
+{
+    SpiceDouble c2 = clight_c() * clight_c() * 1E6;
+    SpiceDouble emit_inf = 1.0 / sqrt (1.0 - 2.0 * GM / (r_emit * c2)) - 1.0;
+    SpiceDouble obs_inf = 1.0 / sqrt (1.0 - 2.0 * GM / (r_obs * c2)) - 1.0;
+    SpiceDouble ztot = emit_inf - obs_inf;
+
+    return ztot;
 }
 
 
@@ -646,6 +664,7 @@ void reset_soleph (soleph_t *eph)
     eph->vlos_sun = 0.0;
     eph->rsun_ref = 0.0;
     eph->rsun_obs = 0.0;
+    eph->grav_redshift = 0.0;
     eph->rotmodel = 0;
     strcpy (eph->modelname, "na");
     strcpy (eph->modeldescr, "na");
@@ -858,6 +877,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     " Sub-Obsrv. Carrington lon.... % -.4f deg\n"
 	     " Solar Center Distance........  %.0f m (%.9f AU)\n"
 	     " Solar Center v_los........... % -.3f m/s\n"
+	     " Sun-Observer grav. redshift.. % .6f ppm\n"
 	     " Helio-Projct. Cartesian x,y.. % -.4f, %.5f arcsec\n"
 	     " Stonyhurst Heliogr. lon,lat.. % -.4f, %.5f deg\n"
 	     " Impact parameter.............  %.0f m, %.2f arcsec\n"
@@ -877,6 +897,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     eph->dist_sun * 1000,
 	     dist_au,
 	     eph->vlos_sun * 1000,
+	     eph->grav_redshift * 1E6,
 	     eph->x * aspr(), eph->y * aspr(),
 	     eph->lon * dpr_c(), eph->lat * dpr_c(),
 	     eph->rho * 1000, sqrt(eph->x * eph->x + eph->y * eph->y) * aspr(),
