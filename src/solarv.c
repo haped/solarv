@@ -198,7 +198,6 @@ int main (int argc, char **argv)
     else
 	snprintf (earthkernel, MAXPATH, "%s/earth_fixed.tf", KERNEL_PATH);
 
-
     /* load requested kernels */
     if (strcmp (metakernel, "na") == 0)
 	strncpy (metakernel , KERNEL_PATH "/" METAKERNEL, MAXPATH);
@@ -289,6 +288,10 @@ int anypos2lola (
 
     return SUCCESS;
 }
+
+
+//double zenith_distance (SpiceChar *observer, SpiceDouble et
+
 
 /*
  * this is the entry point to compute the solar ephemeris parameters for a
@@ -403,14 +406,47 @@ int soleph (
     mxv_c (xform, e, sol);
     eph->P0 = atan2 (sol[1], sol[2]);
 
+    /* zenith angle */
+    SpiceBoolean onEarth = observer_on_earth (observer);
+    if (onEarth)
+    {
+	SpiceDouble lat, lon, alt;
+	station_geopos (observer, 1.0, &lon, &lat, &alt);
+
+	SpiceInt dim;
+	SpiceDouble abc[3];
+	bodvrd_c ("EARTH", "RADII", 3, &dim, abc );
+	SpiceDouble equatr = abc[0];
+	SpiceDouble polar = abc[2];
+	SpiceDouble f = (equatr - polar) / equatr;
+
+	SpiceDouble bcc[3], nrml[3], nrmlj2k[3], xform[3][3];
+	georec_c (lon, lat, alt, equatr, f, bcc);
+	surfnm_c (abc[0], abc[1], abc[2], bcc, nrml);
+
+	pxform_c ("EARTH_FIXED", "J2000", et, xform);
+	mxv_c (xform, nrml, nrmlj2k);
+
+	//FIXME: apply atmospheric refraction correction here!
+	eph->zenith = vsep_c(nrmlj2k, relstate_tgt);
+
+	//TODO: compute airmass
+    }
+
     /* grav redshift */
     SpiceDouble GM_sun = 1.32712440018e20; // TODO: check, from wikipedia
     SpiceDouble GM_earth = 3.986004418e14; // TODO: ditto
     SpiceDouble gr_sun = grav_redshift (GM_sun, RSUN * 1000, eph->dist * 1000);
     SpiceDouble gr_earth = grav_redshift (GM_earth, 6000*1000, eph->dist * 1000);
-    /* TODO: include blue shift from earth (or other central body) properly */
-    eph->grav_redshift = gr_sun; //- gr_earth;
+    eph->gr_sun = gr_sun;
+    eph->gr_obs = gr_earth;
 
+    /* FIXME: handle other observer bodies than earth properly */
+    if (onEarth)
+	eph->gr = gr_sun - gr_earth;
+    else
+	eph->gr = gr_sun;
+    
     return SUCCESS;
 }
 
@@ -656,15 +692,20 @@ void reset_soleph (soleph_t *eph)
     eph->mjd = 0.0;
     strcpy (eph->utcdate, "na");
     strcpy (eph->observer, "na");
+    eph->obs_on_earth = false;
     eph->B0 = 0.0;
     eph->L0cr = 0.0;
     eph->L0hg = 0.0;
     eph->P0 = 0.0;
+    eph->zenith  = 0.0;
+    eph->azimuth = 0.0;
     eph->dist_sun = 0.0;
     eph->vlos_sun = 0.0;
     eph->rsun_ref = 0.0;
     eph->rsun_obs = 0.0;
-    eph->grav_redshift = 0.0;
+    eph->gr_sun = 0.0;
+    eph->gr_obs = 0.0;
+    eph->gr = 0.0;
     eph->rotmodel = 0;
     strcpy (eph->modelname, "na");
     strcpy (eph->modeldescr, "na");
@@ -705,6 +746,21 @@ SpiceDouble omega_sun (SpiceDouble lat, int model)
     return omega;
 }
 
+bool observer_on_earth (SpiceChar *observer)
+{
+    if (0 != strcasecmp (observer, "VTT") &&
+	0 != strcasecmp (observer, "SST") &&
+	0 != strcasecmp (observer, "SCHAUINSLAND") &&
+	0 != strcasecmp (observer, "DST") &&
+	0 != strcasecmp (observer, "MCMATH") &&
+	0 != strcasecmp (observer, "SUNRISE2") &&
+	0 != strcasecmp (observer, "BIGBEAR")
+	) {
+	return false;
+    }
+    return true;
+}
+
 
 void timestr_now (char *buf)
 {
@@ -732,17 +788,7 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
     double lon, lat, alt;
 
     /* FIXME: really check if we are on earth or not */
-    bool onEarth = true;
-    if (0 != strcasecmp (observer, "VTT") &&
-	0 != strcasecmp (observer, "SST") &&
-	0 != strcasecmp (observer, "SCHAUINSLAND") &&
-	0 != strcasecmp (observer, "DST") &&
-	0 != strcasecmp (observer, "MCMATH") &&
-	0 != strcasecmp (observer, "BIGBEAR")
-	) {
-	onEarth = false;
-    }
-
+    bool onEarth = observer_on_earth (observer);
     if (onEarth) 
 	station_geopos (observer, 1.0, &lon, &lat, &alt);
 
@@ -828,16 +874,6 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
     double lon, lat, alt;
     station_geopos (eph->observer, eph->et, &lon, &lat, &alt);
     bool onEarth = true;
-    if (0 != strcasecmp (eph->observer, "VTT") &&
-	0 != strcasecmp (eph->observer, "SST") &&
-	0 != strcasecmp (eph->observer, "SCHAUINSLAND") &&
-	0 != strcasecmp (eph->observer, "DST") &&
-	0 != strcasecmp (eph->observer, "MCMATH") &&
-	0 != strcasecmp (eph->observer, "SUNRISE2") &&
-	0 != strcasecmp (eph->observer, "BIGBEAR")
-	) {
-	onEarth = false;
-    }
     SpiceInt frcode;
     SpiceBoolean found;
     SpiceChar frname[MAXKEY+1];
@@ -847,44 +883,44 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	cnmfrm_c (eph->observer, MAXKEY, &frcode, frname, &found);
 
     fprintf (stream, 
-	     " Date of Observation..........  %s (JD %.6f)\n",
+	     "Date of observation..........  %s (JD %.6f)\n",
 	     eph->utcdate, eph->jday);
 
     if (onEarth)
 	fprintf (stream,
-		 " Observer Location............  %s "
+		 "Observer location............  %s "
 		 "(%3.5f N, %3.5f E, %.0f m)\n"
-		 " Inertial Reference Frame.....  %s\n"
-		 " Terrestric Reference Frame...  %s\n"
+		 "Inertial reference frame.....  %s\n"
+		 "Terrestric reference frame...  %s\n"
 		 ,
 		 eph->observer, lat * dpr_c(), lon * dpr_c(),
 		 alt * 1000.0,
-		 "J2000, Earth Mean Equator & Equinox of J2000.0",
+		 "J2000, Earth mean equator & equinox of J2000.0",
 		 frname);
     else
-	fprintf (stream, " Observer location............  %s\n", eph->observer);
+	fprintf (stream, "Observer location............  %s\n", eph->observer);
     
     SpiceDouble dist_au;
     convrt_c(eph->dist_sun, "KM", "AU", &dist_au);
     fprintf (stream, 
-	     " Sun Reference Radius......... % .0f m\n"
-	     " Apparent Angular Radius...... % .4f arcsec\n"
-	     " Rotation Model ..............  %s (%s)\n"
-	     " Sidereal Rotation Rate.......  %.4f murad/s\n"
-	     " Position Angle P............. % -.4f deg\n"
-	     " Sub-Obsrv. Stonyhurst lat.... % -.4f deg\n"
-	     " Sub-Obsrv. Stonyhurst lon.... %  .4f deg\n"
-	     " Sub-Obsrv. Carrington lon.... % -.4f deg\n"
-	     " Solar Center Distance........  %.0f m (%.9f AU)\n"
-	     " Solar Center v_los........... % -.3f m/s\n"
-	     " Sun-Observer grav. redshift.. % .6f ppm\n"
-	     " Helio-Projct. Cartesian x,y.. % -.4f, %.5f arcsec\n"
-	     " Stonyhurst Heliogr. lon,lat.. % -.4f, %.5f deg\n"
-	     " Impact parameter.............  %.0f m, %.2f arcsec\n"
-	     " Heliocentric Angle theta.....  %.4f deg\n"
-	     " Cos(theta) = mu.............. % .4f\n"
-	     " Distance.....................  %.0f m\n"
-	     " Line of Sight Velocity....... % -.3f m/s\n"
+	     "Sun reference radius......... % .0f m\n"
+	     "Apparent angular radius...... % .4f arcsec\n"
+	     "Rotation model...............  %s (%s)\n"
+	     "Sidereal rotation rate.......  %.4f murad/s\n"
+	     "Position angle P............. % -.4f deg\n"
+	     "Sub-observer Stonyhurst lat.. % -.4f deg\n"
+	     "Sub-observer Stonyhurst lon.. %  .4f deg\n"
+	     "Sub-observer Carrington lon.. % -.4f deg\n"
+	     "Solar center distance........  %.0f m (%.9f AU)\n"
+	     "Solar center v_los........... % -.3f m/s\n"
+	     "Sun-Observer grav. redshift.. % .6f ppm\n"
+	     "Helio-projective cartesian... % -.4f, %.5f arcsec\n"
+	     "  Stonyhurst long, lat....... % -.4f, %.5f deg\n"
+	     "  Impact parameter...........  %.0f m, %.2f arcsec\n"
+	     "  Heliocentric angle / mu....  %.4f deg / %.4f\n"
+	     "  Zenith angle / airmass.....  %.4f deg / %.4f\n"
+	     "  Distance...................  %.0f m\n"
+	     "  Line of sight velocity..... % -.3f m/s\n"
 	     ,
 	     eph->rsun_ref * 1000,
 	     eph->rsun_obs * aspr() - 5E-5, /* round down to 4 digits */
@@ -897,12 +933,13 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     eph->dist_sun * 1000,
 	     dist_au,
 	     eph->vlos_sun * 1000,
-	     eph->grav_redshift * 1E6,
+	     eph->gr * 1E6,
 	     eph->x * aspr(), eph->y * aspr(),
 	     eph->lon * dpr_c(), eph->lat * dpr_c(),
 	     eph->rho * 1000, sqrt(eph->x * eph->x + eph->y * eph->y) * aspr(),
 	     eph->theta * dpr_c(),
 	     eph->mu,
+	     eph->zenith * dpr_c(), eph->airmass, 
 	     eph->dist * 1000,
 	     eph->vlos * 1000
 	);

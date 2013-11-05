@@ -26,7 +26,7 @@
 
 static const char _name[] = "Solarv";
 static const char _author[] = "Hans-Peter Doerr";
-static const char _version[] = "0.3.2";
+static const char _version[] = "0.3.2a";
 static const char _versiondate[] = "27 Aug 2013";
 static const char _copyright[] = "2012, 2013 Hans-Peter Doerr";
 
@@ -120,15 +120,20 @@ typedef struct
     SpiceDouble mjd;              /* modified julian day                     */
     SpiceChar utcdate[MAXKEY+1];  /* ascii date in UTC                       */
     SpiceChar observer[MAXKEY+1]; /* NAIF station name                       */
+    bool obs_on_earth;            /* true if observer is on earth            */
     SpiceDouble B0;               /* lat of sub-observer point               */
     SpiceDouble L0cr;             /* carrington lon of sub-observer point    */
     SpiceDouble L0hg;             /* stonyhurst lon of sub-observer point    */
     SpiceDouble P0;               /* Position angle of solar north           */
+    SpiceDouble zenith;           /* target zenith distance  */
+    SpiceDouble azimuth;          /* azimuth obs target as seen by observer   */
     SpiceDouble dist_sun;         /* distance obs. to solar center           */
     SpiceDouble vlos_sun;         /* radial velocity of obs to solar center  */
     SpiceDouble rsun_ref;         /* reference radius of the sun             */
     SpiceDouble rsun_obs;         /* apparent angular radius of the disk     */
-    SpiceDouble grav_redshift;    /* fractional grav. redshift for observer  */
+    SpiceDouble gr_sun;           /* solar grav redshift at observer dist.   */
+    SpiceDouble gr_obs;           /* grav redshift observer - sun            */
+    SpiceDouble gr;
     int rotmodel;                 /* solar rotation model used               */
     char modelname[MAXKEY+1];     /* name of the rotation model              */
     char modeldescr[MAXKEY+1];    /* description of the rotation model       */
@@ -144,12 +149,20 @@ typedef struct
     SpiceDouble vlos;             /* radial velocity of target               */
     SpiceDouble rho;              /* heliocentric impact parameter           */
     SpiceDouble omega;            /* angular velocity at target latitude     */
+    SpiceDouble airmass;          /* observer target airmass index           */
 
     /* observer, target state vectors */
     SpiceDouble state_obs[6];
     SpiceDouble state_sun[6];
     SpiceDouble state_rel[6];
 } soleph_t;
+
+void station_geopos (
+    SpiceChar * station,
+    SpiceDouble et,
+    SpiceDouble *lon,
+    SpiceDouble *lat,
+    SpiceDouble *alt);
 
 void usage (FILE *stream);
 void errmesg (const char *mesg, ...);
@@ -270,5 +283,8 @@ void printvec (SpiceDouble *s);
 SpiceDouble aspr(void);
 SpiceDouble dpas(void);
 SpiceDouble rpas(void);
+
+
+bool observer_on_earth(SpiceChar *observer);
 
 #endif /* _SOLARV_H_ */
