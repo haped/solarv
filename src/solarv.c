@@ -127,7 +127,7 @@ int main (int argc, char **argv)
     char metakernel[MAXPATH+1] = "na";
     char earthkernel[MAXPATH+1] = "na";
     char observer[MAXKEY+1] = "VTT";
-    char fitsfile[MAXPATH+1] = "na";
+    char fitsout[MAXPATH+1];
     bool fancy = false;
     int rotmodel = fixed;
     bool earth_itrf93 = false;
@@ -135,7 +135,7 @@ int main (int argc, char **argv)
     bool dumpinfo = false;
     
     int c; opterr = 0;
-    while ((c = getopt (argc, argv, "+h:m:pr:O:vfK:k:tiR:")) != -1)
+    while ((c = getopt (argc, argv, "+h:m:f:pr:O:vfK:k:tiR:")) != -1)
     {
         switch (c)
         {
@@ -159,6 +159,7 @@ int main (int argc, char **argv)
 	    }					
 	    break;
         case 'p': fancy = true; break;
+	case 'f': strncpy (fitsout, optarg, MAXPATH); break;
 	case 'O': strncpy (observer, optarg, MAXKEY); break;
 	case 'v': program_info (stdout); return EXIT_SUCCESS; break;
 	case 'k': strncpy (addkernel, optarg, MAXPATH); break;
@@ -215,12 +216,12 @@ int main (int argc, char **argv)
     /* the real work is done here */
     if (batchmode) {
 	errorcode = mode_batch (observer, rotmodel,
-				fancy,  fitsfile, batchstream, stdout);
+				fancy,  fitsout, batchstream, stdout);
     } else {
 	if (! fancy)
 	    print_ephtable_head (stdout, observer, rotmodel);
 	errorcode = handle_request (observer, posargs, &argv[optind],
-				    rotmodel, fancy, false, stdout);
+				    rotmodel, fancy, false, stdout, 1);
     }
     
     unload_c (earthkernel);
@@ -407,11 +408,12 @@ int soleph (
     eph->P0 = atan2 (sol[1], sol[2]);
 
     /* zenith angle */
-    SpiceBoolean onEarth = observer_on_earth (observer);
-    if (onEarth)
+    eph->obs_on_earth = observer_on_earth (observer);
+    if (eph->obs_on_earth)
     {
 	SpiceDouble lat, lon, alt;
-	station_geopos (observer, 1.0, &lon, &lat, &alt);
+	//station_geopos (observer, 1,0, &lon, &lat, &alt);
+	station_geopos (observer, et, &lon, &lat, &alt);
 
 	SpiceInt dim;
 	SpiceDouble abc[3];
@@ -427,25 +429,43 @@ int soleph (
 	pxform_c ("EARTH_FIXED", "J2000", et, xform);
 	mxv_c (xform, nrml, nrmlj2k);
 
-	//FIXME: apply atmospheric refraction correction here!
-	eph->zenith = vsep_c(nrmlj2k, relstate_tgt);
+	SpiceDouble z_true = vsep_c(nrmlj2k, relstate_tgt);
+	SpiceDouble elev_true = pi_c() / 2 - z_true;
+	eph->elev_true = elev_true;
+	
+	/* Meeus, Astronomical Algorithms eq (16.4) */
+	SpiceDouble eldeg = elev_true * dpr_c();
+	SpiceDouble refr = 1.02 / 
+	    (tan(eldeg + 10.3 / (eldeg + 5.11)))
+	    * 750.0 / 1010.0 * 283.0 / (273.0 + 15)
+	    / 60.0 * rpd_c();
+	
+	SpiceDouble elev_app = elev_true + refr;
+	eph->elev_app = elev_app;
+	SpiceDouble z_app = pi_c() / 2 - elev_app;
 
-	//TODO: compute airmass
+	/* Airmass, secz - 1 approximative polynomial */
+	SpiceDouble secz = 1 / cos(z_app);
+	eph->airmass = secz - 0.0018167 * (secz - 1) 
+	    - 0.002875 * (secz - 1) * (secz - 1)
+	    - 0.0008083 * (secz - 1) * (secz - 1) * (secz - 1);
     }
 
     /* grav redshift */
     SpiceDouble GM_sun = 1.32712440018e20; // TODO: check, from wikipedia
     SpiceDouble GM_earth = 3.986004418e14; // TODO: ditto
     SpiceDouble gr_sun = grav_redshift (GM_sun, RSUN * 1000, eph->dist * 1000);
-    SpiceDouble gr_earth = grav_redshift (GM_earth, 6000*1000, eph->dist * 1000);
+    // FIXME: use observers real height here!
+    SpiceDouble r_earth = 6371.0;
+    SpiceDouble gr_earth = grav_redshift (GM_earth, r_earth * 1000, eph->dist * 1000);
     eph->gr_sun = gr_sun;
     eph->gr_obs = gr_earth;
 
     /* FIXME: handle other observer bodies than earth properly */
-    if (onEarth)
-	eph->gr = gr_sun - gr_earth;
+    if (eph->obs_on_earth)
+	eph->grs = gr_sun - gr_earth;
     else
-	eph->gr = gr_sun;
+	eph->grs = gr_sun;
     
     return SUCCESS;
 }
@@ -697,15 +717,16 @@ void reset_soleph (soleph_t *eph)
     eph->L0cr = 0.0;
     eph->L0hg = 0.0;
     eph->P0 = 0.0;
-    eph->zenith  = 0.0;
     eph->azimuth = 0.0;
+    eph->elev_true = 0.0;
+    eph->elev_app = 0.0;
     eph->dist_sun = 0.0;
     eph->vlos_sun = 0.0;
     eph->rsun_ref = 0.0;
     eph->rsun_obs = 0.0;
     eph->gr_sun = 0.0;
     eph->gr_obs = 0.0;
-    eph->gr = 0.0;
+    eph->grs = 0.0;
     eph->rotmodel = 0;
     strcpy (eph->modelname, "na");
     strcpy (eph->modeldescr, "na");
@@ -873,11 +894,10 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 {
     double lon, lat, alt;
     station_geopos (eph->observer, eph->et, &lon, &lat, &alt);
-    bool onEarth = true;
     SpiceInt frcode;
     SpiceBoolean found;
     SpiceChar frname[MAXKEY+1];
-    if (onEarth)
+    if (eph->obs_on_earth)
 	cnmfrm_c ("EARTH", MAXKEY, &frcode, frname, &found);
     else
 	cnmfrm_c (eph->observer, MAXKEY, &frcode, frname, &found);
@@ -886,16 +906,16 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     "Date of observation..........  %s (JD %.6f)\n",
 	     eph->utcdate, eph->jday);
 
-    if (onEarth)
+    if (eph->obs_on_earth)
 	fprintf (stream,
 		 "Observer location............  %s "
 		 "(%3.5f N, %3.5f E, %.0f m)\n"
-		 "Inertial reference frame.....  %s\n"
-		 "Terrestric reference frame...  %s\n"
+		 //"Inertial reference frame.....  %s\n"
+		 "Terrestrial reference frame..  %s\n"
 		 ,
 		 eph->observer, lat * dpr_c(), lon * dpr_c(),
 		 alt * 1000.0,
-		 "J2000, Earth mean equator & equinox of J2000.0",
+		 //"J2000, Earth mean equator & equinox of J2000.0",
 		 frname);
     else
 	fprintf (stream, "Observer location............  %s\n", eph->observer);
@@ -918,9 +938,6 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     "  Stonyhurst long, lat....... % -.4f, %.5f deg\n"
 	     "  Impact parameter...........  %.0f m, %.2f arcsec\n"
 	     "  Heliocentric angle / mu....  %.4f deg / %.4f\n"
-	     "  Zenith angle / airmass.....  %.4f deg / %.4f\n"
-	     "  Distance...................  %.0f m\n"
-	     "  Line of sight velocity..... % -.3f m/s\n"
 	     ,
 	     eph->rsun_ref * 1000,
 	     eph->rsun_obs * aspr() - 5E-5, /* round down to 4 digits */
@@ -933,13 +950,19 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     eph->dist_sun * 1000,
 	     dist_au,
 	     eph->vlos_sun * 1000,
-	     eph->gr * 1E6,
+	     eph->grs * 1E6,
 	     eph->x * aspr(), eph->y * aspr(),
 	     eph->lon * dpr_c(), eph->lat * dpr_c(),
 	     eph->rho * 1000, sqrt(eph->x * eph->x + eph->y * eph->y) * aspr(),
 	     eph->theta * dpr_c(),
-	     eph->mu,
-	     eph->zenith * dpr_c(), eph->airmass, 
+	     eph->mu);
+    if (eph->obs_on_earth)
+	fprintf (stream,
+		 "  Elevation / airmass........  %.4f deg / %.4f\n",
+		 eph->elev_app * dpr_c(), eph->airmass);
+    fprintf (stream,
+	     "  Distance...................  %.0f m\n"
+	     "  Line of sight velocity..... % -.3f m/s\n",
 	     eph->dist * 1000,
 	     eph->vlos * 1000
 	);
@@ -965,15 +988,15 @@ int handle_request (
     char **argv,
     int rotmodel,
     bool fancy,
-    bool dofits,
-    FILE *ostream)
+    fitsfile *fptr,
+    FILE *ostream,
+    size_t reqnum)
 {
     sunpos_t position;
     SpiceDouble et;
     size_t nsteps = 1;
     SpiceDouble stepsize = 60.0;
-    /* fitsfile *fptr; */
-    /* int fstatus = 0; */
+    int fstatus = 0;
 
     if (argc < 4 || argc > 6) {
 	errmesg ("Insufficent input data in request\n");
@@ -991,23 +1014,32 @@ int handle_request (
 	stepsize = atof (argv[5]);
     }
 
-    for (int i = 0; i < nsteps; ++i) {
+    for (int i = 0; i < nsteps; ++i)
+    {
+	size_t ri = reqnum;
+	if (nsteps > 1) {
+	    ri = reqnum * i + i + 1;
+	}
 	soleph_t eph;
 	SpiceDouble ete = et + i * stepsize * 60.0;
 	if (SUCCESS != soleph (observer, ete, position, &eph, rotmodel)) {
 	    errmesg ("Could not compute ephemeris data\n");
 	    return FAILURE;
 	}
-	if (fancy) {
+
+	if (fptr) {
+	    // reqnum expexted to start with 1
+	    write_fits_ephtable_row (fptr, ri, &eph, &fstatus);
+	    if (fstatus != 0) {
+		errmesg ("error wrting fitstable");
+		return FAILURE;
+	    }
+	} else if (fancy) {
 	    fancy_print_eph (ostream, &eph);
 	    if (i < nsteps - 1) fprintf (ostream, "\n");
 	}
 	else
 	    print_ephtable_row (ostream, &eph);
-
-	/* if (dofits) { */
-	/*     write_fits_ephtable_row (fptr, i+1, &eph, &fstatus); */
-	/* } */
     }
 
     return SUCCESS;
@@ -1018,11 +1050,12 @@ int mode_batch (
     SpiceChar *observer,
     int rotmodel,
     bool fancy,
-    char *fitsname,
+    char *fitsf,
     FILE *istream,
     FILE *ostream)
 {
-    /* char fitsfile[MAXPATH+1]; */
+    fitsfile *fptr;
+    int status = 0;
 
     /* we need a faked argv array to make handle_request happy */
     char **argv = malloc (6 * sizeof (char*));
@@ -1030,24 +1063,18 @@ int mode_batch (
 	argv[i] = malloc (sizeof(char) * MAXPATH);
     }
 
-    if (! fancy)
-	print_ephtable_head (ostream, observer, rotmodel);
-
-    /* bool dofits = false; */
-    /* if (fitsname) { */
-    /* 	dofits = true; */
-    /* 	if (strcmp(fitsname, "auto") == 0) { */
-    /* 	    char datestr[64+1]; */
-    /* 	    timout_c (et, "YYYYMMDDTHRMNSC_UTC", 64, datestr); */
-    /* 	    snprintf (fitsfile, MAXPATH, "solarv_%s_%s.fits", observer, datestr); */
-    /* 	} else { */
-    /* 	    strncpy (fitsfile, fitsname, MAXPATH); */
-    /* 	} */
-    /* } */
-    /* if (dofits) { */
-    /* 	fits_create_file (&fptr, fitsfile, &fstatus); */
-    /* 	write_fits_ephtable_header (fptr, 1, &fstatus); */
-    /* } */
+    if (fitsf) {
+    	fits_create_file (&fptr, fitsf, &status);
+    	write_fits_ephtable_header (fptr, 1, &status);
+	if (status != 0) {
+	    errmesg ("error creating output fits file");
+	    return FAILURE;
+	}
+    } else {
+	if (! fancy)
+	    print_ephtable_head (ostream, observer, rotmodel);
+    }
+    
 
     /* handle input stream line by line */
     ssize_t nread;
@@ -1066,8 +1093,8 @@ int mode_batch (
 	}
 	argc--;
 	
-	if (SUCCESS != handle_request (observer, argc, argv,
-				       rotmodel, fancy, false, ostream)) {
+	if (SUCCESS != handle_request (observer, argc, argv, rotmodel,
+				       fancy, fptr, ostream, lineno)) {
 	    errmesg ("Invalid request in input line %zu\n", lineno);
 	    return FAILURE;
 	}
@@ -1077,9 +1104,9 @@ int mode_batch (
     for (int i = 0; i < 6; ++i) free (argv[i]);
     free (argv);
     
-    /* if (dofits) { */
-    /* 	fits_close_file (fptr, &fstatus); */
-    /* } */
+    if (fitsf) {
+    	fits_close_file (fptr, &status);
+    }
 
     return SUCCESS;
 }
@@ -1090,16 +1117,17 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 	return FAILURE;
     
     /* define table structure */
-    int tfields = 29;
+    int tfields = 34;
     char tname[] = "ephemeris table";
     char *ttype[] = { "date_obs", "jd_obs", "mjd_obs",
 		      "observer", "obs_lon", "obs_lat", "obs_alt",
 		      "solar_b0", "hgln_obs", "crln_obs", "solar_p0",
 		      "rsun_obs", "rsun_ref",
 		      "rotmodel", "modeldescr", "rotrate",
-		      "state_sun", "dist_sun", "vlos_sun", 
+		      "state_sun", "dist_sun", "vlos_sun", "grs",
 		      "hg_lon", "hg_lat", "hpc_x", "hpc_y",
-		      "theta", "mu", "impactparam", 
+		      "theta", "mu", "impactparam",
+		      "elev_app", "elev_true", "azimuth", "airmass",
 		      "state_obs", "dist_obs", "vlos_obs"
     };
     char *tform[] = { "32A", "D", "D",
@@ -1107,9 +1135,10 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 		      "D", "D", "D", "D",
 		      "D", "D",
 		      "32A", "64A", "D",
-		      "6D", "D", "D",
+		      "6D", "D", "D", "D",
 		      "D", "D", "D", "D", 
 		      "D", "D", "D",
+		      "D", "D", "D", "D", 
 		      "6D", "D", "D"
     };
     char *tunit[] = { "\0", "days", "days",
@@ -1117,9 +1146,10 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 		      "rad", "rad", "rad", "rad",
 		      "rad", "km",
 		      "\0", "\0", "rad/s",
-		      "km, km/s", "km", "km/s",
+		      "km, km/s", "km", "km/s", "1/c",
 		      "rad", "rad", "rad", "rad",
 		      "rad", "\0", "km",
+		      "rad", "rad", "rad", "\0",
 		      "km, km/s", "km", "km/s"
     };
     fits_create_tbl (fptr,
@@ -1151,7 +1181,6 @@ int write_fits_ephtable_row (
     long col = 1;
 
     SpiceDouble lon = 0, lat = 0, alt = 0; /* observer coordinates */
-
 
 #define EPHTABLE_ADDCELL(type, ptr)					\
     fits_write_col (fptr, type, col++,					\
@@ -1186,6 +1215,8 @@ int write_fits_ephtable_row (
     fits_write_col (fptr, TDOUBLE, col++, row, 1, 6, eph->state_sun, status);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->dist_sun);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos_sun);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->grs);
+    
 
     EPHTABLE_ADDCELL (TDOUBLE, &eph->lon);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->lat);
@@ -1195,7 +1226,12 @@ int write_fits_ephtable_row (
     EPHTABLE_ADDCELL (TDOUBLE, &eph->theta);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->mu);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->rho);
-    
+
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->elev_app);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->elev_true);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->azimuth);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->airmass);
+
     fits_write_col (fptr, TDOUBLE, col++, row, 1, 6, eph->state_obs, status);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->dist);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos);

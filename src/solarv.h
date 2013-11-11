@@ -24,10 +24,12 @@
 #ifndef _SOLARV_H_
 #define _SOLARV_H_
 
+#include <cfitsio/fitsio.h>
+
 static const char _name[] = "Solarv";
 static const char _author[] = "Hans-Peter Doerr";
-static const char _version[] = "0.3.2a";
-static const char _versiondate[] = "27 Aug 2013";
+static const char _version[] = "0.4.0a";
+static const char _versiondate[] = "07 Nov 2013";
 static const char _copyright[] = "2012, 2013 Hans-Peter Doerr";
 
 #include "SpiceUsr.h"
@@ -74,14 +76,14 @@ typedef struct
 
 static const rotmodel_t RotModels[] =
 {
-    {0.000,    0.000,  0.000, "fixed", "No Rotation, fixed to Inertial Frame"},
-    {2.851,    0.000,  0.000, "rigid", "Rigid Body Rotation, 2.851 murad/s"},
-    {2.86532,  0.000,  0.000, "crgt", "Rigid Body Rotation, Carrington Rate"},
+    {0.000,    0.000,  0.000, "fixed", "no rotation, fixed to inertial frame"},
+    {2.851,    0.000,  0.000, "rigid", "rigid body rotation, 2.851 murad/s"},
+    {2.86532,  0.000,  0.000, "crgt", "rigid body rotation, Carrington rate"},
     {2.851,   -0.343, -0.474, "su90s", "Snodgrass & Ulrich (1990), spectroscopic"}, 
     {2.972,   -0.484, -0.361, "su90g", "Snodgrass & Ulrich (1990), supergranul."},
     {2.879,   -0.339, -0.485, "su90m", "Snodgrass & Ulrich (1990), magnetic"},
     {2.836,   -0.344, -0.504, "s84s", "Snodgrass (1984), spectrosc. MWO data"},
-    {0.000,    0.000,  0.000, "custom", "Custom selected A, B, C Coefficients"}
+    {0.000,    0.000,  0.000, "custom", "Custom selected A, B, C coefficients"}
 };
 enum RotModel {fixed = 0,
 	       rigid,
@@ -125,15 +127,16 @@ typedef struct
     SpiceDouble L0cr;             /* carrington lon of sub-observer point    */
     SpiceDouble L0hg;             /* stonyhurst lon of sub-observer point    */
     SpiceDouble P0;               /* Position angle of solar north           */
-    SpiceDouble zenith;           /* target zenith distance  */
-    SpiceDouble azimuth;          /* azimuth obs target as seen by observer   */
+    SpiceDouble azimuth;          /* azimuth obs target as seen by observer  */
+    SpiceDouble elev_app;
+    SpiceDouble elev_true;
     SpiceDouble dist_sun;         /* distance obs. to solar center           */
     SpiceDouble vlos_sun;         /* radial velocity of obs to solar center  */
     SpiceDouble rsun_ref;         /* reference radius of the sun             */
     SpiceDouble rsun_obs;         /* apparent angular radius of the disk     */
     SpiceDouble gr_sun;           /* solar grav redshift at observer dist.   */
     SpiceDouble gr_obs;           /* grav redshift observer - sun            */
-    SpiceDouble gr;
+    SpiceDouble grs;
     int rotmodel;                 /* solar rotation model used               */
     char modelname[MAXKEY+1];     /* name of the rotation model              */
     char modeldescr[MAXKEY+1];    /* description of the rotation model       */
@@ -202,8 +205,9 @@ int handle_request (
     char **argv,
     int rotmodel,
     bool fancy,
-    bool dofits,
-    FILE *ostream);
+    fitsfile * fptr,
+    FILE *ostream,
+    size_t reqnum);
 
 void getstate_body (
     SpiceChar *body,
