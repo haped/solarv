@@ -1,0 +1,4 @@
+\begindata
+NAIF_BODY_NAME += 'SUNRISE2'
+NAIF_BODY_CODE += 399925
+

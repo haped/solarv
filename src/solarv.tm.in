@@ -2,7 +2,7 @@ KPL/MK
 
     File:     solarv.tm
     Author:   Hans-Peter Doerr (KIS)
-    Date:     2013-02-03
+    Date:     2013-11-11
 
 
     Meta-kernel that loads the required spice kernels for the 'solarv'
@@ -23,6 +23,8 @@ KPL/MK
 			'$SYSKERN/obscrtn.tf',
 			'$SYSKERN/stations.bsp',
 			'$SYSKERN/stations.tf'
+			'$SYSKERN/sunrise2.bsp',
+			'$SYSKERN/sunrise2.tf'
 			)		
 \begintext
 

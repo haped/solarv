@@ -806,12 +806,11 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	     "#  Abbr. Correction   : %s\n"
 	     , now, _version, tkvrsn_c ("toolkit"), ABCORR);
 
-    double lon, lat, alt;
+    //double lon, lat, alt;
 
-    /* FIXME: really check if we are on earth or not */
     bool onEarth = observer_on_earth (observer);
-    if (onEarth) 
-	station_geopos (observer, 1.0, &lon, &lat, &alt);
+    /* if (onEarth)  */
+    /* 	station_geopos (observer, 1.0, &lon, &lat, &alt); */
 
     SpiceBoolean found = 0;
     SpiceInt frcode;
@@ -824,16 +823,19 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
     fprintf (stream,
 	     "#*****************************************************"
 	     "*************************\n"
-	     "#  Observer Location  : %s", observer);
-    if (onEarth) {
-	fprintf (stream,
-		 " (%.5f N, %.5f E, %.0f m)\n"
-		 "#  Terr. Ref. Frame   : %s\n",
-		 lat * dpr_c(), lon * dpr_c(), alt * 1000, frname);
-    } else {
-	fprintf (stream, "\n");
-	/* fprintf (stream, "#  Obs. Ref. Frame   : %s\n", frname); */
-    }
+	     "#  Observer Location  : %s\n", observer);
+    /* observatory could move with respect to earth (such as sunrise), so
+     * don't print observer coordinates even when earth, until we implement
+     * a smarter way to show this information */
+    /* if (onEarth) { */
+    /* 	fprintf (stream, */
+    /* 		 " (%.5f N, %.5f E, %.0f m)\n" */
+    /* 		 "#  Terr. Ref. Frame   : %s\n", */
+    /* 		 lat * dpr_c(), lon * dpr_c(), alt * 1000, frname); */
+    /* } else { */
+    /* 	fprintf (stream, "\n"); */
+    /* 	/\* fprintf (stream, "#  Obs. Ref. Frame   : %s\n", frname); *\/ */
+    /* } */
     SpiceDouble one_au;
     convrt_c(1.0, "AU", "KM", &one_au);
     fprintf (stream,
