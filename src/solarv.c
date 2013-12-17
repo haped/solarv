@@ -381,7 +381,6 @@ int soleph (
 	      los_tgt, &eph->dist, &eph->vlos, &lt_tgt);
     get_pointing (et, relstate_sun, relstate_tgt, &eph->x, &eph->y);
 
-
     /************************************************************************
      compute further ephemeris data from the parameters we gathered so far
     ************************************************************************/
@@ -412,7 +411,6 @@ int soleph (
     if (eph->obs_on_earth)
     {
 	SpiceDouble lat, lon, alt;
-	//station_geopos (observer, 1,0, &lon, &lat, &alt);
 	station_geopos (observer, et, &lon, &lat, &alt);
 
 	SpiceInt dim;
@@ -425,11 +423,10 @@ int soleph (
 	SpiceDouble bcc[3], nrml[3], nrmlj2k[3], xform[3][3];
 	georec_c (lon, lat, alt, equatr, f, bcc);
 	surfnm_c (abc[0], abc[1], abc[2], bcc, nrml);
-
 	pxform_c ("EARTH_FIXED", "J2000", et, xform);
 	mxv_c (xform, nrml, nrmlj2k);
-
 	SpiceDouble z_true = vsep_c(nrmlj2k, relstate_tgt);
+
 	SpiceDouble elev_true = pi_c() / 2 - z_true;
 	eph->elev_true = elev_true;
 	
@@ -445,10 +442,19 @@ int soleph (
 	SpiceDouble z_app = pi_c() / 2 - elev_app;
 
 	/* Airmass, secz - 1 approximative polynomial */
-	SpiceDouble secz = 1 / cos(z_app);
-	eph->airmass = secz - 0.0018167 * (secz - 1) 
-	    - 0.002875 * (secz - 1) * (secz - 1)
-	    - 0.0008083 * (secz - 1) * (secz - 1) * (secz - 1);
+	/* SpiceDouble secz = 1 / cos(z_app); */
+	/* eph->airmass = secz - 0.0018167 * (secz - 1)  */
+	/*     - 0.002875 * (secz - 1) * (secz - 1) */
+	/*     - 0.0008083 * (secz - 1) * (secz - 1) * (secz - 1); */
+
+	/* Airmass, Young (1994) formula */
+	SpiceDouble coszt = cos (z_true);
+	SpiceDouble coszt2 = coszt * coszt;
+	
+	eph->airmass = 1.002432 * coszt2 + 0.148386 * coszt + 0.0096467 / 
+	    (coszt2 * coszt + 0.149864 * coszt2 + 0.0102963 * coszt
+	     + 0.000303978);
+
     }
 
     /* grav redshift */
@@ -960,7 +966,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     eph->mu);
     if (eph->obs_on_earth)
 	fprintf (stream,
-		 "  Elevation / airmass........  %.4f deg / %.4f\n",
+		 "  App. elevation / airmass...  %.4f deg / %.4f\n",
 		 eph->elev_app * dpr_c(), eph->airmass);
     fprintf (stream,
 	     "  Distance...................  %.0f m\n"
