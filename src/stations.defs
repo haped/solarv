@@ -1,45 +1,13 @@
-\begindata
-         SITES      += 'VTT'
-         VTT_CENTER = 399
-         VTT_FRAME  = 'EARTH_FIXED'
-         VTT_IDCODE = 399919 
-         VTT_LATLON    = ( 28.30239, -16.510051, 2.413 )
-
-         SITES      +=  'SST'
-         SST_CENTER = 399
-         SST_FRAME  = 'EARTH_FIXED'
-         SST_IDCODE = 399920
-         SST_LATLON    = ( 28.759733, -17.880736, 2.360 )
-
-         SITES      += , 'SCHAUINSLAND'
-         SCHAUINSLAND_CENTER = 399
-         SCHAUINSLAND_FRAME  = 'EARTH_FIXED'
-         SCHAUINSLAND_IDCODE = 399921
-         SCHAUINSLAND_LATLON = ( 47.913471, 7.905229, 1.239 )
-
-         SITES      += 'DST'
-         DST_CENTER = 399
-         DST_FRAME  = 'EARTH_FIXED'
-         DST_IDCODE = 399922
-         DST_LATLON = ( 32.78729, -105.820498, 2.800 )
-
-         SITES      += , 'MCMATH'
-         MCMATH_CENTER = 399
-         MCMATH_FRAME  = 'EARTH_FIXED'
-         MCMATH_IDCODE = 399923
-         MCMATH_LATLON = ( 31.958446, -111.595243, 2.096 )
-
-         SITES      += 'BIGBEAR'
-         BIGBEAR_CENTER = 399
-         BIGBEAR_FRAME  = 'EARTH_FIXED'
-         BIGBEAR_IDCODE = 399924
-         BIGBEAR_LATLON = ( 34.258518, -116.92127,  2.043)
-
-
-
 \begintext
 
-         Data sources
+        This is the definition for the solarv stations kernel. Stations are
+        defined by their lat, lon, altitude co-ordinates.
+
+        We also specify the *_UP, NORTH parameters so that pinpoint can
+        add the corresponding topographic reference frames for each
+        station.
+
+        Data sources
           VTT:          google maps
           SST:          wikipedia
           SCHAUINSLAND: google maps
@@ -47,3 +15,58 @@
           MCMATH:       google maps, site-info
 
 
+        Last change: 2013, HP Doerr <doerr@kis.uni-freiburg.de>
+
+
+\begindata
+         SITES      += 'VTT'
+         VTT_CENTER = 399
+         VTT_FRAME  = 'EARTH_FIXED'
+         VTT_IDCODE = 399919 
+         VTT_LATLON = ( 28.30239, -16.510051, 2.413 )
+         VTT_UP     = 'Z'
+         VTT_NORTH  = 'X'
+
+         SITES      +=  'SST'
+         SST_CENTER = 399
+         SST_FRAME  = 'EARTH_FIXED'
+         SST_IDCODE = 399920
+         SST_LATLON = ( 28.759733, -17.880736, 2.360 )
+         SST_UP     = 'Z'
+         SST_NORTH  = 'X'
+
+         SITES      += , 'SCHAUINSLAND'
+         SCHAUINSLAND_CENTER = 399
+         SCHAUINSLAND_FRAME  = 'EARTH_FIXED'
+         SCHAUINSLAND_IDCODE = 399921
+         SCHAUINSLAND_LATLON = ( 47.913471, 7.905229, 1.239 )
+         SCHAUINSLAND_UP = 'Z'
+         SCHAUINSLAND_NORTH = 'X'
+
+         SITES      += 'DST'
+         DST_CENTER = 399
+         DST_FRAME  = 'EARTH_FIXED'
+         DST_IDCODE = 399922
+         DST_LATLON = ( 32.78729, -105.820498, 2.800 )
+         DST_UP     = 'Z'
+         DST_NORTH  = 'X'
+
+         SITES      += , 'MCMATH'
+         MCMATH_CENTER = 399
+         MCMATH_FRAME  = 'EARTH_FIXED'
+         MCMATH_IDCODE = 399923
+         MCMATH_LATLON = ( 31.958446, -111.595243, 2.096 )
+         MCMATH_UP     = 'Z'
+         MCMATH_NORTH  = 'X'
+
+         SITES      += 'BIGBEAR'
+         BIGBEAR_CENTER = 399
+         BIGBEAR_FRAME  = 'EARTH_FIXED'
+         BIGBEAR_IDCODE = 399924
+         BIGBEAR_LATLON = ( 34.258518, -116.92127,  2.043)
+         BIGBEAR_UP     = 'Z'
+         BIGBEAR_NORTH  = 'X'
+
+
+
+\begintext

@@ -60,4 +60,5 @@ kernels/stations.bsp: stations.defs
 	rm -f kernels/stations.bsp
 	$(PINPOINT) -def stations.defs \
 	-pck $(KERNEL_PATH)/pck00010.tpc \
+	-fk kernels/stations.tf \
 	-spk kernels/stations.bsp
