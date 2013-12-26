@@ -130,6 +130,8 @@ typedef struct
     SpiceDouble azimuth;          /* azimuth obs target as seen by observer  */
     SpiceDouble elev_app;
     SpiceDouble elev_true;
+    SpiceDouble z_app;            /* apparent zenith distance                */
+    SpiceDouble z_true;           /* true zenith distance                    */
     SpiceDouble dist_sun;         /* distance obs. to solar center           */
     SpiceDouble vlos_sun;         /* radial velocity of obs to solar center  */
     SpiceDouble rsun_ref;         /* reference radius of the sun             */
@@ -247,6 +249,13 @@ void get_pointing (
     SpiceDouble *relstate_tgt,
     SpiceDouble *x,
     SpiceDouble *y);
+
+void transformstate (
+    SpiceDouble et, 
+    SpiceDouble *is,
+    SpiceDouble *os,
+    SpiceChar *from,
+    SpiceChar *to);
 
 int getstate_pointing (
     SpiceChar *body,        /* target body name */

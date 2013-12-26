@@ -76,7 +76,8 @@ void usage (FILE *stream)
 	     "  -m model      set solar rotation model 'model' [fixed]\n"
 	     "                use 'list' to list available models\n"
 	     "  -t            use the ITRF93 precision earth rotation kernel\n"
-	     "                Note: this kernel has a limited time coverage and needs\n"
+	     "                Note: this kernel has a limited time coverage "
+	     "and needs\n"
 	     "                to be updated regularily\n"
 	     "  -R radius     specifiy a different solar radius in km\n"
 	     "  -O observer   set observer position. Can be any NAIF body code.\n"
@@ -97,7 +98,8 @@ void usage (FILE *stream)
 	     "Create a ephemeris table for the SST for one year, close to the "
 	     "eastern limb\n"
 	     "using the Snodgrass 1984 rotation model:\n"
-	     "  solarv -t -O SST -m s84s 2012-01-01T12:00:00.0 hcr 0.003 90 365 1440\n"
+	     "  solarv -t -O SST -m s84s 2012-01-01T12:00:00.0 hcr 0.003 90 "
+	     "365 1440\n"
 	     "\n"
 	     ,
 	     _name, _version, _versiondate
@@ -406,31 +408,34 @@ int soleph (
     mxv_c (xform, e, sol);
     eph->P0 = atan2 (sol[1], sol[2]);
 
-    /* zenith angle */
+    /* grav redshift, solar contribution  */
+    SpiceDouble GM_sun = 1.32712440018e20; // TODO: check, from wikipedia
+    SpiceDouble gr_sun = grav_redshift (GM_sun, RSUN * 1000, eph->dist * 1000);
+    eph->gr_sun = gr_sun;
+    eph->grs = gr_sun;
+
     eph->obs_on_earth = observer_on_earth (observer);
     if (eph->obs_on_earth)
     {
-	SpiceDouble lat, lon, alt;
-	station_geopos (observer, et, &lon, &lat, &alt);
-
-	SpiceInt dim;
-	SpiceDouble abc[3];
-	bodvrd_c ("EARTH", "RADII", 3, &dim, abc );
-	SpiceDouble equatr = abc[0];
-	SpiceDouble polar = abc[2];
-	SpiceDouble f = (equatr - polar) / equatr;
-
-	SpiceDouble bcc[3], nrml[3], nrmlj2k[3], xform[3][3];
-	georec_c (lon, lat, alt, equatr, f, bcc);
-	surfnm_c (abc[0], abc[1], abc[2], bcc, nrml);
-	pxform_c ("EARTH_FIXED", "J2000", et, xform);
-	mxv_c (xform, nrml, nrmlj2k);
-	SpiceDouble z_true = vsep_c(nrmlj2k, relstate_tgt);
-
-	SpiceDouble elev_true = pi_c() / 2 - z_true;
-	eph->elev_true = elev_true;
+	/*
+	 * we compute solar elevation, azimuth from the relative position of
+	 * the sun in the observer topocentric frame.
+	 */
+	SpiceDouble relstate_tgt_topo[6];
+	SpiceDouble range, lon, az, elev_true;
+	SpiceChar station_topo[128];
+	snprintf (station_topo, 127, "%s_topo", observer);
+	transformstate(et, relstate_tgt,
+		       relstate_tgt_topo, "J2000", station_topo);
+	reclat_c (relstate_tgt_topo, &range, &lon, &elev_true);
+	/* azimuth is centered on south; positive westwards */
+	az = -lon;
+	az = az > 0 ? az - pi_c() : az + pi_c();
+	eph->azimuth = az;
+	SpiceDouble z_true = pi_c() / 2 - elev_true;
 	
-	/* Meeus, Astronomical Algorithms eq (16.4) */
+	/* Atmospheric refraction correction. Meeus, Astronomical Algorithms
+	 * eq (16.4) */
 	SpiceDouble eldeg = elev_true * dpr_c();
 	SpiceDouble refr = 1.02 / 
 	    (tan(eldeg + 10.3 / (eldeg + 5.11)))
@@ -439,42 +444,30 @@ int soleph (
 	
 	SpiceDouble elev_app = elev_true + refr;
 	eph->elev_app = elev_app;
-	SpiceDouble z_app = pi_c() / 2 - elev_app;
-
-	/* Airmass, secz - 1 approximative polynomial */
-	/* SpiceDouble secz = 1 / cos(z_app); */
-	/* eph->airmass = secz - 0.0018167 * (secz - 1)  */
-	/*     - 0.002875 * (secz - 1) * (secz - 1) */
-	/*     - 0.0008083 * (secz - 1) * (secz - 1) * (secz - 1); */
+	eph->z_app = pi_c() / 2 - elev_app;
+	eph->z_true = pi_c() / 2 - elev_true;
 
 	/* Airmass, Young (1994) formula */
 	SpiceDouble coszt = cos (z_true);
 	SpiceDouble coszt2 = coszt * coszt;
-	
-	eph->airmass = 1.002432 * coszt2 + 0.148386 * coszt + 0.0096467 / 
-	    (coszt2 * coszt + 0.149864 * coszt2 + 0.0102963 * coszt
-	     + 0.000303978);
+	SpiceDouble coszt3 = coszt2 * coszt;
+	eph->airmass = (1.002432 * coszt2 + 0.148386 * coszt + 0.0096467) / 
+	    (coszt3 + 0.149864 * coszt2 + 0.0102963 * coszt + 0.000303978);
 
+	/* gravitational redshift, observer contribution */
+	SpiceDouble latt, lont, altt;
+	station_geopos (observer, et, &lont, &latt, &altt);
+	SpiceDouble GM_earth = 3.986004418e14; // check reference
+	SpiceDouble r_earth_obs = 6371.0 + altt;
+	SpiceDouble gr_earth =
+	    grav_redshift (GM_earth, r_earth_obs * 1000, eph->dist * 1000);
+	eph->gr_obs = gr_earth;
+	eph->grs = gr_sun - gr_earth;
     }
 
-    /* grav redshift */
-    SpiceDouble GM_sun = 1.32712440018e20; // TODO: check, from wikipedia
-    SpiceDouble GM_earth = 3.986004418e14; // TODO: ditto
-    SpiceDouble gr_sun = grav_redshift (GM_sun, RSUN * 1000, eph->dist * 1000);
-    // FIXME: use observers real height here!
-    SpiceDouble r_earth = 6371.0;
-    SpiceDouble gr_earth = grav_redshift (GM_earth, r_earth * 1000, eph->dist * 1000);
-    eph->gr_sun = gr_sun;
-    eph->gr_obs = gr_earth;
-
-    /* FIXME: handle other observer bodies than earth properly */
-    if (eph->obs_on_earth)
-	eph->grs = gr_sun - gr_earth;
-    else
-	eph->grs = gr_sun;
-    
     return SUCCESS;
 }
+
 
 SpiceDouble grav_redshift (SpiceDouble GM, SpiceDouble r_emit, SpiceDouble r_obs)
 {
@@ -604,7 +597,7 @@ int getstate_solar_target (
     SpiceDouble relstatei[6] = {0};
     SpiceDouble diffrot[6] = {0};
     SpiceDouble diffroti[6] = {0};
-
+ 
     latrec_c (RSUN, lon, lat, relstate);
     
     /* compute state velocity from given omega */
@@ -710,6 +703,18 @@ void relstate (
     unorm_c (srel, losv, dist);
     *vrad = vdot_c (losv, &srel[3]);
     *lt = *dist / clight_c();
+}
+
+void transformstate (
+    SpiceDouble et, 
+    SpiceDouble *is,
+    SpiceDouble *os,
+    SpiceChar *from,
+    SpiceChar *to)
+{
+    SpiceDouble xform[6][6];
+    sxform_c (from, to, et, xform);
+    mxvg_c (xform, is, 6, 6, os);
 }
 
 void reset_soleph (soleph_t *eph)
@@ -931,7 +936,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
     SpiceDouble dist_au;
     convrt_c(eph->dist_sun, "KM", "AU", &dist_au);
     fprintf (stream, 
-	     "Sun reference radius......... % .0f m\n"
+	     "Solar reference radius....... % .0f m\n"
 	     "Apparent angular radius...... % .4f arcsec\n"
 	     "Rotation model...............  %s (%s)\n"
 	     "Sidereal rotation rate.......  %.4f murad/s\n"
@@ -939,12 +944,12 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     "Sub-observer Stonyhurst lat.. % -.4f deg\n"
 	     "Sub-observer Stonyhurst lon.. %  .4f deg\n"
 	     "Sub-observer Carrington lon.. % -.4f deg\n"
-	     "Solar center distance........  %.0f m (%.9f AU)\n"
-	     "Solar center v_los........... % -.3f m/s\n"
-	     "Sun-Observer grav. redshift.. % .6f ppm\n"
-	     "Helio-projective cartesian... % -.4f, %.5f arcsec\n"
+	     "Solar center distance........  %.0f m / %.9f AU\n"
+	     "Solar center radial velocty.. % -.3f m/s\n"
+	     "Sun-Observer grav. redshift.. % .6f ppm / %.2f m/s\n"
+	     "Target HPC co-ordinates...... % -.4f, %.5f arcsec\n"
 	     "  Stonyhurst long, lat....... % -.4f, %.5f deg\n"
-	     "  Impact parameter...........  %.0f m, %.2f arcsec\n"
+	     "  Impact parameter...........  %.0f m / %.2f arcsec\n"
 	     "  Heliocentric angle / mu....  %.4f deg / %.4f\n"
 	     ,
 	     eph->rsun_ref * 1000,
@@ -959,6 +964,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     dist_au,
 	     eph->vlos_sun * 1000,
 	     eph->grs * 1E6,
+	     eph->grs * 3E8,
 	     eph->x * aspr(), eph->y * aspr(),
 	     eph->lon * dpr_c(), eph->lat * dpr_c(),
 	     eph->rho * 1000, sqrt(eph->x * eph->x + eph->y * eph->y) * aspr(),
@@ -966,11 +972,13 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     eph->mu);
     if (eph->obs_on_earth)
 	fprintf (stream,
-		 "  App. elevation / airmass...  %.4f deg / %.4f\n",
-		 eph->elev_app * dpr_c(), eph->airmass);
+		 "  App. elevation, azimuth.... % .4f, %.4f deg\n"
+		 "  Zenith distance / airmass..  %.4f deg / %.4f\n",
+		 eph->elev_app * dpr_c(), eph->azimuth * dpr_c(), 
+		 eph->z_app * dpr_c(), eph->airmass);
     fprintf (stream,
 	     "  Distance...................  %.0f m\n"
-	     "  Line of sight velocity..... % -.3f m/s\n",
+	     "  Radial velocity............ % -.3f m/s\n",
 	     eph->dist * 1000,
 	     eph->vlos * 1000
 	);
@@ -1225,7 +1233,6 @@ int write_fits_ephtable_row (
     EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos_sun);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->grs);
     
-
     EPHTABLE_ADDCELL (TDOUBLE, &eph->lon);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->lat);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->x);
