@@ -945,12 +945,12 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     "Sub-observer Stonyhurst lon.. %  .4f deg\n"
 	     "Sub-observer Carrington lon.. % -.4f deg\n"
 	     "Solar center distance........  %.0f m / %.9f AU\n"
-	     "Solar center radial velocty.. % -.3f m/s\n"
+	     "Solar center radial velocity. % -.3f m/s\n"
 	     "Sun-Observer grav. redshift.. % .6f ppm / %.2f m/s\n"
 	     "Target HPC co-ordinates...... % -.4f, %.5f arcsec\n"
-	     "  Stonyhurst long, lat....... % -.4f, %.5f deg\n"
+	     "  Stonyhurst lon, lat........ % -.4f, %.5f deg\n"
 	     "  Impact parameter...........  %.0f m / %.2f arcsec\n"
-	     "  Heliocentric angle / mu....  %.4f deg / %.4f\n"
+	     "  Heliocentric angle, mu.....  %.4f deg, %.4f\n"
 	     ,
 	     eph->rsun_ref * 1000,
 	     eph->rsun_obs * aspr() - 5E-5, /* round down to 4 digits */
@@ -973,7 +973,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
     if (eph->obs_on_earth)
 	fprintf (stream,
 		 "  App. elevation, azimuth.... % .4f, %.4f deg\n"
-		 "  Zenith distance / airmass..  %.4f deg / %.4f\n",
+		 "  Zenith distance, airmass...  %.4f deg, %.4f\n",
 		 eph->elev_app * dpr_c(), eph->azimuth * dpr_c(), 
 		 eph->z_app * dpr_c(), eph->airmass);
     fprintf (stream,
