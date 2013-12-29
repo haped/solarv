@@ -50,24 +50,19 @@ void usage (FILE *stream)
 	     "  <timespec> <shg|hpc|hcr> <cord1> <cord2> [<nsteps> <tstep>]\n"
 	     "\n"
 	     "The request is either read from the commandline, from 'file' "
-	     "or from STDIN if no\n"
-	     "arguments are given. The position can be specified in "
-	     "helio-projective cartesian\n"
-	     "(hpc) coordinates in arcseconds from disk center, Stonyhurst "
-	     "heliographic (shg) \n"
-	     "coordinates in degree longitude and latitude or in helio-centric "
-	     "radial (hcr)\n"
-	     "coordinates given in cos(theta) from disk center and an angle "
-	     "phi counter-\n"
-	     "clockwise from heliographic north. The 'timespec' parameter "
-	     "understands common\n"
-	     "time strings like '2010-01-01 12:00:00 EST'. If no time zone is "
-	     "given, UTC is\n"
-	     "assumed. I highly recommend to use the ISO 8601 standard, "
-	     "e.g.\n"
+	     "or from STDIN if no arguments are given. The position can be "
+	     "specified in one of three co-ordinate systems:\n"
+	     "     hpc: helio-projective cartesian; arcseconds from disk "
+	     "center\n"
+	     "     shg: stonyhurst heliographic longitude, latitude\n"
+	     "     hcr: helio-centric radial in mu and azimuth "
+	     "counter-clockwise from heliographic north\n"
+	     "The 'timespec' parameter is a string defining the time of "
+	     "observation. Various time strings are understood but I "
+	     "recommend to use the ISO 8601 standard, e.g. "
 	     "'2012-01-01T00:00:00'. The optional 'nsteps' "
-	     "and 'tstep' (in minutes) arguments\n"
-	     "can be used to compute a set of values in a given time interval."
+	     "and 'tstep' (in minutes) arguments can be used to compute a set "
+	     "of values in a given time interval."
 	     "\n\n"
 	     "Options:\n"
 	     "  -h            show this help\n"
@@ -428,9 +423,9 @@ int soleph (
 	transformstate(et, relstate_tgt,
 		       relstate_tgt_topo, "J2000", station_topo);
 	reclat_c (relstate_tgt_topo, &range, &lon, &elev_true);
-	/* azimuth is centered on south; positive westwards */
-	az = -lon;
-	az = az > 0 ? az - pi_c() : az + pi_c();
+	/* for the azimuth, we use the convention that it's zero at north,
+	 * increasing eastwards */
+	az = lon < 0 ? -lon : 2 * pi_c() - lon;
 	eph->azimuth = az;
 	SpiceDouble z_true = pi_c() / 2 - elev_true;
 	
@@ -444,8 +439,8 @@ int soleph (
 	
 	SpiceDouble elev_app = elev_true + refr;
 	eph->elev_app = elev_app;
-	eph->z_app = pi_c() / 2 - elev_app;
 	eph->z_true = pi_c() / 2 - elev_true;
+	eph->z_app = pi_c() / 2 - elev_app;
 
 	/* Airmass, Young (1994) formula */
 	SpiceDouble coszt = cos (z_true);
@@ -454,7 +449,8 @@ int soleph (
 	eph->airmass = (1.002432 * coszt2 + 0.148386 * coszt + 0.0096467) / 
 	    (coszt3 + 0.149864 * coszt2 + 0.0102963 * coszt + 0.000303978);
 
-	/* gravitational redshift, observer contribution */
+	/* gravitational redshift, observer contribution. for the sake of
+	 * completeness, we add the observer's alitude here. */
 	SpiceDouble latt, lont, altt;
 	station_geopos (observer, et, &lont, &latt, &altt);
 	SpiceDouble GM_earth = 3.986004418e14; // check reference
