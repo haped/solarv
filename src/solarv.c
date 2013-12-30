@@ -449,8 +449,8 @@ int soleph (
 	eph->airmass = (1.002432 * coszt2 + 0.148386 * coszt + 0.0096467) / 
 	    (coszt3 + 0.149864 * coszt2 + 0.0102963 * coszt + 0.000303978);
 
-	/* gravitational redshift, observer contribution. for the sake of
-	 * completeness, we add the observer's alitude here. */
+	/* gravitational redshift, earth-observer contribution. for the sake
+	 * of completeness, we add the observer's alitude here. */
 	SpiceDouble latt, lont, altt;
 	station_geopos (observer, et, &lont, &latt, &altt);
 	SpiceDouble GM_earth = 3.986004418e14; // check reference
@@ -474,7 +474,6 @@ SpiceDouble grav_redshift (SpiceDouble GM, SpiceDouble r_emit, SpiceDouble r_obs
 
     return ztot;
 }
-
 
 void get_pointing (
     SpiceDouble et,
