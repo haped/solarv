@@ -23,8 +23,6 @@ KPL/MK
 			'$SYSKERN/obscrtn.tf',
 			'$SYSKERN/stations.bsp',
 			'$SYSKERN/stations.tf'
-			'$SYSKERN/sunrise2.bsp',
-			'$SYSKERN/sunrise2.tf'
 			)		
 \begintext
 
