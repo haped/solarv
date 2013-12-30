@@ -1,11 +1,18 @@
 Observer-Centric Radial Tangential Normal (OBSCRTN) Frame
 
-This Dynamic frame definition was added by H.-P. Doerr on 2013-02-02 to
-facilitate straight-forward state computations from an earth-based
-observatory. The FRAME_PRI_TARGET variable is set at runtime to match the
-observer location.  Observer locations are defined in the stations.bf,
-stations.tf files, which can be transfered in a .bsp kernel with the
-pinpoint tool.
+created: 2013 by H.-P. Doerr <doerr@kis.uni-freiburg.de>
+
+This dynamic frame definition is an addition to, and was heavily inspired
+by, the frame definitions in heliospheric.tf by W. Thompson.
+
+The OBSCRTN frame simplifies the computation of several ephemeris data wrt
+the solar disk (such as the p-angle). This file is solely intended to be
+used with the solarv utility as it needs to be referenced to a PRI_TARGET
+frame at runtime.
+
+The FRAME_PRI_TARGET variable is set at runtime to match the observer
+location.  Observer locations are defined in the stations.bf, stations.tf
+files, which can be transfered in a .bsp kernel with the pinpoint tool.
 
      Definition of the Observer-Centric RTN Frame
  
