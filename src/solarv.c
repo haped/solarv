@@ -931,17 +931,17 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
     SpiceDouble dist_au;
     convrt_c(eph->dist_sun, "KM", "AU", &dist_au);
     fprintf (stream, 
-	     "Solar reference radius....... % .0f m\n"
-	     "Apparent angular radius...... % .4f arcsec\n"
+	     "Solar reference radius.......  %.0f m\n"
+	     "Apparent angular radius......  %.4f arcsec\n"
 	     "Rotation model...............  %s (%s)\n"
 	     "Sidereal rotation rate.......  %.4f murad/s\n"
 	     "Position angle P............. % -.4f deg\n"
 	     "Sub-observer Stonyhurst lat.. % -.4f deg\n"
-	     "Sub-observer Stonyhurst lon.. %  .4f deg\n"
+	     "Sub-observer Stonyhurst lon.. % .4f deg\n"
 	     "Sub-observer Carrington lon.. % -.4f deg\n"
 	     "Solar center distance........  %.0f m / %.9f AU\n"
 	     "Solar center radial velocity. % -.3f m/s\n"
-	     "Sun-Observer grav. redshift.. % .6f ppm / %.2f m/s\n"
+	     "Sun-Observer grav. redshift..  %.5f ppm / %.2f m/s\n"
 	     "Target HPC co-ordinates...... % -.4f, %.5f arcsec\n"
 	     "  Stonyhurst lon, lat........ % -.4f, %.5f deg\n"
 	     "  Impact parameter...........  %.0f m / %.2f arcsec\n"
