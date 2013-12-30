@@ -959,7 +959,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     dist_au,
 	     eph->vlos_sun * 1000,
 	     eph->grs * 1E6,
-	     eph->grs * 3E8,
+	     eph->grs * clight_c() * 1000.0,
 	     eph->x * aspr(), eph->y * aspr(),
 	     eph->lon * dpr_c(), eph->lat * dpr_c(),
 	     eph->rho * 1000, sqrt(eph->x * eph->x + eph->y * eph->y) * aspr(),
