@@ -427,6 +427,7 @@ int soleph (
 	 * increasing eastwards */
 	az = lon < 0 ? -lon : 2 * pi_c() - lon;
 	eph->azimuth = az;
+        eph->elev_true = elev_true;
 	SpiceDouble z_true = pi_c() / 2 - elev_true;
 	
 	/* Atmospheric refraction correction. Meeus, Astronomical Algorithms
@@ -942,8 +943,8 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     "Solar center distance........  %.0f m / %.9f AU\n"
 	     "Solar center radial velocity. % -.3f m/s\n"
 	     "Sun-Observer grav. redshift..  %.5f ppm / %.2f m/s\n"
-	     "Target HPC co-ordinates...... % -.4f, %.5f arcsec\n"
-	     "  Stonyhurst lon, lat........ % -.4f, %.5f deg\n"
+	     "Target HPC co-ordinates...... % -.4f, %.4f arcsec\n"
+	     "  Stonyhurst lon, lat........ % -.4f, %.4f deg\n"
 	     "  Impact parameter...........  %.0f m / %.2f arcsec\n"
 	     "  Heliocentric angle, mu.....  %.4f deg, %.4f\n"
 	     ,
