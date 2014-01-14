@@ -75,12 +75,12 @@ void usage (FILE *stream)
 	     "and needs\n"
 	     "                to be updated regularily\n"
 	     "  -R radius     specifiy a different solar radius in km\n"
-	     "  -O observer   set observer position. Can be any NAIF body code.\n"
-	     "                pre-defined sites: 'VTT', 'SCHAUINSLAND', 'SST',\n"
+	     "  -O observer   set observer position (any NAIF body code)\n"
+	     "                predefined sites: 'VTT', 'SCHAUINSLAND', 'SST',\n"
 	     "                'DST', 'MCMATH', 'BIGBEAR'\n"
 	     "  -k kernel     load additional SPICE kernel 'kernel'\n"
 	     "                this kernel will be loaded last in kernel pool\n"
-	     "  -K kernel     load 'kernel' instead of the default meta kernel\n"
+	     "  -K kernel     load 'kernel' instead of default meta kernel\n"
 	     "  -i            Show information about loaded SPICE kernels\n"
 	     "\n"
 	     "Examples:\n"
@@ -124,7 +124,7 @@ int main (int argc, char **argv)
     char metakernel[MAXPATH+1] = "na";
     char earthkernel[MAXPATH+1] = "na";
     char observer[MAXKEY+1] = "VTT";
-    char fitsout[MAXPATH+1];
+    char fitsout[MAXPATH+1] = {0};
     bool fancy = false;
     int rotmodel = fixed;
     bool earth_itrf93 = false;
@@ -132,7 +132,7 @@ int main (int argc, char **argv)
     bool dumpinfo = false;
     
     int c; opterr = 0;
-    while ((c = getopt (argc, argv, "+h:m:f:pr:O:vfK:k:tiR:")) != -1)
+    while ((c = getopt (argc, argv, "+h:m:f:pr:O:vK:k:tiR:")) != -1)
     {
         switch (c)
         {
@@ -1075,7 +1075,7 @@ int mode_batch (
 	argv[i] = malloc (sizeof(char) * MAXPATH);
     }
 
-    if (fitsf) {
+    if (*fitsf) {
     	fits_create_file (&fptr, fitsf, &status);
     	write_fits_ephtable_header (fptr, 1, &status);
 	if (status != 0) {
