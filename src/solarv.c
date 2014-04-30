@@ -1097,6 +1097,7 @@ int mode_batch (
     {
 	char *tp = line;
 	int argc = 0;
+	if (*tp == '\n') break; // quit on empty input line
 	while ( (tp = wordsep (tp, argv[argc++])) != 0) {
 	    if (argc > 5) {
 		errmesg ("Invalid request in input line %zu\n", lineno);
