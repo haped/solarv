@@ -1130,7 +1130,7 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 	return FAILURE;
     
     /* define table structure */
-    int tfields = 34;
+    int tfields = 36;
     char tname[] = "ephemeris table";
     char *ttype[] = { "date_obs", "jd_obs", "mjd_obs",
 		      "observer", "obs_lon", "obs_lat", "obs_alt",
@@ -1140,7 +1140,7 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 		      "state_sun", "dist_sun", "vlos_sun", "grs",
 		      "hg_lon", "hg_lat", "hpc_x", "hpc_y",
 		      "theta", "mu", "impactparam",
-		      "elev_app", "elev_true", "azimuth", "airmass",
+		      "azimuth", "elev_app", "elev_true", "zenith_app", "zenith_true",  "airmass",
 		      "state_obs", "dist_obs", "vlos_obs"
     };
     char *tform[] = { "32A", "D", "D",
@@ -1151,7 +1151,7 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 		      "6D", "D", "D", "D",
 		      "D", "D", "D", "D", 
 		      "D", "D", "D",
-		      "D", "D", "D", "D", 
+		      "D", "D", "D", "D", "D", "D",
 		      "6D", "D", "D"
     };
     char *tunit[] = { "\0", "days", "days",
@@ -1162,7 +1162,7 @@ int write_fits_ephtable_header (fitsfile *fptr, long nrows, int *status)
 		      "km, km/s", "km", "km/s", "1/c",
 		      "rad", "rad", "rad", "rad",
 		      "rad", "\0", "km",
-		      "rad", "rad", "rad", "\0",
+		      "rad", "rad", "rad", "rad", "rad", "\0",
 		      "km, km/s", "km", "km/s"
     };
     fits_create_tbl (fptr,
@@ -1239,9 +1239,11 @@ int write_fits_ephtable_row (
     EPHTABLE_ADDCELL (TDOUBLE, &eph->mu);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->rho);
 
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->azimuth);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->elev_app);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->elev_true);
-    EPHTABLE_ADDCELL (TDOUBLE, &eph->azimuth);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->z_app);
+    EPHTABLE_ADDCELL (TDOUBLE, &eph->z_true);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->airmass);
 
     fits_write_col (fptr, TDOUBLE, col++, row, 1, 6, eph->state_obs, status);
