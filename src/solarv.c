@@ -143,13 +143,17 @@ int main (int argc, char **argv)
 		list_rotation_models (stdout);
 		return EXIT_SUCCESS;
 	    }
-	    else if (strcasecmp (optarg, "rigid") == 0) rotmodel = rigid;
 	    else if (strcasecmp (optarg, "crgt") == 0)	rotmodel = crgt;
 	    else if (strcasecmp (optarg, "fixed") == 0) rotmodel = fixed;
 	    else if (strcasecmp (optarg, "su90s") == 0)	rotmodel = su90s;
 	    else if (strcasecmp (optarg, "su90g") == 0)	rotmodel = su90g;
 	    else if (strcasecmp (optarg, "su90m") == 0)	rotmodel = su90m;
 	    else if (strcasecmp (optarg, "s84s") == 0)	rotmodel = s84s;
+	    else if (strcasecmp (optarg, "zz91y") == 0)	rotmodel = zz91y;
+	    else if (strcasecmp (optarg, "zz91r") == 0)	rotmodel = zz91r;
+	    else if (strcasecmp (optarg, "hgg84s") == 0) rotmodel = hgg84s;
+	    else if (strcasecmp (optarg, "hgg84m") == 0) rotmodel = hgg84m;
+	    else if (strcasecmp (optarg, "hgg84l") == 0) rotmodel = hgg84l;
 	    else {
 		errmesg ("Unknown Rotation Model: %s\n", optarg);
 		return EXIT_FAILURE;
@@ -983,11 +987,11 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 
 void list_rotation_models (FILE *stream)
 {
-    fprintf (stream, "Name        A       B       C       Description\n");
-    fprintf (stream, "--------------------------------"
-	    "------------------------------------------------\n");
+    fprintf (stream, "Name      A       B       C       Description\n");
+    fprintf (stream, "------------------------------"
+	    "-------------------------------------------------\n");
     for (int i = 0; i < RotModel_END; ++i) {
-	fprintf (stream, "%-10s % 6.4f % 6.4f % 6.4f  %s\n",
+	fprintf (stream, "%-8s % 6.4f % 6.4f % 6.4f  %s\n",
 		 RotModels[i].name,
 		 RotModels[i].A, RotModels[i].B, RotModels[i].C,
 		 RotModels[i].descr);
@@ -1116,6 +1120,7 @@ int mode_batch (
 
     for (int i = 0; i < 6; ++i) free (argv[i]);
     free (argv);
+    
     
     if (fitsf) {
     	fits_close_file (fptr, &status);

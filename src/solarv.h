@@ -76,24 +76,42 @@ typedef struct
 
 static const rotmodel_t RotModels[] =
 {
+    // generic
     {0.000,    0.000,  0.000, "fixed", "no rotation, fixed to inertial frame"},
-    {2.851,    0.000,  0.000, "rigid", "rigid body rotation, 2.851 murad/s"},
     {2.86532,  0.000,  0.000, "crgt", "rigid body rotation, Carrington rate"},
+    // spectroscopic
     {2.851,   -0.343, -0.474, "su90s", "Snodgrass & Ulrich (1990), spectroscopic"}, 
     {2.972,   -0.484, -0.361, "su90g", "Snodgrass & Ulrich (1990), supergranul."},
     {2.879,   -0.339, -0.485, "su90m", "Snodgrass & Ulrich (1990), magnetic"},
     {2.836,   -0.344, -0.504, "s84s", "Snodgrass (1984), spectrosc. MWO data"},
-    {0.000,    0.000,  0.000, "custom", "Custom selected A, B, C coefficients"}
+    // spots
+    {2.9715,  -0.436,  0.000, "zz91y", "Zappala & Zuccarello (1991), young spots"},
+    {2.903,   -0.615,  0.000, "zz91r", "Zappala & Zuccarello (1991), recur. spots"},
+    {2.939,   -0.5796, 0.000, "hgg84s", "Howard, Gilman & Gilman (1948), small spots"},
+    {2.917,   -0.5284, 0.000, "hgg84m", "Howard, Gilman & Gilman (1948), medium spots"},
+    {2.885,   -0.5325, 0.000, "hgg84l", "Howard, Gilman & Gilman (1948), large spots"},
+
+    {0.000,    0.000,  0.000, "custom", "Custom set A, B, C coefficients"}
 };
 enum RotModel {fixed = 0,
-	       rigid,
 	       crgt,
 	       su90s,
 	       su90g,
 	       su90m,
 	       s84s,
+	       zz91y,
+	       zz91r,
+	       hgg84s,
+	       hgg84m,
+	       hgg84l,
 	       RotModel_END,
 	       custom /* this one can not be selcted */
+};
+
+enum PosType {
+    cord_shg = 0,  /* Stonyhurst heliographic     */
+    cord_hpc,      /* helio-projective cartesian  */
+    cord_hcr       /* helio-centric radial        */
 };
 
 typedef struct
@@ -102,12 +120,6 @@ typedef struct
     SpiceDouble y;
     int type;
 } sunpos_t;
-
-enum PosType {
-    cord_shg = 0,  /* Stonyhurst heliographic     */
-    cord_hpc,      /* helio-projective cartesian  */
-    cord_hcr       /* helio-centric radial        */
-};
 
 
 /* 
