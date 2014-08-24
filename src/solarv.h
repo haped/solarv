@@ -74,7 +74,7 @@ typedef struct
     char descr[129];
 } rotmodel_t;
 
-static const rotmodel_t RotModels[] =
+static rotmodel_t RotModels[] =
 {
     // generic
     {0.000,    0.000,  0.000, "fixed", "no rotation, fixed to inertial frame"},
@@ -87,11 +87,11 @@ static const rotmodel_t RotModels[] =
     // spots
     {2.9715,  -0.436,  0.000, "zz91y", "Zappala & Zuccarello (1991), young spots"},
     {2.903,   -0.615,  0.000, "zz91r", "Zappala & Zuccarello (1991), recur. spots"},
-    {2.939,   -0.5796, 0.000, "hgg84s", "Howard, Gilman & Gilman (1948), small spots"},
-    {2.917,   -0.5284, 0.000, "hgg84m", "Howard, Gilman & Gilman (1948), medium spots"},
-    {2.885,   -0.5325, 0.000, "hgg84l", "Howard, Gilman & Gilman (1948), large spots"},
+    {2.939,   -0.5796, 0.000, "hgg84s", "Howard, Gilman & Gilman (1984), small spots"},
+    {2.917,   -0.5284, 0.000, "hgg84m", "Howard, Gilman & Gilman (1984), medium spots"},
+    {2.885,   -0.5325, 0.000, "hgg84l", "Howard, Gilman & Gilman (1984), large spots"},
 
-    {0.000,    0.000,  0.000, "custom", "Custom set A, B, C coefficients"}
+    {0.000,    0.000,  0.000, "custom", "set with -m custom,A=x,B=y,C=z"}
 };
 enum RotModel {fixed = 0,
 	       crgt,
@@ -104,8 +104,8 @@ enum RotModel {fixed = 0,
 	       hgg84s,
 	       hgg84m,
 	       hgg84l,
-	       RotModel_END,
-	       custom /* this one can not be selcted */
+	       custom,
+	       RotModel_END
 };
 
 enum PosType {
@@ -183,6 +183,7 @@ void station_geopos (
 
 void usage (FILE *stream);
 void errmesg (const char *mesg, ...);
+void die (const char *mesg, ...);
 
 void dump_kernel_info (FILE *stream);
 void list_rotation_models (FILE *stream);

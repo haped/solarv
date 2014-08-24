@@ -143,8 +143,8 @@ int main (int argc, char **argv)
 		list_rotation_models (stdout);
 		return EXIT_SUCCESS;
 	    }
-	    else if (strcasecmp (optarg, "crgt") == 0)	rotmodel = crgt;
 	    else if (strcasecmp (optarg, "fixed") == 0) rotmodel = fixed;
+	    else if (strcasecmp (optarg, "crgt") == 0)	rotmodel = crgt;
 	    else if (strcasecmp (optarg, "su90s") == 0)	rotmodel = su90s;
 	    else if (strcasecmp (optarg, "su90g") == 0)	rotmodel = su90g;
 	    else if (strcasecmp (optarg, "su90m") == 0)	rotmodel = su90m;
@@ -154,9 +154,11 @@ int main (int argc, char **argv)
 	    else if (strcasecmp (optarg, "hgg84s") == 0) rotmodel = hgg84s;
 	    else if (strcasecmp (optarg, "hgg84m") == 0) rotmodel = hgg84m;
 	    else if (strcasecmp (optarg, "hgg84l") == 0) rotmodel = hgg84l;
+	    else if (strcasecmp (optarg, "custom") == 0) {
+		rotmodel = custom;
+	    }
 	    else {
-		errmesg ("Unknown Rotation Model: %s\n", optarg);
-		return EXIT_FAILURE;
+		die ("Unknown Rotation Model: %s", optarg);
 	    }					
 	    break;
         case 'p': fancy = true; break;
@@ -1392,6 +1394,18 @@ void errmesg (const char *mesg, ...)
     va_start(ap, mesg);
     vfprintf (stderr, mesg, ap);
     va_end(ap);
+}
+
+void die (const char *mesg, ...)
+{
+    va_list ap;
+    
+    fprintf (stderr, "ERROR: ");
+    va_start(ap, mesg);
+    vfprintf (stderr, mesg, ap);
+    va_end(ap);
+    
+    exit (EXIT_FAILURE);
 }
 
 
