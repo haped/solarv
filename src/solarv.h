@@ -1,6 +1,6 @@
 /*
- Copyright (C) 2012, 2013 Hans-Peter Doerr <doerr@kis.uni-freiburg.de>,
- Kiepenheuer-Institut fuer Sonnenphysik, Freiburg, Germany.
+ Copyright (C) 2012-2016 Hans-Peter Doerr <doerr@mps.mpg.de>
+ MPI for Solar System Research, Goettingen, Germany.
  
  Permission is hereby granted, free of charge, to any person obtaining a
  copy of this software and associated documentation files (the "Software"),
@@ -27,10 +27,10 @@
 #include <cfitsio/fitsio.h>
 
 static const char _name[] = "Solarv";
-static const char _author[] = "Hans-Peter Doerr";
-static const char _version[] = "0.4.1";
-static const char _versiondate[] = "14 Jan 2014";
-static const char _copyright[] = "2012-2014 Hans-Peter Doerr";
+static const char _author[] = "Hans-Peter Doerr <doerr@mps.mpg.de>";
+static const char _version[] = "0.4.2";
+static const char _versiondate[] = "31 May 2016";
+static const char _copyright[] = "2012-2016 Hans-Peter Doerr <doerr@mps.mpg.de>";
 
 #include "SpiceUsr.h"
 
