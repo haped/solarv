@@ -14,15 +14,17 @@ KPL/MK
 	PATH_SYMBOLS = ('SYSKERN')
 
 	KERNELS_TO_LOAD = (
-                        '$SYSKERN/earth_720101_070527.bpc',
+                        '$SYSKERN/earth_070425_370426_predict.bpc',
                         '$SYSKERN/earth_latest_high_prec.bpc', 
 			'$SYSKERN/pck00010.tpc',
-			'$SYSKERN/naif0010.tls',
-			'$SYSKERN/de421.bsp',
+			'$SYSKERN/naif0011.tls',
+			'$SYSKERN/de430.bsp',
 			'$SYSKERN/heliospheric.tf',
 			'$SYSKERN/obscrtn.tf',
 			'$SYSKERN/stations.bsp',
 			'$SYSKERN/stations.tf'
+			'$SYSKERN/sunrise2.bsp',
+			'$SYSKERN/sunrise2.tf'
 			)		
 \begintext
 

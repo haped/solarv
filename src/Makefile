@@ -34,12 +34,11 @@ all: solarv kernels/solarv.tm
 
 install: solarv kernels/solarv.tm
 	install -D -m 0644 kernels/* $(KERNEL_PATH)
-	install -D solarv $(BINARY_PATH)/solarv
+	install -D solarv $(BINARY_PATH)/solarvSR
 
 update-kernels:
-	mkdir tmp_
 	./getkernels.sh || exit
-	install -D -m 0644 tmp_/* -t $(KERNEL_PATH)
+	install -D -m 0644 kernels_tmp/* -t $(KERNEL_PATH)
 
 .PHONY: clean check
 
