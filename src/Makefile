@@ -43,7 +43,7 @@ update-kernels:
 .PHONY: clean check
 
 clean:
-	rm -f solarv solarv.o solarv.tm
+	rm -f solarv solarv.o solarv.tm kernels/solarv.tm
 
 solarv.o: solarv.h solarv.c Makefile
 
@@ -52,7 +52,7 @@ solarv: solarv.o solarv.h
 
 
 kernels/solarv.tm: solarv.tm.in Makefile
-	@sed 's#KERNEL_SYSPATH#$(KERNEL_PATH)#g' solarv.tm.in > kernels/solarv.tm
+	sed 's#KERNEL_SYSPATH#$(KERNEL_PATH)#g' solarv.tm.in > kernels/solarv.tm
 
 
 kernels/stations.bsp: stations.defs
