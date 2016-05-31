@@ -34,7 +34,7 @@ all: solarv kernels/solarv.tm
 
 install: solarv kernels/solarv.tm
 	install -D -m 0644 kernels/* $(KERNEL_PATH)
-	install -D solarv $(BINARY_PATH)/solarvSR
+	install -D solarv $(BINARY_PATH)/solarv
 
 update-kernels:
 	./getkernels.sh || exit

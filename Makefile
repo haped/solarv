@@ -12,5 +12,4 @@ TARFILE = solarv-$(VERSIONSTR)
 
 export: 
 	git archive --prefix=solarv/ HEAD > $(TARFILE).tar
-	test -f $(TARFILE).tar.bz2 && rm -f $(TARFILE).tar.bz2
 	bzip2 $(TARFILE).tar
