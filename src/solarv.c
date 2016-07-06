@@ -36,7 +36,7 @@
 #include <getopt.h>
 #include <math.h>
 #include <time.h>
-#include <cfitsio/fitsio.h>
+#include <fitsio.h>
 
 #include "solarv.h"
 

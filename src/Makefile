@@ -1,13 +1,7 @@
 include config.mk
 
-## defining CFITSIO_PATH is optional, could also be pre-installed
-## on the system
-ifdef CFITSIO_PATH
-	FITSIO_I = -I$(CFITSIO_PATH)/include
-	FITSIO_L = -L$(CFITSIO_PATH)/lib -lcfitsio
-else
-	FITSIO_L = -lcfitsio
-endif
+FITSIO_I = `$(PKG_CONFIG) cfitsio --cflags`
+FITSIO_L = `$(PKG_CONFIG) cfitsio --libs`
 
 ## need to set SPICE_PATH in config.mk
 ifdef CSPICE_PATH
