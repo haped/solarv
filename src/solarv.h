@@ -1,7 +1,7 @@
 /*
  Copyright (C) 2012-2014 Hans-Peter Doerr <doerr@kis.uni-freiburg.de>
    Kiepenheuer-Institute for Solar Physics, Freiburg, Germany.
- Copyright (C) 2015-2016 Hans-Peter Doerr <doerr@mps.mpg.de>
+ Copyright (C) 2015-2017 Hans-Peter Doerr <doerr@mps.mpg.de>
    MPI for Solar System Research, Goettingen, Germany.
  
  Permission is hereby granted, free of charge, to any person obtaining a
