@@ -26,7 +26,7 @@
 #ifndef _SOLARV_H_
 #define _SOLARV_H_
 
-#include <cfitsio/fitsio.h>
+#include <fitsio.h>
 
 static const char _name[] = "Solarv";
 static const char _author[] = "Hans-Peter Doerr <doerr@mps.mpg.de>";
