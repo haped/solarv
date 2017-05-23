@@ -3,9 +3,9 @@
 PKG_CONFIG      = /bin/pkg-config
 
 ## CSPICE INSTALL DIR
-CSPICE_PATH = $(HOME)/local/pkg/solarvSR/cspice
+CSPICE_PATH = $(HOME)/local/pkg/solarv/cspice
 ## where required SPICE kernels are
-KERNEL_PATH = $(HOME)/local/share/solarvSR/kernels
+KERNEL_PATH = $(HOME)/local/share/solarv/kernels
 ## where to put the 'solarv' binary
 BINARY_PATH = $(HOME)/local/bin
 ## the pinpoint utility is needed to update the 
