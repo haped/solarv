@@ -79,7 +79,7 @@ void usage (FILE *stream)
 	     "  -R radius     specifiy a different solar radius in km\n"
 	     "  -O observer   set observer position (any NAIF body code)\n"
 	     "                predefined sites: 'VTT', 'SCHAUINSLAND', 'SST',\n"
-	     "                'DST', 'MCMATH', 'BIGBEAR'\n"
+	     "                'DST', 'MCMATH', 'BIGBEAR', 'DKIST'\n"
 	     "  -k kernel     load additional SPICE kernel 'kernel'\n"
 	     "                this kernel will be loaded last in kernel pool\n"
 	     "  -K kernel     load 'kernel' instead of default meta kernel\n"
@@ -184,7 +184,7 @@ int main (int argc, char **argv)
 	batchmode = true;
 	FILE *b = fopen (argv[optind], "r");
 	if (NULL == b) {
-	    die ("Can't read input file '%s'\n", argv[optind]);
+	    die ("could not open input file '%s'.\n", argv[optind]);
 	}
 	batchstream = b;
     }
@@ -584,8 +584,8 @@ void station_geopos (
     recgeo_c (state_station, r_eq, f, lon, lat, alt);
 }
 
-/* get inertial state of a target on the sun, given it's heliographic
- * coordinates an the inertial state of the solar barycenter */
+/* get inertial state of a target on the sun, given its heliographic
+ * coordinates and the inertial state of the solar barycenter */
 int getstate_solar_target (
     SpiceDouble et,
     SpiceDouble lon,
@@ -764,8 +764,7 @@ void reset_soleph (soleph_t *eph)
 SpiceDouble omega_sun (SpiceDouble lat, int model)
 {
     if ( (model > RotModel_END - 1 || model < 0)  && model != custom) {
-	errmesg ("unknown rotation model %i, aborting\n", model);
-	exit (EXIT_FAILURE);
+	die ("unknown rotation model %i, aborting\n", model);
     }
     SpiceDouble
 	A = RotModels[model].A * 1E-6,
@@ -781,13 +780,15 @@ SpiceDouble omega_sun (SpiceDouble lat, int model)
 
 bool observer_on_earth (SpiceChar *observer)
 {
-    if (0 != strcasecmp (observer, "VTT") &&
-	0 != strcasecmp (observer, "SST") &&
-	0 != strcasecmp (observer, "SCHAUINSLAND") &&
-	0 != strcasecmp (observer, "DST") &&
-	0 != strcasecmp (observer, "MCMATH") &&
-	0 != strcasecmp (observer, "SUNRISE2") &&
-	0 != strcasecmp (observer, "BIGBEAR")
+    /* FIXME: do this in a more elegant way */
+    if (0 != strcasecmp (observer, "VTT")
+	&& 0 != strcasecmp (observer, "SST")
+	&& 0 != strcasecmp (observer, "SCHAUINSLAND")
+	&& 0 != strcasecmp (observer, "DST")
+	&& 0 != strcasecmp (observer, "MCMATH")
+	&& 0 != strcasecmp (observer, "SUNRISE2")
+	&& 0 != strcasecmp (observer, "BIGBEAR")
+	&& 0 != strcasecmp (observer, "DKIST")
 	) {
 	return false;
     }
@@ -1292,12 +1293,13 @@ SpiceDouble aspr(void)
     return dpr_c() * 3600.0;
 }
 
-/* arcseconds per radian */
+/* radian per arcsecond */
 SpiceDouble rpas(void)
 {
     return 1.0 / 3600.0 * rpd_c();
 }
 
+/* degre per arcsecond */
 SpiceDouble dpas(void)
 {
     return 1.0 / 3600.0;

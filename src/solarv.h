@@ -30,9 +30,9 @@
 
 static const char _name[] = "Solarv";
 static const char _author[] = "Hans-Peter Doerr <doerr@mps.mpg.de>";
-static const char _version[] = "0.4.2";
-static const char _versiondate[] = "31 May 2016";
-static const char _copyright[] = "2012-2016 Hans-Peter Doerr <doerr@mps.mpg.de>";
+static const char _version[] = "0.4.3";
+static const char _versiondate[] = "23 May 2017";
+static const char _copyright[] = "2012-2017 Hans-Peter Doerr <doerr@mps.mpg.de>";
 
 #include "SpiceUsr.h"
 
