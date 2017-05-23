@@ -4,10 +4,10 @@ KPL/FK
  
    This file was created by PINPOINT.
  
-   PINPOINT Version 3.0.0 --- March 26, 2009
-   PINPOINT RUN DATE/TIME:    2013-12-26T17:06:37
+   PINPOINT Version 3.2.0 --- September 6, 2016
+   PINPOINT RUN DATE/TIME:    2017-05-23T17:06:23
    PINPOINT DEFINITIONS FILE: stations.defs
-   PINPOINT PCK FILE:         /usr/local/share/solarv/kernels/pck00010.tpc
+   PINPOINT PCK FILE:         /home/doerr/local/share/solarv/kernels/pck00010.tpc
    PINPOINT SPK FILE:         kernels/stations.bsp
  
    The input definitions file is appended to this
@@ -36,6 +36,9 @@ KPL/FK
    NAIF_BODY_NAME                      += 'BIGBEAR'
    NAIF_BODY_CODE                      += 399924
  
+   NAIF_BODY_NAME                      += 'DKIST'
+   NAIF_BODY_CODE                      += 399925
+ 
 \begintext
  
  
@@ -47,8 +50,8 @@ KPL/FK
       The Z axis of this frame points toward the zenith.
       The X axis of this frame points North.
  
-      Topocentric frame VTT_TOPO is centered at the site VTT
-      which has Cartesian coordinates
+      Topocentric frame VTT_TOPO is centered at the
+      site VTT, which has Cartesian coordinates
  
          X (km):                  0.5390236406562E+04
          Y (km):                 -0.1597689356553E+04
@@ -58,7 +61,7 @@ KPL/FK
  
          Longitude (deg):       -16.5100510000000
          Latitude  (deg):        28.3023900000000
-         Altitude   (km):         0.2413000000002E+01
+         Altitude   (km):         0.2413000000000E+01
  
       These planetodetic coordinates are expressed relative to
       a reference spheroid having the dimensions
@@ -95,8 +98,8 @@ KPL/FK
       The Z axis of this frame points toward the zenith.
       The X axis of this frame points North.
  
-      Topocentric frame SST_TOPO is centered at the site SST
-      which has Cartesian coordinates
+      Topocentric frame SST_TOPO is centered at the
+      site SST, which has Cartesian coordinates
  
          X (km):                  0.5327383061976E+04
          Y (km):                 -0.1718720024125E+04
@@ -143,8 +146,8 @@ KPL/FK
       The Z axis of this frame points toward the zenith.
       The X axis of this frame points North.
  
-      Topocentric frame SCHAUINSLAND_TOPO is centered at the site SCHAUINSLAND
-      which has Cartesian coordinates
+      Topocentric frame SCHAUINSLAND_TOPO is centered at the
+      site SCHAUINSLAND, which has Cartesian coordinates
  
          X (km):                  0.4242984704318E+04
          Y (km):                  0.5891574709801E+03
@@ -191,8 +194,8 @@ KPL/FK
       The Z axis of this frame points toward the zenith.
       The X axis of this frame points North.
  
-      Topocentric frame DST_TOPO is centered at the site DST
-      which has Cartesian coordinates
+      Topocentric frame DST_TOPO is centered at the
+      site DST, which has Cartesian coordinates
  
          X (km):                 -0.1463895180639E+04
          Y (km):                 -0.5166240553334E+04
@@ -202,7 +205,7 @@ KPL/FK
  
          Longitude (deg):      -105.8204980000000
          Latitude  (deg):        32.7872900000000
-         Altitude   (km):         0.2799999999999E+01
+         Altitude   (km):         0.2800000000000E+01
  
       These planetodetic coordinates are expressed relative to
       a reference spheroid having the dimensions
@@ -239,8 +242,8 @@ KPL/FK
       The Z axis of this frame points toward the zenith.
       The X axis of this frame points North.
  
-      Topocentric frame MCMATH_TOPO is centered at the site MCMATH
-      which has Cartesian coordinates
+      Topocentric frame MCMATH_TOPO is centered at the
+      site MCMATH, which has Cartesian coordinates
  
          X (km):                 -0.1994182352967E+04
          Y (km):                 -0.5037951695800E+04
@@ -287,8 +290,8 @@ KPL/FK
       The Z axis of this frame points toward the zenith.
       The X axis of this frame points North.
  
-      Topocentric frame BIGBEAR_TOPO is centered at the site BIGBEAR
-      which has Cartesian coordinates
+      Topocentric frame BIGBEAR_TOPO is centered at the
+      site BIGBEAR, which has Cartesian coordinates
  
          X (km):                 -0.2390085850365E+04
          Y (km):                 -0.4706785166442E+04
@@ -298,7 +301,7 @@ KPL/FK
  
          Longitude (deg):      -116.9212700000000
          Latitude  (deg):        34.2585180000000
-         Altitude   (km):         0.2042999999999E+01
+         Altitude   (km):         0.2043000000001E+01
  
       These planetodetic coordinates are expressed relative to
       a reference spheroid having the dimensions
@@ -327,6 +330,54 @@ KPL/FK
                                              -55.7414820000000,
                                              180.0000000000000 )
  
+ 
+\begintext
+ 
+   Topocentric frame DKIST_TOPO
+ 
+      The Z axis of this frame points toward the zenith.
+      The X axis of this frame points North.
+ 
+      Topocentric frame DKIST_TOPO is centered at the
+      site DKIST, which has Cartesian coordinates
+ 
+         X (km):                 -0.5465999845833E+04
+         Y (km):                 -0.2404405652428E+04
+         Z (km):                  0.2242125713049E+04
+ 
+      and planetodetic coordinates
+ 
+         Longitude (deg):      -156.2560760000000
+         Latitude  (deg):        20.7067420000000
+         Altitude   (km):         0.3032000000000E+01
+ 
+      These planetodetic coordinates are expressed relative to
+      a reference spheroid having the dimensions
+ 
+         Equatorial radius (km):  6.3781366000000E+03
+         Polar radius      (km):  6.3567519000000E+03
+ 
+      All of the above coordinates are relative to the frame EARTH_FIXED.
+ 
+ 
+\begindata
+ 
+   FRAME_DKIST_TOPO                    =  1399925
+   FRAME_1399925_NAME                  =  'DKIST_TOPO'
+   FRAME_1399925_CLASS                 =  4
+   FRAME_1399925_CLASS_ID              =  1399925
+   FRAME_1399925_CENTER                =  399925
+ 
+   OBJECT_399925_FRAME                 =  'DKIST_TOPO'
+ 
+   TKFRAME_1399925_RELATIVE            =  'EARTH_FIXED'
+   TKFRAME_1399925_SPEC                =  'ANGLES'
+   TKFRAME_1399925_UNITS               =  'DEGREES'
+   TKFRAME_1399925_AXES                =  ( 3, 2, 3 )
+   TKFRAME_1399925_ANGLES              =  ( -203.7439240000000,
+                                             -69.2932580000000,
+                                             180.0000000000000 )
+ 
 \begintext
  
  
@@ -336,7 +387,7 @@ Definitions file stations.defs
 begintext
  
         This is the definition for the solarv stations kernel. Stations are
-        defined by their lat, lon, altitude co-ordinates.
+        defined by their lat, lon, altitude coordinates.
  
         We also specify the *_UP, NORTH parameters so that pinpoint can
         add the corresponding topographic reference frames for each
@@ -348,9 +399,10 @@ begintext
           SCHAUINSLAND: google maps
           DST:          google maps, site-info
           MCMATH:       google maps, site-info
+          DKIST:        google maps via wikipedia
  
  
-        Last change: 2013, HP Doerr <doerr@kis.uni-freiburg.de>
+        Last change: 2017, HP Doerr <doerr@mps.mpg.de>
  
  
 begindata
@@ -402,6 +454,13 @@ begindata
          BIGBEAR_UP     = 'Z'
          BIGBEAR_NORTH  = 'X'
  
+         SITES      += 'DKIST'
+         DKIST_CENTER = 399
+         DKIST_FRAME  = 'EARTH_FIXED'
+         DKIST_IDCODE = 399925
+         DKIST_LATLON = ( 20.706742, -156.256076,  3.032)
+         DKIST_UP     = 'Z'
+         DKIST_NORTH  = 'X'
  
  
 begintext

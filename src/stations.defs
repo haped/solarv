@@ -1,7 +1,7 @@
 \begintext
 
         This is the definition for the solarv stations kernel. Stations are
-        defined by their lat, lon, altitude co-ordinates.
+        defined by their lat, lon, altitude coordinates.
 
         We also specify the *_UP, NORTH parameters so that pinpoint can
         add the corresponding topographic reference frames for each
@@ -13,9 +13,10 @@
           SCHAUINSLAND: google maps
           DST:          google maps, site-info
           MCMATH:       google maps, site-info
+          DKIST:        google maps via wikipedia
 
 
-        Last change: 2013, HP Doerr <doerr@kis.uni-freiburg.de>
+        Last change: 2017, HP Doerr <doerr@mps.mpg.de>
 
 
 \begindata
@@ -67,6 +68,13 @@
          BIGBEAR_UP     = 'Z'
          BIGBEAR_NORTH  = 'X'
 
+         SITES      += 'DKIST'
+         DKIST_CENTER = 399
+         DKIST_FRAME  = 'EARTH_FIXED'
+         DKIST_IDCODE = 399925
+         DKIST_LATLON = ( 20.706742, -156.256076,  3.032)
+         DKIST_UP     = 'Z'
+         DKIST_NORTH  = 'X'
 
 
 \begintext
