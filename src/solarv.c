@@ -184,8 +184,7 @@ int main (int argc, char **argv)
 	batchmode = true;
 	FILE *b = fopen (argv[optind], "r");
 	if (NULL == b) {
-	    errmesg ("Can't read input file '%s'\n", argv[optind]);
-	    return EXIT_FAILURE;
+	    die ("Can't read input file '%s'\n", argv[optind]);
 	}
 	batchstream = b;
     }
@@ -234,10 +233,8 @@ int main (int argc, char **argv)
     if (strcmp (addkernel, "na") != 0)
 	unload_c (addkernel);
     
-    if (FAILURE == errorcode) {
-	fprintf (stderr, "There were Errors. Please Check!\n");
-	return EXIT_FAILURE;
-    }
+    if (FAILURE == errorcode)
+	die ("There were Errors. Please Check!\n");
     
     return EXIT_SUCCESS;
 }
