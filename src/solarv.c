@@ -414,7 +414,7 @@ int soleph (
     eph->gr_sun = gr_sun;
     eph->grs = gr_sun;
 
-    eph->obs_on_earth = observer_on_earth (observer);
+    eph->obs_on_earth = observer_on_earth (observer, et);
     if (eph->obs_on_earth)
     {
 	/*
@@ -778,21 +778,24 @@ SpiceDouble omega_sun (SpiceDouble lat, int model)
     return omega;
 }
 
-bool observer_on_earth (SpiceChar *observer)
+bool observer_on_earth (SpiceChar *observer, SpiceDouble et)
 {
-    /* FIXME: do this in a more elegant way */
-    if (0 != strcasecmp (observer, "VTT")
-	&& 0 != strcasecmp (observer, "SST")
-	&& 0 != strcasecmp (observer, "SCHAUINSLAND")
-	&& 0 != strcasecmp (observer, "DST")
-	&& 0 != strcasecmp (observer, "MCMATH")
-	&& 0 != strcasecmp (observer, "SUNRISE2")
-	&& 0 != strcasecmp (observer, "BIGBEAR")
-	&& 0 != strcasecmp (observer, "DKIST")
-	) {
+    SpiceDouble thresh = 50e3;
+    SpiceDouble ltt;
+    SpiceDouble s[6];
+
+    /* check if observer is closer to earth center than 'thresh'. if
+     * observeris EARTH return false anyway.
+     *
+     * FIXME: on_earth?  should actually read ground_based? or cleaned
+     * up otherwise
+     */
+    if (strncasecmp(observer, "EARTH", MAXKEY) == 0)
 	return false;
-    }
-    return true;
+    spkezr_c (observer, et, "J2000", "NONE", "EARTH", s, &ltt);
+    if (sqrt (s[0]*s[0] + s[1]*s[1] + s[2]*s[2]) <= thresh)
+	return true;
+    return false;
 }
 
 
@@ -821,7 +824,9 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 
     //double lon, lat, alt;
 
-    bool onEarth = observer_on_earth (observer);
+    /* FIXME: pass real ephemeris time to observer_on_earth, or find a
+     * cleaner way in the first place */
+    bool onEarth = observer_on_earth (observer, 1);
     /* if (onEarth)  */
     /* 	station_geopos (observer, 1.0, &lon, &lat, &alt); */
 

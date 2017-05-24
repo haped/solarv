@@ -79,7 +79,7 @@ typedef struct
 static rotmodel_t RotModels[] =
 {
     // generic
-    {0.000,    0.000,  0.000, "fixed", "no rotation, fixed to inertial frame"},
+    {0.000,    0.000,  0.000, "fixed", "no rotation w.r.t. interial frame"},
     {2.86532,  0.000,  0.000, "crgt", "rigid body rotation, Carrington rate"},
     // spectroscopic
     {2.851,   -0.343, -0.474, "su90s", "Snodgrass & Ulrich (1990), spectroscopic"}, 
@@ -313,6 +313,6 @@ SpiceDouble dpas(void);
 SpiceDouble rpas(void);
 
 
-bool observer_on_earth(SpiceChar *observer);
+bool observer_on_earth(SpiceChar *observer, SpiceDouble et);
 
 #endif /* _SOLARV_H_ */
