@@ -1129,7 +1129,7 @@ int mode_batch (
     free (argv);
     
     
-    if (fitsf) {
+    if (*fitsf) {
     	fits_close_file (fptr, &status);
     }
 
