@@ -160,7 +160,7 @@ int main (int argc, char **argv)
 		rotmodel = custom;
 	    }
 	    else {
-		die ("Unknown Rotation Model: %s", optarg);
+		die ("Unknown rotation rodel: %s", optarg);
 	    }					
 	    break;
         case 'p': fancy = true; break;
@@ -234,7 +234,7 @@ int main (int argc, char **argv)
 	unload_c (addkernel);
     
     if (FAILURE == errorcode)
-	die ("There were Errors. Please Check!\n");
+	die ("There were errors, please check output.\n");
     
     return EXIT_SUCCESS;
 }
