@@ -53,7 +53,7 @@ void usage (FILE *stream)
 	     "\n"
 	     "The request is either read from the commandline, from 'file' "
 	     "or from STDIN if no arguments are given. The position can be "
-	     "specified in one of three co-ordinate systems:\n"
+	     "specified in one of three coordinate systems:\n"
 	     "     hpc: helio-projective cartesian; arcseconds from disk "
 	     "center\n"
 	     "     shg: stonyhurst heliographic longitude, latitude\n"
@@ -361,7 +361,7 @@ int soleph (
     relstate (state_obs, state_sun, relstate_sun,
 	      los_sun, &eph->dist_sun, &eph->vlos_sun, &lt_sun);
     
-    /* figure out target heliographic coordinates from use input */
+    /* figure out target heliographic coordinates from user input */
     if (SUCCESS != (anypos2lola (position, et, state_obs, state_sun,
 				 &eph->lon, &eph->lat))) {
 	errmesg ("Could not process target coordinates\n");
@@ -954,7 +954,7 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	     "Solar center distance........  %.0f m / %.9f AU\n"
 	     "Solar center radial velocity. % -.3f m/s\n"
 	     "Sun-Observer grav. redshift..  %.5f ppm / %.2f m/s\n"
-	     "Target HPC co-ordinates...... % -.4f, %.4f arcsec\n"
+	     "Target HPC coordinates....... % -.4f, %.4f arcsec\n"
 	     "  Stonyhurst lon, lat........ % -.4f, %.4f deg\n"
 	     "  Impact parameter...........  %.0f m / %.2f arcsec\n"
 	     "  Heliocentric angle, mu.....  %.4f deg, %.4f\n"
