@@ -23,8 +23,8 @@
  DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef _SOLARV_H_
-#define _SOLARV_H_
+#ifndef SOLARV_H
+#define SOLARV_H
 
 #include <fitsio.h>
 
@@ -315,4 +315,4 @@ SpiceDouble rpas(void);
 
 bool observer_on_earth(SpiceChar *observer, SpiceDouble et);
 
-#endif /* _SOLARV_H_ */
+#endif /* SOLARV_H */

@@ -43,7 +43,7 @@
 void usage (FILE *stream)
 {
     fprintf (stream, 
-	     "%s v%s (%s) -- Compute precise Sun-Observer radial velocity\n"
+	     "%s -- compute the accurate Sun-observer radial velocity\n"
 	     "\n"
 	     "Usage:\n"
 	     "  solarv [options] [request | file]\n"
@@ -52,14 +52,14 @@ void usage (FILE *stream)
 	     "  <timespec> <shg|hpc|hcr> <cord1> <cord2> [<nsteps> <tstep>]\n"
 	     "\n"
 	     "The request is either read from the commandline, from 'file' "
-	     "or from STDIN if no arguments are given. The position can be "
+	     "or from standard input if no arguments are given. The position must be "
 	     "specified in one of three coordinate systems:\n"
 	     "     hpc: helio-projective cartesian; arcseconds from disk "
 	     "center\n"
 	     "     shg: stonyhurst heliographic longitude, latitude\n"
-	     "     hcr: helio-centric radial in mu and azimuth "
-	     "counter-clockwise from heliographic north\n"
-	     "The 'timespec' parameter is a string defining the time of "
+	     "     hcr: helio-centric radial in mu and azimuth, "
+	     "counter-clockwise from heliographic north.\n"
+	     "The 'timespec' parameters sets the time of "
 	     "observation. Various time strings are understood but I "
 	     "recommend to use the ISO 8601 standard, e.g. "
 	     "'2012-01-01T00:00:00'. The optional 'nsteps' "
@@ -70,6 +70,7 @@ void usage (FILE *stream)
 	     "  -h            show this help\n"
 	     "  -v            print program version\n"
 	     "  -p            pretty-print output\n"
+	     "  -f fitsfile   write output to a binary fits table\n"
 	     "  -m model      set solar rotation model 'model' [fixed]\n"
 	     "                use 'list' to list available models\n"
 	     "  -t            use the ITRF93 precision earth rotation kernel\n"
@@ -99,7 +100,7 @@ void usage (FILE *stream)
 	     "365 1440\n"
 	     "\n"
 	     ,
-	     _name, _version, _versiondate
+	     _name
 	);
 }
 
@@ -321,14 +322,14 @@ int soleph (
     reset_soleph (eph);
     strncpy (eph->observer, observer, MAXKEY);
     /* we make heavy use of the observer-centric radial tangential normal
-     * frame which is referenced to the observer station */
+     * frame which is here referenced to the observer station */
     pcpool_c ("FRAME_1803430_PRI_TARGET", 1, strlen (observer)-1,  observer);
 
     /* remember julian date and ascii utc string of the event */
     SpiceDouble deltaT;
     deltet_c (et, "ET", &deltaT);
     eph->et = et;
-    /* we use the utc julain date here, so substract the delta */
+    /* we use the utc julian date here, so substract the delta */
     eph->jday = unitim_c (et, "ET", "JDTDB") - deltaT / spd_c();
     eph->mjd = eph->jday - 2400000.5;
     timout_c (et, "DD Mon YYYY HR:MN:SC.## UTC", 64, eph->utcdate);
@@ -347,9 +348,9 @@ int soleph (
     eph->L0cr = (sublon < 0 ? 2 * pi_c() + sublon : sublon);
 
     /*
-     * first, we compute the relative state between observer and sun
-     * barycenter. we need this now to be able to translate between pointing
-     * coordinates and heliographic coordinates
+     * first, we compute the relative state between observer and
+     * barycenter of the sun we need this now to be able to translate
+     * between pointing coordinates and heliographic coordinates
      */
     SpiceDouble los_tgt[3], los_sun[3], lt_sun, lt_tgt;
     //getstate_observer ("earth", et, 0, 0, 0, state_obs, NULL);
@@ -376,16 +377,14 @@ int soleph (
     strncpy (eph->modelname, RotModels[rotmodel].name, MAXKEY);
     strncpy (eph->modeldescr, RotModels[rotmodel].descr, MAXKEY);
 
-    /* TODO: handle light-time correction */
+    /* FIXME: handle light-time correction? */
     getstate_solar_target
 	(et, eph->lon, eph->lat, omegas, state_sun, state_tgt);
     relstate (state_obs, state_tgt, relstate_tgt,
 	      los_tgt, &eph->dist, &eph->vlos, &lt_tgt);
     get_pointing (et, relstate_sun, relstate_tgt, &eph->x, &eph->y);
 
-    /************************************************************************
-     compute further ephemeris data from the parameters we gathered so far
-    ************************************************************************/
+    /* more ephemeris data computed from here on ... */
     eph->rsun_ref = RSUN;
     eph->rsun_obs = asin (RSUN / eph->dist_sun);
 
@@ -396,7 +395,7 @@ int soleph (
     /* angle between sub-observer-point -> solar center, center -> target */
     SpiceDouble sunangle = asin (eph->rho / RSUN);
 
-    /* heliocentric angle is the angle between the los and the surface
+    /* heliocentric angle theta is the angle between the los and the surface
      * normal at the target */
     eph->theta = obsangle + sunangle;
     eph->mu = cos (eph->theta);
@@ -408,8 +407,8 @@ int soleph (
     mxv_c (xform, e, sol);
     eph->P0 = atan2 (sol[1], sol[2]);
 
-    /* grav redshift, solar contribution  */
-    SpiceDouble GM_sun = 1.32712440018e20; // TODO: check, from wikipedia
+    /* grav redshift, solar contribution for observer at given distance  */
+    SpiceDouble GM_sun = 1.32712440018e20; /* TODO: from wikipedia, check */
     SpiceDouble gr_sun = grav_redshift (GM_sun, RSUN * 1000, eph->dist * 1000);
     eph->gr_sun = gr_sun;
     eph->grs = gr_sun;
@@ -455,8 +454,9 @@ int soleph (
 	eph->airmass = (1.002432 * coszt2 + 0.148386 * coszt + 0.0096467) / 
 	    (coszt3 + 0.149864 * coszt2 + 0.0102963 * coszt + 0.000303978);
 
-	/* gravitational redshift, earth-observer contribution. for the sake
-	 * of completeness, we add the observer's alitude here. */
+	/* gravitational redshift, earth-based observer contribution
+	 * (actually a blue shift). for the sake of completeness, we
+	 * add the observer's alitude here. */
 	SpiceDouble latt, lont, altt;
 	station_geopos (observer, et, &lont, &latt, &altt);
 	SpiceDouble GM_earth = 3.986004418e14; // check reference
@@ -608,9 +608,9 @@ int getstate_solar_target (
 
     /* 
      * transform relative state and the differential rotation component to
-     * the inertial state. this procedure is a bit nasty, since HEEQ is not
+     * the inertial state. this procedure is a bit nasty. HEEQ is not
      * an inertial state such that velocity is not preserved in the
-     * transform. since the velocity of the target must be the same as that
+     * transform. because the velocity of the target must be the same as that
      * of the sun center in the interital system (without rotation), we just
      * set it to zero. the velocity of the diffrot vector is preserved, as
      * it's spatial coordinates are zero.
@@ -803,7 +803,7 @@ void timestr_now (char *buf)
 {
     time_t t = time (NULL);
     asctime_r (gmtime (&t), buf);
-    buf[strlen (buf) - 1] = '\0'; // who had the idea with the trailing \n?
+    buf[strlen (buf) - 1] = '\0'; /* who had the idea with the trailing \n? */
 }
 
 void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
@@ -821,8 +821,6 @@ void print_ephtable_head (FILE *stream, SpiceChar *observer, SpiceInt rotmodel)
 	     "Earth Mean Equator and Equinox of Epoch\n"
 	     "#  Abbr. Correction   : %s\n"
 	     , now, _version, tkvrsn_c ("toolkit"), ABCORR);
-
-    //double lon, lat, alt;
 
     /* FIXME: pass real ephemeris time to observer_on_earth, or find a
      * cleaner way in the first place */
@@ -930,12 +928,12 @@ void fancy_print_eph (FILE *stream, soleph_t *eph)
 	fprintf (stream,
 		 "Observer location............  %s "
 		 "(%3.5f N, %3.5f E, %.0f m)\n"
-		 //"Inertial reference frame.....  %s\n"
+		 /*"Inertial reference frame.....  %s\n" */
 		 "Terrestrial reference frame..  %s\n"
 		 ,
 		 eph->observer, lat * dpr_c(), lon * dpr_c(),
 		 alt * 1000.0,
-		 //"J2000, Earth mean equator & equinox of J2000.0",
+		 /* "J2000, Earth mean equator & equinox of J2000.0", */
 		 frname);
     else
 	fprintf (stream, "Observer location............  %s\n", eph->observer);
@@ -1051,7 +1049,7 @@ int handle_request (
 	}
 
 	if (fptr) {
-	    // reqnum expexted to start with 1
+	    /* reqnum expexted to start with 1 */
 	    write_fits_ephtable_row (fptr, ri, &eph, &fstatus);
 	    if (fstatus != 0) {
 		errmesg ("error wrting fitstable");
@@ -1108,7 +1106,7 @@ int mode_batch (
     {
 	char *tp = line;
 	int argc = 0;
-	if (*tp == '\n') break; // quit on empty input line
+	if (*tp == '\n') break; /* quit on empty input line */
 	while ( (tp = wordsep (tp, argv[argc++])) != 0) {
 	    if (argc > 5) {
 		errmesg ("Invalid request in input line %zu\n", lineno);
@@ -1124,10 +1122,8 @@ int mode_batch (
 	}
 	lineno++;
     }
-
     for (int i = 0; i < 6; ++i) free (argv[i]);
     free (argv);
-    
     
     if (*fitsf) {
     	fits_close_file (fptr, &status);
@@ -1236,7 +1232,7 @@ int write_fits_ephtable_row (
     char *modeldescr[] = {eph->modeldescr};
     EPHTABLE_ADDCELL (TSTRING, modeldescr);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->omega);
-    
+
     fits_write_col (fptr, TDOUBLE, col++, row, 1, 6, eph->state_sun, status);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->dist_sun);
     EPHTABLE_ADDCELL (TDOUBLE, &eph->vlos_sun);
@@ -1413,5 +1409,3 @@ void die (const char *mesg, ...)
     
     exit (EXIT_FAILURE);
 }
-
-
