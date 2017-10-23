@@ -5,7 +5,7 @@ KPL/FK
    This file was created by PINPOINT.
  
    PINPOINT Version 3.2.0 --- September 6, 2016
-   PINPOINT RUN DATE/TIME:    2017-05-23T17:06:23
+   PINPOINT RUN DATE/TIME:    2017-10-23T13:46:31
    PINPOINT DEFINITIONS FILE: stations.defs
    PINPOINT PCK FILE:         /home/doerr/local/share/solarv/kernels/pck00010.tpc
    PINPOINT SPK FILE:         kernels/stations.bsp
@@ -53,15 +53,15 @@ KPL/FK
       Topocentric frame VTT_TOPO is centered at the
       site VTT, which has Cartesian coordinates
  
-         X (km):                  0.5390236406562E+04
-         Y (km):                 -0.1597689356553E+04
-         Z (km):                  0.3007196324301E+04
+         X (km):                  0.5390264629397E+04
+         Y (km):                 -0.1597706830465E+04
+         Z (km):                  0.3007202236939E+04
  
       and planetodetic coordinates
  
-         Longitude (deg):       -16.5100510000000
-         Latitude  (deg):        28.3023900000000
-         Altitude   (km):         0.2413000000000E+01
+         Longitude (deg):       -16.5101400000000
+         Latitude  (deg):        28.3023000000000
+         Altitude   (km):         0.2444000000001E+01
  
       These planetodetic coordinates are expressed relative to
       a reference spheroid having the dimensions
@@ -86,8 +86,8 @@ KPL/FK
    TKFRAME_1399919_SPEC                =  'ANGLES'
    TKFRAME_1399919_UNITS               =  'DEGREES'
    TKFRAME_1399919_AXES                =  ( 3, 2, 3 )
-   TKFRAME_1399919_ANGLES              =  ( -343.4899490000000,
-                                             -61.6976100000000,
+   TKFRAME_1399919_ANGLES              =  ( -343.4898600000000,
+                                             -61.6977000000000,
                                              180.0000000000000 )
  
  
@@ -394,7 +394,7 @@ begintext
         station.
  
         Data sources
-          VTT:          google maps
+          VTT:          site survey with stationary GPS receiver
           SST:          wikipedia
           SCHAUINSLAND: google maps
           DST:          google maps, site-info
@@ -410,7 +410,7 @@ begindata
          VTT_CENTER = 399
          VTT_FRAME  = 'EARTH_FIXED'
          VTT_IDCODE = 399919
-         VTT_LATLON = ( 28.30239, -16.510051, 2.413 )
+         VTT_LATLON = ( 28.30230, -16.51014, 2.444 )
          VTT_UP     = 'Z'
          VTT_NORTH  = 'X'
  

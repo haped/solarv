@@ -8,7 +8,7 @@
         station.
 
         Data sources
-          VTT:          google maps
+          VTT:          site survey with stationary GPS receiver
           SST:          wikipedia
           SCHAUINSLAND: google maps
           DST:          google maps, site-info
@@ -24,7 +24,7 @@
          VTT_CENTER = 399
          VTT_FRAME  = 'EARTH_FIXED'
          VTT_IDCODE = 399919 
-         VTT_LATLON = ( 28.30239, -16.510051, 2.413 )
+         VTT_LATLON = ( 28.30230, -16.51014, 2.444 )
          VTT_UP     = 'Z'
          VTT_NORTH  = 'X'
 
