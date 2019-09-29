@@ -5,7 +5,7 @@ KPL/FK
    This file was created by PINPOINT.
  
    PINPOINT Version 3.2.0 --- September 6, 2016
-   PINPOINT RUN DATE/TIME:    2017-10-23T13:46:31
+   PINPOINT RUN DATE/TIME:    2019-08-22T12:03:11
    PINPOINT DEFINITIONS FILE: stations.defs
    PINPOINT PCK FILE:         /home/doerr/local/share/solarv/kernels/pck00010.tpc
    PINPOINT SPK FILE:         kernels/stations.bsp
@@ -38,6 +38,9 @@ KPL/FK
  
    NAIF_BODY_NAME                      += 'DKIST'
    NAIF_BODY_CODE                      += 399925
+ 
+   NAIF_BODY_NAME                      += 'IAG'
+   NAIF_BODY_CODE                      += 399926
  
 \begintext
  
@@ -378,6 +381,54 @@ KPL/FK
                                              -69.2932580000000,
                                              180.0000000000000 )
  
+ 
+\begintext
+ 
+   Topocentric frame IAG_TOPO
+ 
+      The Z axis of this frame points toward the zenith.
+      The X axis of this frame points North.
+ 
+      Topocentric frame IAG_TOPO is centered at the
+      site IAG, which has Cartesian coordinates
+ 
+         X (km):                  0.3906287529870E+04
+         Y (km):                  0.4921322780058E+04
+         Z (km):                  0.1094303601169E+04
+ 
+      and planetodetic coordinates
+ 
+         Longitude (deg):        51.5593000000000
+         Latitude  (deg):         9.9450000000000
+         Altitude   (km):         0.2700000000009E+00
+ 
+      These planetodetic coordinates are expressed relative to
+      a reference spheroid having the dimensions
+ 
+         Equatorial radius (km):  6.3781366000000E+03
+         Polar radius      (km):  6.3567519000000E+03
+ 
+      All of the above coordinates are relative to the frame EARTH_FIXED.
+ 
+ 
+\begindata
+ 
+   FRAME_IAG_TOPO                      =  1399926
+   FRAME_1399926_NAME                  =  'IAG_TOPO'
+   FRAME_1399926_CLASS                 =  4
+   FRAME_1399926_CLASS_ID              =  1399926
+   FRAME_1399926_CENTER                =  399926
+ 
+   OBJECT_399926_FRAME                 =  'IAG_TOPO'
+ 
+   TKFRAME_1399926_RELATIVE            =  'EARTH_FIXED'
+   TKFRAME_1399926_SPEC                =  'ANGLES'
+   TKFRAME_1399926_UNITS               =  'DEGREES'
+   TKFRAME_1399926_AXES                =  ( 3, 2, 3 )
+   TKFRAME_1399926_ANGLES              =  (  -51.5593000000000,
+                                             -80.0550000000000,
+                                             180.0000000000000 )
+ 
 \begintext
  
  
@@ -461,6 +512,14 @@ begindata
          DKIST_LATLON = ( 20.706742, -156.256076,  3.032)
          DKIST_UP     = 'Z'
          DKIST_NORTH  = 'X'
+ 
+         SITES      += 'IAG'
+         IAG_CENTER = 399
+         IAG_FRAME  = 'EARTH_FIXED'
+         IAG_IDCODE = 399926
+         IAG_LATLON = (9.94500, 51.55930, 0.270)
+         IAG_UP     = 'Z'
+         IAG_NORTH  = 'X'
  
  
 begintext

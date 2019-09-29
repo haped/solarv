@@ -7,6 +7,15 @@
         add the corresponding topographic reference frames for each
         station.
 
+	VTT: german vacuum tower telescope, tenerife
+	SST: swedis solar telescope, la palma
+	SCHAUINSLAND: old observatory of Kiepenheuer near Freiburg, Germany
+	DST: Dunn solar telescope, NM, USA
+	MCMATH: McMath Pierce solar facility, AZ, USA
+	DKIST: Maui, Hawaii, USA
+	GST: Goodie solar telescope, Big Bear Lake, CA, USA
+	IAG: Solar telscope of the Astronomical Institute, University of Goettingen, Germany
+
         Data sources
           VTT:          site survey with stationary GPS receiver
           SST:          wikipedia
@@ -14,9 +23,10 @@
           DST:          google maps, site-info
           MCMATH:       google maps, site-info
           DKIST:        google maps via wikipedia
-
-
-        Last change: 2017, HP Doerr <doerr@mps.mpg.de>
+	  GST:
+	  IAG:          google maps, altitude via gps
+	  
+        Last change: 2019, HP Doerr <doerr@mps.mpg.de>
 
 
 \begindata
@@ -60,13 +70,13 @@
          MCMATH_UP     = 'Z'
          MCMATH_NORTH  = 'X'
 
-         SITES      += 'BIGBEAR'
-         BIGBEAR_CENTER = 399
-         BIGBEAR_FRAME  = 'EARTH_FIXED'
-         BIGBEAR_IDCODE = 399924
-         BIGBEAR_LATLON = ( 34.258518, -116.92127,  2.043)
-         BIGBEAR_UP     = 'Z'
-         BIGBEAR_NORTH  = 'X'
+         SITES      += 'GST'
+         GST_CENTER = 399
+         GST_FRAME  = 'EARTH_FIXED'
+         GST_IDCODE = 399924
+         GST_LATLON = ( 34.258518, -116.92127,  2.043)
+         GST_UP     = 'Z'
+         GST_NORTH  = 'X'
 
          SITES      += 'DKIST'
          DKIST_CENTER = 399
@@ -75,6 +85,14 @@
          DKIST_LATLON = ( 20.706742, -156.256076,  3.032)
          DKIST_UP     = 'Z'
          DKIST_NORTH  = 'X'
+
+         SITES      += 'IAG'
+         IAG_CENTER = 399
+         IAG_FRAME  = 'EARTH_FIXED'
+         IAG_IDCODE = 399926
+         IAG_LATLON = (9.94500, 51.55930, 0.270)
+         IAG_UP     = 'Z'
+         IAG_NORTH  = 'X'
 
 
 \begintext

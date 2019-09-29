@@ -80,7 +80,7 @@ void usage (FILE *stream)
 	     "  -R radius     specifiy a different solar radius in km\n"
 	     "  -O observer   set observer position (any NAIF body code)\n"
 	     "                predefined sites: 'VTT', 'SCHAUINSLAND', 'SST',\n"
-	     "                'DST', 'MCMATH', 'BIGBEAR', 'DKIST'\n"
+	     "                'DST', 'MCMATH', 'BBSO', 'DKIST', 'IAG'.\n"
 	     "  -k kernel     load additional SPICE kernel 'kernel'\n"
 	     "                this kernel will be loaded last in kernel pool\n"
 	     "  -K kernel     load 'kernel' instead of default meta kernel\n"
@@ -613,7 +613,7 @@ int getstate_solar_target (
      * transform. because the velocity of the target must be the same as that
      * of the sun center in the interital system (without rotation), we just
      * set it to zero. the velocity of the diffrot vector is preserved, as
-     * it's spatial coordinates are zero.
+     * its spatial coordinates are zero.
     */
     SpiceDouble xform[6][6];
     sxform_c ("HEEQ", "J2000", et, xform);
