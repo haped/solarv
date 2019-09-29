@@ -8,12 +8,12 @@ die ()
     exit 1
 }
 
-kernels="http://naif.jpl.nasa.gov/pub/naif/generic_kernels/lsk/naif0011.tls 
-  http://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00010.tpc 
-  http://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de430.bsp
-  http://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/planets/earth_assoc_itrf93.tf
-  http://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/earth_latest_high_prec.bpc
-  http://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/earth_070425_370426_predict.bpc"
+kernels="https://naif.jpl.nasa.gov/pub/naif/generic_kernels/lsk/naif0012.tls 
+  https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00010.tpc 
+  https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de430.bsp
+  https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/planets/earth_assoc_itrf93.tf
+  https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/earth_latest_high_prec.bpc
+  https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/earth_070425_370426_predict.bpc"
 
 kern_tmp=kernels_tmp
 

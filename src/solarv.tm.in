@@ -1,8 +1,8 @@
 KPL/MK
 
     File:     solarv.tm
-    Author:   Hans-Peter Doerr (KIS)
-    Date:     2013-11-11
+    Author:   Hans-Peter Doerr (MPS, Goettingen, Germany)
+    Date:     2019-09-29
 
 
     Meta-kernel that loads the required spice kernels for the 'solarv'
@@ -17,7 +17,7 @@ KPL/MK
                         '$SYSKERN/earth_070425_370426_predict.bpc',
                         '$SYSKERN/earth_latest_high_prec.bpc', 
 			'$SYSKERN/pck00010.tpc',
-			'$SYSKERN/naif0011.tls',
+			'$SYSKERN/naif0012.tls',
 			'$SYSKERN/de430.bsp',
 			'$SYSKERN/heliospheric.tf',
 			'$SYSKERN/obscrtn.tf',
