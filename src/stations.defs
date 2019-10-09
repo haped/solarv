@@ -6,15 +6,15 @@
         We also specify the *_UP, NORTH parameters so that pinpoint can
         add the corresponding topographic reference frames for each
         station.
-
-	VTT: german vacuum tower telescope, tenerife
-	SST: swedis solar telescope, la palma
-	SCHAUINSLAND: old observatory of Kiepenheuer near Freiburg, Germany
-	DST: Dunn solar telescope, NM, USA
-	MCMATH: McMath Pierce solar facility, AZ, USA
-	DKIST: Maui, Hawaii, USA
-	GST: Goodie solar telescope, Big Bear Lake, CA, USA
-	IAG: Solar telscope of the Astronomical Institute, University of Goettingen, Germany
+        
+        VTT: german vacuum tower telescope, tenerife
+        SST: swedis solar telescope, la palma
+        SCHAUINSLAND: old observatory of Kiepenheuer near Freiburg, Germany
+        DST: Dunn solar telescope, NM, USA
+        MCMATH: McMath Pierce solar facility, AZ, USA
+        DKIST: Maui, Hawaii, USA
+        GST: Goode solar telescope, Big Bear Lake, CA, USA
+        IAG: Solar telscope of the Astronomical Institute, University of Goettingen, Germany
 
         Data sources
           VTT:          site survey with stationary GPS receiver
@@ -23,10 +23,9 @@
           DST:          google maps, site-info
           MCMATH:       google maps, site-info
           DKIST:        google maps via wikipedia
-	  GST:
-	  IAG:          google maps, altitude via gps
-	  
-        Last change: 2019, HP Doerr <doerr@mps.mpg.de>
+          IAG:          google maps, altitude via gps
+
+Last change: 2019, HP Doerr <doerr@mps.mpg.de>
 
 
 \begindata
@@ -90,7 +89,7 @@
          IAG_CENTER = 399
          IAG_FRAME  = 'EARTH_FIXED'
          IAG_IDCODE = 399926
-         IAG_LATLON = (9.94500, 51.55930, 0.270)
+         IAG_LATLON = (51.55930, 9.94500, 0.201)
          IAG_UP     = 'Z'
          IAG_NORTH  = 'X'
 

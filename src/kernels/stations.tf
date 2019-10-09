@@ -5,7 +5,7 @@ KPL/FK
    This file was created by PINPOINT.
  
    PINPOINT Version 3.2.0 --- September 6, 2016
-   PINPOINT RUN DATE/TIME:    2019-08-22T12:03:11
+   PINPOINT RUN DATE/TIME:    2020-02-13T17:37:17
    PINPOINT DEFINITIONS FILE: stations.defs
    PINPOINT PCK FILE:         /home/doerr/local/share/solarv/kernels/pck00010.tpc
    PINPOINT SPK FILE:         kernels/stations.bsp
@@ -33,7 +33,7 @@ KPL/FK
    NAIF_BODY_NAME                      += 'MCMATH'
    NAIF_BODY_CODE                      += 399923
  
-   NAIF_BODY_NAME                      += 'BIGBEAR'
+   NAIF_BODY_NAME                      += 'GST'
    NAIF_BODY_CODE                      += 399924
  
    NAIF_BODY_NAME                      += 'DKIST'
@@ -288,13 +288,13 @@ KPL/FK
  
 \begintext
  
-   Topocentric frame BIGBEAR_TOPO
+   Topocentric frame GST_TOPO
  
       The Z axis of this frame points toward the zenith.
       The X axis of this frame points North.
  
-      Topocentric frame BIGBEAR_TOPO is centered at the
-      site BIGBEAR, which has Cartesian coordinates
+      Topocentric frame GST_TOPO is centered at the
+      site GST, which has Cartesian coordinates
  
          X (km):                 -0.2390085850365E+04
          Y (km):                 -0.4706785166442E+04
@@ -317,13 +317,13 @@ KPL/FK
  
 \begindata
  
-   FRAME_BIGBEAR_TOPO                  =  1399924
-   FRAME_1399924_NAME                  =  'BIGBEAR_TOPO'
+   FRAME_GST_TOPO                      =  1399924
+   FRAME_1399924_NAME                  =  'GST_TOPO'
    FRAME_1399924_CLASS                 =  4
    FRAME_1399924_CLASS_ID              =  1399924
    FRAME_1399924_CENTER                =  399924
  
-   OBJECT_399924_FRAME                 =  'BIGBEAR_TOPO'
+   OBJECT_399924_FRAME                 =  'GST_TOPO'
  
    TKFRAME_1399924_RELATIVE            =  'EARTH_FIXED'
    TKFRAME_1399924_SPEC                =  'ANGLES'
@@ -392,15 +392,15 @@ KPL/FK
       Topocentric frame IAG_TOPO is centered at the
       site IAG, which has Cartesian coordinates
  
-         X (km):                  0.3906287529870E+04
-         Y (km):                  0.4921322780058E+04
-         Z (km):                  0.1094303601169E+04
+         X (km):                  0.3913900299936E+04
+         Y (km):                  0.6862529905339E+03
+         Z (km):                  0.4972624006388E+04
  
       and planetodetic coordinates
  
-         Longitude (deg):        51.5593000000000
-         Latitude  (deg):         9.9450000000000
-         Altitude   (km):         0.2700000000009E+00
+         Longitude (deg):         9.9450000000000
+         Latitude  (deg):        51.5593000000000
+         Altitude   (km):         0.2010000000009E+00
  
       These planetodetic coordinates are expressed relative to
       a reference spheroid having the dimensions
@@ -425,8 +425,8 @@ KPL/FK
    TKFRAME_1399926_SPEC                =  'ANGLES'
    TKFRAME_1399926_UNITS               =  'DEGREES'
    TKFRAME_1399926_AXES                =  ( 3, 2, 3 )
-   TKFRAME_1399926_ANGLES              =  (  -51.5593000000000,
-                                             -80.0550000000000,
+   TKFRAME_1399926_ANGLES              =  (   -9.9450000000000,
+                                             -38.4407000000000,
                                              180.0000000000000 )
  
 \begintext
@@ -444,6 +444,15 @@ begintext
         add the corresponding topographic reference frames for each
         station.
  
+        VTT: german vacuum tower telescope, tenerife
+        SST: swedis solar telescope, la palma
+        SCHAUINSLAND: old observatory of Kiepenheuer near Freiburg, Germany
+        DST: Dunn solar telescope, NM, USA
+        MCMATH: McMath Pierce solar facility, AZ, USA
+        DKIST: Maui, Hawaii, USA
+        GST: Goode solar telescope, Big Bear Lake, CA, USA
+        IAG: Solar telscope of the Astronomical Institute, University of Goettingen, Germany
+ 
         Data sources
           VTT:          site survey with stationary GPS receiver
           SST:          wikipedia
@@ -451,9 +460,9 @@ begintext
           DST:          google maps, site-info
           MCMATH:       google maps, site-info
           DKIST:        google maps via wikipedia
+          IAG:          google maps, altitude via gps
  
- 
-        Last change: 2017, HP Doerr <doerr@mps.mpg.de>
+Last change: 2019, HP Doerr <doerr@mps.mpg.de>
  
  
 begindata
@@ -497,13 +506,13 @@ begindata
          MCMATH_UP     = 'Z'
          MCMATH_NORTH  = 'X'
  
-         SITES      += 'BIGBEAR'
-         BIGBEAR_CENTER = 399
-         BIGBEAR_FRAME  = 'EARTH_FIXED'
-         BIGBEAR_IDCODE = 399924
-         BIGBEAR_LATLON = ( 34.258518, -116.92127,  2.043)
-         BIGBEAR_UP     = 'Z'
-         BIGBEAR_NORTH  = 'X'
+         SITES      += 'GST'
+         GST_CENTER = 399
+         GST_FRAME  = 'EARTH_FIXED'
+         GST_IDCODE = 399924
+         GST_LATLON = ( 34.258518, -116.92127,  2.043)
+         GST_UP     = 'Z'
+         GST_NORTH  = 'X'
  
          SITES      += 'DKIST'
          DKIST_CENTER = 399
@@ -517,7 +526,7 @@ begindata
          IAG_CENTER = 399
          IAG_FRAME  = 'EARTH_FIXED'
          IAG_IDCODE = 399926
-         IAG_LATLON = (9.94500, 51.55930, 0.270)
+         IAG_LATLON = (51.55930, 9.94500, 0.201)
          IAG_UP     = 'Z'
          IAG_NORTH  = 'X'
  
