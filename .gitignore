@@ -1,0 +1,7 @@
+.gitignore
+*.tar.bz2
+*.tgz
+src/kernels/solarv.tm
+*.o
+*.fits
+
