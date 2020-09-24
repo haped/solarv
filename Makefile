@@ -1,5 +1,8 @@
 all: none
+	make -C src
 
+clean: none
+	make clean -C src
 none:
 
 
