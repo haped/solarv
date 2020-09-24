@@ -78,27 +78,27 @@ If these steps ran without any errors, solarv should be ready to use. Check it b
 
     $  solarv -t -p 2016-01-01T12:00:00 hpc 0 0
     Date of observation..........  01 Jan 2016 12:00:00.00 UTC (JD 2457389.000000)
-    Observer location............  VTT (28.30239 N, -16.51005 E, 2413 m)
+    Observer location............  VTT (28.30230 N, -16.51014 E, 2444 m)
     Terrestrial reference frame..  ITRF93
     Solar reference radius.......  695508000 m
     Apparent angular radius......  975.2690 arcsec
-    Rotation model...............  fixed (no rotation, fixed to inertial frame)
+    Rotation model...............  fixed (no rotation w.r.t. interial frame)
     Sidereal rotation rate.......  0.0000 murad/s
     Position angle P.............  2.0880 deg
     Sub-observer Stonyhurst lat.. -3.0017 deg
     Sub-observer Stonyhurst lon..  0.0007 deg
     Sub-observer Carrington lon..  267.6156 deg
-    Solar center distance........  147097208053 m / 0.983284103 AU
-    Solar center radial velocity. -125.047 m/s
+    Solar center distance........  147097208030 m / 0.983284103 AU
+    Solar center radial velocity. -125.048 m/s
     Sun-Observer grav. redshift..  2.11231 ppm / 633.26 m/s
-    Target HPC coordinates....... -0.0000, 0.0000 arcsec
+    Target HPC coordinates.......  0.0000, -0.0000 arcsec
       Stonyhurst lon, lat........  0.0007, -3.0017 deg
       Impact parameter...........  0 m / 0.00 arcsec
       Heliocentric angle, mu.....  0.0000 deg, 1.0000
-      App. elevation, azimuth....  36.0186, 160.1700 deg
+      App. elevation, azimuth....  36.0186, 160.1698 deg
       Zenith distance, airmass...  53.9814 deg, 1.6959
-      Distance...................  146401700053 m
-      Radial velocity............ -125.047 m/s
+      Distance...................  146401700030 m
+      Radial velocity............ -125.048 m/s
 
 Updating the SPICE kernels
 --------------------------
