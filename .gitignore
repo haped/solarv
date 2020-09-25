@@ -2,6 +2,8 @@
 *.tar.bz2
 *.tgz
 src/kernels/solarv.tm
+src/solarv
+src/config.mk
 *.o
 *.fits
 

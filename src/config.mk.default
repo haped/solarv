@@ -1,9 +1,13 @@
+# if you have non-standard search paths for package configs, add them to
+# your PKG_CONFIG_PATH environment variable
+PKG_CONFIG      = /usr/bin/pkg-config
+
 ## CSPICE INSTALL DIR
-CSPICE_PATH = /usr/local/pkg/cspice
+CSPICE_PATH = $(HOME)/local/solarv/cspice
 ## where required SPICE kernels are
-KERNEL_PATH = /usr/local/share/solarv/kernels
+KERNEL_PATH = $(HOME)/local/solarv/kernels
 ## where to put the 'solarv' binary
-BINARY_PATH = /usr/local/bin
+BINARY_PATH = $(HOME)/local/bin
 ## the pinpoint utility is needed to update the 
 ## stations.bsp binary kernel
 PINPOINT = $(CSPICE_PATH)/exe/pinpoint
